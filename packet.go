@@ -4,6 +4,18 @@ import (
 	"encoding/json"
 )
 
+const (
+	PACKET_DISCONNECT = iota
+	PACKET_CONNECT
+	PACKET_HEARTBEAT
+	PACKET_MESSAGE
+	PACKET_JSONMESSAGE
+	PACKET_EVENT
+	PACKET_ACK
+	PACKET_ERROR
+	PACKET_NOOP
+)
+
 type MessageType uint8
 
 type argList []json.RawMessage
@@ -39,7 +51,7 @@ type connectPacket struct {
 }
 
 func (*connectPacket) Type() MessageType {
-	return 1
+	return PACKET_CONNECT
 }
 
 type messagePacket struct {
@@ -48,7 +60,7 @@ type messagePacket struct {
 }
 
 func (*messagePacket) Type() MessageType {
-	return 3
+	return PACKET_MESSAGE
 }
 
 type jsonPacket struct {
@@ -57,7 +69,7 @@ type jsonPacket struct {
 }
 
 func (*jsonPacket) Type() MessageType {
-	return 4
+	return PACKET_JSONMESSAGE
 }
 
 type eventPacket struct {
@@ -67,7 +79,7 @@ type eventPacket struct {
 }
 
 func (*eventPacket) Type() MessageType {
-	return 5
+	return PACKET_EVENT
 }
 
 type ackPacket struct {
@@ -77,7 +89,7 @@ type ackPacket struct {
 }
 
 func (*ackPacket) Type() MessageType {
-	return 6
+	return PACKET_ACK
 }
 
 type errorPacket struct {
@@ -87,5 +99,5 @@ type errorPacket struct {
 }
 
 func (*errorPacket) Type() MessageType {
-	return 7
+	return PACKET_ERROR
 }

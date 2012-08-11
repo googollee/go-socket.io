@@ -9,6 +9,7 @@ type Event struct {
 	Name string  `json:"name"`
 	Args argList `json:"args"`
 }
+
 type EventHandler func(event string, args []byte)
 
 type EventEmitter struct {
