@@ -71,6 +71,8 @@ func (ee *EventEmitter) RemoveAllListeners(name string) {
 }
 
 func (ee *EventEmitter) Listeners(name string) (handlers []EventHandler) {
+	ee.mutex.Lock()
+	defer ee.mutex.Unlock()
 	handlers = make([]EventHandler, len(ee.events[name])+len(ee.eventsOnce[name]))
 	copy(handlers[0:len(ee.events)], ee.events[name])
 	copy(handlers[len(ee.events):], ee.eventsOnce[name])
