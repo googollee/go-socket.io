@@ -10,7 +10,7 @@ type Event struct {
 	Args argList `json:"args"`
 }
 
-type EventHandler func(event string, args []byte)
+type EventHandler func(event *Event)
 
 type EventEmitter struct {
 	mutex      sync.Mutex
@@ -19,7 +19,7 @@ type EventEmitter struct {
 }
 
 func NewEventEmitter() *EventEmitter {
-	return &EventEmitter{events: make(map[string][]EventHandler)}
+	return &EventEmitter{events: map[string][]EventHandler{}}
 }
 
 func (ee *EventEmitter) On(name string, fn EventHandler) {
@@ -79,17 +79,17 @@ func (ee *EventEmitter) Listeners(name string) (handlers []EventHandler) {
 	return handlers
 }
 
-func (ee *EventEmitter) Emit(name string, args []byte) {
+func (ee *EventEmitter) Emit(ev *Event) {
 	ee.mutex.Lock()
-	for _, fn := range ee.events[name] {
-		go fn(name, args)
+	for _, fn := range ee.events[ev.Name] {
+		go fn(ev)
 	}
-	handlersOnce := ee.eventsOnce[name]
-	ee.eventsOnce[name] = nil
-	delete(ee.eventsOnce, name)
+	handlersOnce := ee.eventsOnce[ev.Name]
+	ee.eventsOnce[ev.Name] = nil
+	delete(ee.eventsOnce, ev.Name)
 	ee.mutex.Unlock()
 
 	for _, fn := range handlersOnce {
-		go fn(name, args)
+		go fn(ev)
 	}
 }

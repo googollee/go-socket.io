@@ -10,7 +10,7 @@ import (
 
 var (
 	packetSep    = []byte{0xff, 0xfd}
-	packetRegexp = regexp.MustCompile(`^([^:]+):([0-9]+)?(\+)?:([^:]+)?:?([\s\S]*)?$`)
+	packetRegexp = regexp.MustCompile(`^([^:]+):([0-9]+)?(\+)?:([^:]+)?:?(.*)?$`)
 )
 
 func encodePacket(packet Packet) (packetEncoded []byte, err error) {
