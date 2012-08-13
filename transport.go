@@ -8,8 +8,9 @@ import (
 type Transport interface {
 	Name() string
 	New(*Session) Transport
-	OnOpen(http.ResponseWriter, *http.Request)
 	OnData(http.ResponseWriter, *http.Request)
+	Send([]byte)
+	Close()
 }
 
 var (

@@ -4,6 +4,9 @@ import (
 	"testing"
 )
 
+type abc struct {
+}
+
 func TestEventEmitterEmit(t *testing.T) {
 	ee := NewEventEmitter()
 	c := make(chan int)

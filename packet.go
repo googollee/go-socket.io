@@ -18,7 +18,7 @@ const (
 
 type MessageType uint8
 
-type argList []json.RawMessage
+type argList json.RawMessage
 
 type Packet interface {
 	Id() int
@@ -45,6 +45,14 @@ func (p *packetCommon) Ack() bool {
 	return p.ack
 }
 
+type disconnectPacket struct {
+	*packetCommon
+}
+
+func (*disconnectPacket) Type() MessageType {
+	return PACKET_DISCONNECT
+}
+
 type connectPacket struct {
 	*packetCommon
 	query string
@@ -52,6 +60,19 @@ type connectPacket struct {
 
 func (*connectPacket) Type() MessageType {
 	return PACKET_CONNECT
+}
+
+type heartbeatPacket struct {
+	*packetCommon
+}
+
+func (*heartbeatPacket) Type() MessageType {
+	return PACKET_HEARTBEAT
+}
+
+type messageMix interface {
+	Packet
+	Data() []byte
 }
 
 type messagePacket struct {
@@ -63,6 +84,10 @@ func (*messagePacket) Type() MessageType {
 	return PACKET_MESSAGE
 }
 
+func (p *messagePacket) Data() []byte {
+	return p.data
+}
+
 type jsonPacket struct {
 	*packetCommon
 	data []byte
@@ -70,6 +95,10 @@ type jsonPacket struct {
 
 func (*jsonPacket) Type() MessageType {
 	return PACKET_JSONMESSAGE
+}
+
+func (p *jsonPacket) Data() []byte {
+	return p.data
 }
 
 type eventPacket struct {

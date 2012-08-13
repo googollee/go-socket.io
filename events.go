@@ -9,11 +9,6 @@ import (
 	"sync"
 )
 
-type Event struct {
-	Name string            `json:"name"`
-	Args []json.RawMessage `json:"args"`
-}
-
 type eventHandler struct {
 	fn   reflect.Value
 	args []reflect.Type

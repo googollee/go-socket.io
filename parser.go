@@ -13,7 +13,12 @@ var (
 	packetRegexp = regexp.MustCompile(`^([^:]+):([0-9]+)?(\+)?:([^:]+)?:?(.*)?$`)
 )
 
-func encodePacket(packet Packet) (packetEncoded []byte, err error) {
+type Event struct {
+	Name string  `json:"name"`
+	Args argList `json:"args"`
+}
+
+func encodePacket(packet Packet) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString(strconv.Itoa(int(packet.Type())))
 	buf.WriteByte(':')
@@ -34,9 +39,7 @@ func encodePacket(packet Packet) (packetEncoded []byte, err error) {
 		buf.WriteString(ackIdStr)
 		if p.args != nil {
 			buf.WriteByte('+')
-			for _, arg := range p.args {
-				buf.Write(arg)
-			}
+			buf.Write(p.args)
 		}
 	case *jsonPacket:
 		buf.Write(p.data)
@@ -44,9 +47,9 @@ func encodePacket(packet Packet) (packetEncoded []byte, err error) {
 		buf.Write(p.data)
 	case *eventPacket:
 		event := &Event{Name: p.name, Args: p.args}
-		err = enc.Encode(event)
+		err := enc.Encode(event)
 		if err != nil {
-			return
+			return nil
 		}
 	case *errorPacket:
 		buf.WriteString(p.reason)
@@ -54,11 +57,9 @@ func encodePacket(packet Packet) (packetEncoded []byte, err error) {
 			buf.WriteByte('+')
 			buf.WriteString(p.advice)
 		}
-	default:
-		return nil, errors.New("unsupported packet")
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes()
 }
 
 func encodePayload(payloads [][]byte) []byte {
@@ -99,6 +100,9 @@ func decodePacket(b []byte) (packet Packet, err error) {
 	data := pieces[5]
 	switch tid {
 	case 0: // disconnect
+		p := new(disconnectPacket)
+		p.packetCommon = common
+		packet = p
 	case 1: // connect
 		p := new(connectPacket)
 		p.packetCommon = common

@@ -27,13 +27,11 @@ func NewSessionID() string {
 }
 
 type Session struct {
-	mutex        sync.Mutex
-	server       *SocketIOServer
-	SessionId    string
-	nameSpaces   map[string]*NameSpace
-	transport    Transport
-	onConnect    func(*NameSpace)
-	onDisconnect func(*NameSpace)
+	mutex      sync.Mutex
+	server     *SocketIOServer
+	SessionId  string
+	nameSpaces map[string]*NameSpace
+	transport  Transport
 }
 
 func NewSession(server *SocketIOServer, sessionId string) *Session {
@@ -43,7 +41,7 @@ func NewSession(server *SocketIOServer, sessionId string) *Session {
 func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 	ss.mutex.Lock()
 	defer ss.mutex.Unlock()
-	if nameSpace, ok := ss.nameSpaces[name]; !ok {
+	if nameSpace = ss.nameSpaces[name]; nameSpace == nil {
 		nameSpace = NewNameSpace(ss, name)
 		ss.nameSpaces[name] = nameSpace
 	}
@@ -53,34 +51,25 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 func (ss *Session) serve(transportId string, w http.ResponseWriter, r *http.Request) {
 	if ss.transport == nil {
 		ss.transport = ss.server.transports.Get(transportId).New(ss)
-		ss.transport.OnOpen(w, r)
-		return
 	}
 	ss.transport.OnData(w, r)
 }
 
+func (ss *Session) onFrame(data []byte) {
+	packet, err := decodePacket(data)
+	if err != nil {
+		return
+	}
+	ss.onPacket(packet)
+}
+
 func (ss *Session) onPacket(packet Packet) {
-
-}
-
-func (ss *Session) onError(err error) {
-
-}
-
-func (ss *Session) connected(ns *NameSpace) {
-	ss.onConnect(ns)
-	ss.server.onConnect(ns)
-}
-
-func (ss *Session) disconnected(ns *NameSpace) {
-	ss.onDisconnect(ns)
-	ss.server.onDisconnect(ns)
-}
-
-func (ss *Session) OnConnect(fn func(*NameSpace)) {
-	ss.onConnect = fn
-}
-
-func (ss *Session) OnDisconnect(fn func(*NameSpace)) {
-	ss.onDisconnect = fn
+	switch p := packet.(type) {
+	case *disconnectPacket:
+	case *connectPacket:
+	case *messagePacket, *jsonPacket:
+		ss.Of(packet.EndPoint()).onMessagePacket(p.(messageMix))
+	case *eventPacket:
+		ss.Of(packet.EndPoint()).onEventPacket(p)
+	}
 }

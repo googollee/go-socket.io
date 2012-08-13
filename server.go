@@ -18,18 +18,18 @@ type Config struct {
 	ClosingTimeout   int
 	NewSessionID     func() string
 	Transports       *TransportManager
+	Authorize        func(*http.Request) bool
 }
 
 type SocketIOServer struct {
 	mutex            sync.RWMutex
 	heartbeatTimeout int
 	closingTimeout   int
-	onHandShake      func(*http.Request) error
+	authorize        func(*http.Request) bool
 	newSessionId     func() string
 	transports       *TransportManager
-	onConnect        func(*NameSpace)
-	onDisconnect     func(*NameSpace)
 	sessions         map[string]*Session
+	*EventEmitter
 }
 
 func NewSocketIOServer(config *Config) *SocketIOServer {
@@ -55,6 +55,7 @@ func NewSocketIOServer(config *Config) *SocketIOServer {
 		} else {
 			server.transports = DefaultTransports
 		}
+		server.authorize = config.Authorize
 	}
 	server.sessions = make(map[string]*Session)
 	return server
@@ -86,29 +87,10 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session.serve(transportId, w, r)
 }
 
-func (srv *SocketIOServer) addSession(ss *Session) {
-	srv.mutex.Lock()
-	defer srv.mutex.Unlock()
-	srv.sessions[ss.SessionId] = ss
-}
-
-func (srv *SocketIOServer) removeSession(ss *Session) {
-	srv.mutex.Lock()
-	defer srv.mutex.Unlock()
-	delete(srv.sessions, ss.SessionId)
-}
-
-func (srv *SocketIOServer) getSession(sessionId string) *Session {
-	srv.mutex.RLock()
-	defer srv.mutex.RUnlock()
-	return srv.sessions[sessionId]
-}
-
 func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
-	if srv.onHandShake != nil {
-		err := srv.onHandShake(r)
-		if err != nil {
-			http.Error(w, err.Error(), 401)
+	if srv.authorize != nil {
+		if ok := srv.authorize(r); !ok {
+			http.Error(w, "", 401)
 			return
 		}
 	}
@@ -125,19 +107,23 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		strings.Join(transportNames, ":"))
 	session := NewSession(srv, sessionId)
 	srv.addSession(session)
-	if srv.onConnect != nil {
-		srv.onConnect(session.Of(""))
-	}
+	srv.emit("connect", nil, session.Of(""))
 }
 
-func (srv *SocketIOServer) OnConnect(fn func(*NameSpace)) {
-	srv.onConnect = fn
+func (srv *SocketIOServer) addSession(ss *Session) {
+	srv.mutex.Lock()
+	defer srv.mutex.Unlock()
+	srv.sessions[ss.SessionId] = ss
 }
 
-func (srv *SocketIOServer) OnDisconnect(fn func(*NameSpace)) {
-	srv.onDisconnect = fn
+func (srv *SocketIOServer) removeSession(ss *Session) {
+	srv.mutex.Lock()
+	defer srv.mutex.Unlock()
+	delete(srv.sessions, ss.SessionId)
 }
 
-func (srv *SocketIOServer) OnHandShake(fn func(*http.Request) error) {
-	srv.onHandShake = fn
+func (srv *SocketIOServer) getSession(sessionId string) *Session {
+	srv.mutex.RLock()
+	defer srv.mutex.RUnlock()
+	return srv.sessions[sessionId]
 }
