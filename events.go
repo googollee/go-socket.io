@@ -64,12 +64,6 @@ func genEventHandler(fn interface{}) (handler *eventHandler, err error) {
 		handler.args[0] = t
 	}
 	for i := 1; i < nArgs; i++ {
-		/*
-			if t.Kind() != reflect.Ptr {
-				err = errors.New("function argument should be of type pointer")
-				return
-			}
-		*/
 		handler.args[i] = fnType.In(i)
 	}
 	eventHandlerCache.Lock()
@@ -157,27 +151,29 @@ func (ee *EventEmitter) emit(name string, callback func([]interface{}), args ...
 	}
 }
 
-func (ee *EventEmitter) emitRaw(name string, callback func([]interface{}), data []byte) {
+func (ee *EventEmitter) emitRaw(name string, callback func([]interface{}), data []byte) error {
 	handlers := ee.fetchHandlers(name)
-	for _, handler := range handlers {
+	var callArgs []reflect.Value
+	if len(handlers) != 0 {
+		handler := handlers[0]
 		args := make([]interface{}, len(handler.args)-1)
 		for i, arg := range handler.args[1:] {
 			args[i] = reflect.New(arg).Interface()
 		}
 		err := json.Unmarshal(data, &args)
 		if err != nil {
-			log.Println(err)
-			continue
+			return err
 		}
-		callArgs := make([]reflect.Value, len(args)+1)
+		callArgs = make([]reflect.Value, len(args)+1)
 		callArgs[0] = reflect.ValueOf(name)
 		for i, arg := range args {
 			callArgs[i+1] = reflect.ValueOf(arg).Elem()
 		}
-		for _, handler := range handlers {
-			go safeCall(handler.fn, callArgs, callback)
-		}
 	}
+	for _, handler := range handlers {
+		go safeCall(handler.fn, callArgs, callback)
+	}
+	return nil
 }
 
 func safeCall(fn reflect.Value, args []reflect.Value, callback func([]interface{})) {
