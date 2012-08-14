@@ -22,9 +22,11 @@ func encodePacket(packet Packet) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString(strconv.Itoa(int(packet.Type())))
 	buf.WriteByte(':')
-	buf.WriteString(strconv.Itoa(packet.Id()))
-	if packet.Ack() {
-		buf.WriteByte('+')
+	if packet.Id() != 0 {
+		buf.WriteString(strconv.Itoa(packet.Id()))
+		if packet.Ack() {
+			buf.WriteByte('+')
+		}
 	}
 	buf.WriteByte(':')
 	buf.WriteString(packet.EndPoint())
@@ -86,7 +88,7 @@ func decodePacket(b []byte) (packet Packet, err error) {
 	if err != nil {
 		return
 	}
-	common := new(packetCommon)
+	common := packetCommon{}
 	if len(pieces[2]) == 0 {
 		common.id = -1
 	} else {

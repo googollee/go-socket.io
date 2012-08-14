@@ -37,13 +37,15 @@ func (ws *webSocket) webSocketHandler(conn *websocket.Conn) {
 	ws.conn = conn
 	ws.isOpen = true
 	ws.mutex.Unlock()
+	ws.session.onOpen()
 	for {
-		var data []byte
+		var data string
 		err := websocket.Message.Receive(conn, &data)
 		if err != nil {
 			ws.Close()
+			return
 		}
-		ws.session.onFrame(data)
+		ws.session.onFrame([]byte(data))
 	}
 }
 
@@ -51,16 +53,20 @@ func (ws *webSocket) OnData(w http.ResponseWriter, r *http.Request) {
 	webSocketHandler := func(conn *websocket.Conn) {
 		ws.webSocketHandler(conn)
 	}
-	go websocket.Handler(webSocketHandler).ServeHTTP(w, r)
+	websocket.Handler(webSocketHandler).ServeHTTP(w, r)
 }
 
 func (ws *webSocket) Send(data []byte) {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
-	websocket.Message.Send(ws.conn, data)
+	websocket.Message.Send(ws.conn, string(data))
 }
 
 func (ws *webSocket) Close() {
 	ws.isOpen = false
 	ws.conn.Close()
+}
+
+func (ws *webSocket) HeartbeatSupport() bool {
+	return true
 }

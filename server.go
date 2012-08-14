@@ -2,7 +2,6 @@ package socketio
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -10,7 +9,7 @@ import (
 )
 
 var (
-	uriRegexp = regexp.MustCompile(`^(.+?)/(1)(?:(/[^/]+)(/[^/]+))?/?$`)
+	uriRegexp = regexp.MustCompile(`^(.+?)/(1)(?:/([^/]+)/([^/]+))?/?$`)
 )
 
 type Config struct {
@@ -35,28 +34,25 @@ type SocketIOServer struct {
 func NewSocketIOServer(config *Config) *SocketIOServer {
 	server := new(SocketIOServer)
 	if config != nil {
-		if config.HeartbeatTimeout != 0 {
-			server.heartbeatTimeout = config.HeartbeatTimeout
-		} else {
-			server.heartbeatTimeout = 15
-		}
-		if config.ClosingTimeout != 0 {
-			server.closingTimeout = config.ClosingTimeout
-		} else {
-			server.closingTimeout = 10
-		}
-		if config.NewSessionID != nil {
-			server.newSessionId = config.NewSessionID
-		} else {
-			server.newSessionId = NewSessionID
-		}
-		if config.Transports != nil {
-			server.transports = config.Transports
-		} else {
-			server.transports = DefaultTransports
-		}
+		server.heartbeatTimeout = config.HeartbeatTimeout
+		server.closingTimeout = config.ClosingTimeout
+		server.newSessionId = config.NewSessionID
+		server.transports = config.Transports
 		server.authorize = config.Authorize
 	}
+	if server.heartbeatTimeout == 0 {
+		server.heartbeatTimeout = 15000
+	}
+	if server.closingTimeout == 0 {
+		server.closingTimeout = 10000
+	}
+	if server.newSessionId == nil {
+		server.newSessionId = NewSessionID
+	}
+	if server.transports == nil {
+		server.transports = DefaultTransports
+	}
+	server.EventEmitter = NewEventEmitter()
 	server.sessions = make(map[string]*Session)
 	return server
 }
@@ -65,10 +61,12 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	pieces := uriRegexp.FindStringSubmatch(path)
 	if pieces == nil {
-		log.Printf("invalid uri: %s", r.URL)
+		w.WriteHeader(404)
+		fmt.Fprintln(w, "invalid uri: %s", r.URL)
+		return
 	}
-	transportId := pieces[2]
-	sessionId := pieces[3]
+	transportId := pieces[3]
+	sessionId := pieces[4]
 	// connect
 	if transportId == "" { // imply session==""
 		srv.handShake(w, r)
@@ -76,7 +74,7 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// open
 	if srv.transports.Get(transportId) == nil {
-		http.Error(w, "transport unsupported", 400)
+		http.Error(w, "transport not supported", 400)
 		return
 	}
 	session := srv.getSession(sessionId)
@@ -87,6 +85,7 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session.serve(transportId, w, r)
 }
 
+// authorize origin!!
 func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	if srv.authorize != nil {
 		if ok := srv.authorize(r); !ok {
@@ -94,6 +93,9 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("origin"))
+	w.Header().Set("Access-Control-Allow-Methods", "GET")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	sessionId := NewSessionID()
 	if sessionId == "" {
 		http.Error(w, "", 503)
@@ -104,7 +106,7 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		sessionId,
 		srv.heartbeatTimeout,
 		srv.closingTimeout,
-		strings.Join(transportNames, ":"))
+		strings.Join(transportNames, ","))
 	session := NewSession(srv, sessionId)
 	srv.addSession(session)
 	srv.emit("connect", nil, session.Of(""))
@@ -126,4 +128,8 @@ func (srv *SocketIOServer) getSession(sessionId string) *Session {
 	srv.mutex.RLock()
 	defer srv.mutex.RUnlock()
 	return srv.sessions[sessionId]
+}
+
+func (srv *SocketIOServer) heartbeat() {
+
 }

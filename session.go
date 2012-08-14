@@ -32,6 +32,7 @@ type Session struct {
 	SessionId  string
 	nameSpaces map[string]*NameSpace
 	transport  Transport
+	isConnect  bool
 }
 
 func NewSession(server *SocketIOServer, sessionId string) *Session {
@@ -67,9 +68,43 @@ func (ss *Session) onPacket(packet Packet) {
 	switch p := packet.(type) {
 	case *disconnectPacket:
 	case *connectPacket:
+		ss.Of(packet.EndPoint()).onConnect()
 	case *messagePacket, *jsonPacket:
 		ss.Of(packet.EndPoint()).onMessagePacket(p.(messageMix))
 	case *eventPacket:
 		ss.Of(packet.EndPoint()).onEventPacket(p)
 	}
+}
+
+func (ss *Session) onOpen() {
+	if !ss.isConnect {
+		packet := new(connectPacket)
+		ss.Of("").sendPacket(packet)
+	}
+	ss.isConnect = true
+}
+
+// shortcut for Of("").(x)
+func (ss *Session) On(name string, fn interface{}) error {
+	return ss.Of("").On(name, fn)
+}
+
+func (ss *Session) RemoveListener(name string, fn interface{}) {
+	ss.Of("").RemoveListener(name, fn)
+}
+
+func (ss *Session) Once(name string, fn interface{}) error {
+	return ss.Of("").Once(name, fn)
+}
+
+func (ss *Session) RemoveAllListeners(name string) {
+	ss.Of("").RemoveAllListeners(name)
+}
+
+func (ss *Session) emit(name string, callback func([]interface{}), args ...interface{}) {
+	ss.Of("").emit(name, callback, args...)
+}
+
+func (ss *Session) emitRaw(name string, callback func([]interface{}), data []byte) error {
+	return ss.Of("").emitRaw(name, callback, data)
 }

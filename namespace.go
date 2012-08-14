@@ -85,3 +85,11 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 func (ns *NameSpace) sendPacket(packet Packet) {
 	ns.session.transport.Send(encodePacket(packet))
 }
+
+func (ns *NameSpace) onConnect() {
+	ns.emit("connect", nil, ns)
+}
+
+func (ns *NameSpace) onDisconnect() {
+	ns.emit("disconnect", nil, ns)
+}

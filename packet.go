@@ -46,7 +46,7 @@ func (p *packetCommon) Ack() bool {
 }
 
 type disconnectPacket struct {
-	*packetCommon
+	packetCommon
 }
 
 func (*disconnectPacket) Type() MessageType {
@@ -54,7 +54,7 @@ func (*disconnectPacket) Type() MessageType {
 }
 
 type connectPacket struct {
-	*packetCommon
+	packetCommon
 	query string
 }
 
@@ -63,7 +63,7 @@ func (*connectPacket) Type() MessageType {
 }
 
 type heartbeatPacket struct {
-	*packetCommon
+	packetCommon
 }
 
 func (*heartbeatPacket) Type() MessageType {
@@ -76,7 +76,7 @@ type messageMix interface {
 }
 
 type messagePacket struct {
-	*packetCommon
+	packetCommon
 	data []byte
 }
 
@@ -89,7 +89,7 @@ func (p *messagePacket) Data() []byte {
 }
 
 type jsonPacket struct {
-	*packetCommon
+	packetCommon
 	data []byte
 }
 
@@ -102,7 +102,7 @@ func (p *jsonPacket) Data() []byte {
 }
 
 type eventPacket struct {
-	*packetCommon
+	packetCommon
 	name string
 	args argList
 }
@@ -112,7 +112,7 @@ func (*eventPacket) Type() MessageType {
 }
 
 type ackPacket struct {
-	*packetCommon
+	packetCommon
 	ackId int
 	args  argList
 }
@@ -122,7 +122,7 @@ func (*ackPacket) Type() MessageType {
 }
 
 type errorPacket struct {
-	*packetCommon
+	packetCommon
 	reason string
 	advice string
 }

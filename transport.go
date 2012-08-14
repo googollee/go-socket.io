@@ -11,6 +11,7 @@ type Transport interface {
 	OnData(http.ResponseWriter, *http.Request)
 	Send([]byte)
 	Close()
+	HeartbeatSupport() bool
 }
 
 var (
@@ -25,6 +26,7 @@ type TransportManager struct {
 func NewTransportManager() *TransportManager {
 	return &TransportManager{transports: make(map[string]Transport)}
 }
+
 func (tm *TransportManager) RegisterTransport(transport Transport) {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
