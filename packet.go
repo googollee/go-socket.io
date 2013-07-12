@@ -18,8 +18,6 @@ const (
 
 type MessageType uint8
 
-type argList json.RawMessage
-
 type Packet interface {
 	Id() int
 	Type() MessageType
@@ -104,7 +102,7 @@ func (p *jsonPacket) Data() []byte {
 type eventPacket struct {
 	packetCommon
 	name string
-	args argList
+	args json.RawMessage
 }
 
 func (*eventPacket) Type() MessageType {
@@ -114,7 +112,7 @@ func (*eventPacket) Type() MessageType {
 type ackPacket struct {
 	packetCommon
 	ackId int
-	args  argList
+	args  json.RawMessage
 }
 
 func (*ackPacket) Type() MessageType {

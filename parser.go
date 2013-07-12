@@ -14,8 +14,8 @@ var (
 )
 
 type Event struct {
-	Name string  `json:"name"`
-	Args argList `json:"args"`
+	Name string          `json:"name"`
+	Args json.RawMessage `json:"args"`
 }
 
 func encodePacket(packet Packet) []byte {
@@ -132,12 +132,12 @@ func decodePacket(b []byte) (packet Packet, err error) {
 		p.name = event.Name
 		p.args = event.Args
 		packet = p
-	case 6: // ack		
+	case 6: // ack
 		p := new(ackPacket)
 		p.packetCommon = common
 		pos := bytes.Index(data, []byte{'+'})
 		var ackId int
-		var args argList
+		var args json.RawMessage
 		if pos < 0 {
 			ackId, err = strconv.Atoi(string(data))
 			if err != nil {
@@ -156,7 +156,7 @@ func decodePacket(b []byte) (packet Packet, err error) {
 		p.ackId = ackId
 		p.args = args
 		packet = p
-	case 7: //error		
+	case 7: //error
 		p := new(errorPacket)
 		p.packetCommon = common
 		pos := bytes.Index(data, []byte{'+'})
