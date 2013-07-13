@@ -13,9 +13,9 @@ const (
 )
 
 type Session struct {
-	mutex      sync.Mutex
-	server     *SocketIOServer
 	SessionId  string
+	mutex      sync.Mutex
+	emitters   map[string]*EventEmitter
 	nameSpaces map[string]*NameSpace
 	transport  Transport
 	isConnect  bool
@@ -35,15 +35,19 @@ func NewSessionID() string {
 	return string(b)
 }
 
-func NewSession(server *SocketIOServer, sessionId string) *Session {
-	return &Session{server: server, SessionId: sessionId, nameSpaces: make(map[string]*NameSpace)}
+func NewSession(emitters map[string]*EventEmitter, sessionId string) *Session {
+	return &Session{
+		emitters:   emitters,
+		SessionId:  sessionId,
+		nameSpaces: make(map[string]*NameSpace),
+	}
 }
 
 func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 	ss.mutex.Lock()
 	defer ss.mutex.Unlock()
 	if nameSpace = ss.nameSpaces[name]; nameSpace == nil {
-		ee := ss.server.eventEmitters[name]
+		ee := ss.emitters[name]
 		if ee == nil {
 			ee = NewEventEmitter()
 		}
@@ -54,9 +58,6 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 }
 
 func (ss *Session) serve(transportId string, w http.ResponseWriter, r *http.Request) {
-	if ss.transport == nil {
-		ss.transport = ss.server.transports.Get(transportId).New(ss)
-	}
 	ss.transport.OnData(w, r)
 }
 

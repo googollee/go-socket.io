@@ -73,7 +73,8 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// open
-	if srv.transports.Get(transportId) == nil {
+	transport := srv.transports.Get(transportId)
+	if transport == nil {
 		http.Error(w, "transport not supported", 400)
 		return
 	}
@@ -82,6 +83,9 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid session id", 400)
 		return
 	}
+	defer srv.removeSession(session)
+
+	session.transport = transport.New(session, srv.heartbeatTimeout)
 	ns := session.Of("")
 	ns.emit("connect", ns, nil)
 	session.serve(transportId, w, r)
@@ -130,7 +134,7 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		srv.heartbeatTimeout,
 		srv.closingTimeout,
 		strings.Join(transportNames, ","))
-	session := NewSession(srv, sessionId)
+	session := NewSession(srv.eventEmitters, sessionId)
 	srv.addSession(session)
 }
 

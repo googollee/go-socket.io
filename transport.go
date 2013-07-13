@@ -7,7 +7,7 @@ import (
 
 type Transport interface {
 	Name() string
-	New(*Session) Transport
+	New(session *Session, heartbeatTimeout int) Transport
 	OnData(http.ResponseWriter, *http.Request)
 	Send([]byte) error
 	Close()

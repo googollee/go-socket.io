@@ -36,7 +36,7 @@ func (ns *NameSpace) Endpoint() string {
 	return ns.endpoint
 }
 
-func (ns *NameSpace) Call(name string, reply []interface{}, args ...interface{}) error {
+func (ns *NameSpace) Call(name string, timeout int, reply []interface{}, args ...interface{}) error {
 	var c chan []byte
 
 	pack := new(eventPacket)
@@ -71,7 +71,7 @@ func (ns *NameSpace) Call(name string, reply []interface{}, args ...interface{})
 			if err != nil {
 				return err
 			}
-		case <-time.After(time.Duration(ns.session.server.heartbeatTimeout) * time.Second):
+		case <-time.After(time.Duration(timeout) * time.Second):
 			return errors.New("time out")
 		}
 	}

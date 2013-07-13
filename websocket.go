@@ -27,9 +27,9 @@ func (ws *webSocket) Name() string {
 	return "websocket"
 }
 
-func (ws *webSocket) New(session *Session) Transport {
+func (ws *webSocket) New(session *Session, heartbeatTimeout int) Transport {
 	ret := &webSocket{session: session}
-	ret.heartBeat = time.Duration(session.server.heartbeatTimeout) * time.Second / 2
+	ret.heartBeat = time.Duration(heartbeatTimeout) * time.Second / 2
 	return ret
 }
 
