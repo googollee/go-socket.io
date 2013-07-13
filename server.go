@@ -65,6 +65,14 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "invalid uri: %s", r.URL)
 		return
 	}
+
+	transportId := pieces[3]
+	// connect
+	if transportId == "" { // imply session==""
+		srv.handShake(w, r)
+		return
+	}
+
 	sessionId := pieces[4]
 	session := srv.getSession(sessionId)
 	if session == nil {
@@ -73,12 +81,6 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer srv.removeSession(session)
 
-	transportId := pieces[3]
-	// connect
-	if transportId == "" { // imply session==""
-		srv.handShake(w, r)
-		return
-	}
 	// open
 	transport := srv.transports.Get(transportId, session, srv.heartbeatTimeout)
 	if transport == nil {
