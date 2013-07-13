@@ -84,6 +84,7 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid session id", 400)
 		return
 	}
+	srv.emit("connect", session.Of(""), nil)
 	session.serve(transportId, w, r)
 }
 
@@ -120,7 +121,6 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		strings.Join(transportNames, ","))
 	session := NewSession(srv, sessionId)
 	srv.addSession(session)
-	srv.emit("connect", session.Of(""), nil)
 }
 
 func (srv *SocketIOServer) addSession(ss *Session) {

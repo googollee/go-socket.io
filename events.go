@@ -149,7 +149,7 @@ func safeCall(fn reflect.Value, args []reflect.Value, callback func([]interface{
 		}
 	}()
 	ret := fn.Call(args)
-	if ret != nil {
+	if len(ret) > 0 {
 		retArgs := make([]interface{}, len(ret))
 		for i, arg := range ret {
 			retArgs[i] = arg.Interface()
