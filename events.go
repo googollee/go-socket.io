@@ -51,8 +51,8 @@ func genEventHandler(fn interface{}) (handler *eventHandler, err error) {
 		err = errors.New("no arg exists")
 		return
 	}
-	if t := fnType.In(0); t.Kind() != reflect.String {
-		err = errors.New("first argument should be of type string")
+	if t := fnType.In(0); t.Kind() != reflect.Ptr || t.Elem().Name() != "NameSpace" {
+		err = errors.New("first argument should be of type *NameSpace")
 		return
 	} else {
 		handler.args[0] = t
@@ -105,10 +105,10 @@ func (ee *EventEmitter) fetchHandlers(name string) (handlers []*eventHandler) {
 	return
 }
 
-func (ee *EventEmitter) emit(name string, callback func([]interface{}), args ...interface{}) {
+func (ee *EventEmitter) emit(name string, ns *NameSpace, callback func([]interface{}), args ...interface{}) {
 	handlers := ee.fetchHandlers(name)
 	callArgs := make([]reflect.Value, len(args)+1)
-	callArgs[0] = reflect.ValueOf(name)
+	callArgs[0] = reflect.ValueOf(ns)
 	for i, arg := range args {
 		callArgs[i+1] = reflect.ValueOf(arg)
 	}
@@ -117,7 +117,7 @@ func (ee *EventEmitter) emit(name string, callback func([]interface{}), args ...
 	}
 }
 
-func (ee *EventEmitter) emitRaw(name string, callback func([]interface{}), data []byte) error {
+func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]interface{}), data []byte) error {
 	handlers := ee.fetchHandlers(name)
 	var callArgs []reflect.Value
 	if len(handlers) != 0 {
@@ -131,7 +131,7 @@ func (ee *EventEmitter) emitRaw(name string, callback func([]interface{}), data 
 			return err
 		}
 		callArgs = make([]reflect.Value, len(args)+1)
-		callArgs[0] = reflect.ValueOf(name)
+		callArgs[0] = reflect.ValueOf(ns)
 		for i, arg := range args {
 			callArgs[i+1] = reflect.ValueOf(arg).Elem()
 		}

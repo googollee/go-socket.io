@@ -28,6 +28,7 @@ type SocketIOServer struct {
 	newSessionId     func() string
 	transports       *TransportManager
 	sessions         map[string]*Session
+	eventEmitters    map[string]*EventEmitter
 	*EventEmitter
 }
 
@@ -54,6 +55,7 @@ func NewSocketIOServer(config *Config) *SocketIOServer {
 	}
 	server.EventEmitter = NewEventEmitter()
 	server.sessions = make(map[string]*Session)
+	server.eventEmitters = make(map[string]*EventEmitter)
 	return server
 }
 
@@ -85,6 +87,15 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session.serve(transportId, w, r)
 }
 
+func (srv *SocketIOServer) Of(name string) *EventEmitter {
+	ret, ok := srv.eventEmitters[name]
+	if !ok {
+		ret = NewEventEmitter()
+		srv.eventEmitters[name] = ret
+	}
+	return ret
+}
+
 // authorize origin!!
 func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	if srv.authorize != nil {
@@ -109,7 +120,7 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		strings.Join(transportNames, ","))
 	session := NewSession(srv, sessionId)
 	srv.addSession(session)
-	srv.emit("connect", nil, session.Of(""))
+	srv.emit("connect", session.Of(""), nil)
 }
 
 func (srv *SocketIOServer) addSession(ss *Session) {

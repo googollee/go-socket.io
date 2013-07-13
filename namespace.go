@@ -14,8 +14,12 @@ type NameSpace struct {
 	acks       map[int]func([]byte)
 }
 
-func NewNameSpace(session *Session, name string) *NameSpace {
-	return &NameSpace{session: session, Name: name, EventEmitter: NewEventEmitter()}
+func NewNameSpace(session *Session, name string, ee *EventEmitter) *NameSpace {
+	ret := &NameSpace{session: session, Name: name, EventEmitter: ee}
+	if ret.EventEmitter == nil {
+		ret.EventEmitter = NewEventEmitter()
+	}
+	return ret
 }
 
 func (ns *NameSpace) Of(name string) *NameSpace {
@@ -79,7 +83,7 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 		ack.endPoint = ns.Name
 		ns.sendPacket(ack)
 	}
-	ns.emitRaw(packet.name, callback, packet.args)
+	ns.emitRaw(packet.name, ns, callback, packet.args)
 }
 
 func (ns *NameSpace) sendPacket(packet Packet) {
@@ -87,9 +91,9 @@ func (ns *NameSpace) sendPacket(packet Packet) {
 }
 
 func (ns *NameSpace) onConnect() {
-	ns.emit("connect", nil, ns)
+	ns.emit("connect", ns, nil)
 }
 
 func (ns *NameSpace) onDisconnect() {
-	ns.emit("disconnect", nil, ns)
+	ns.emit("disconnect", ns, nil)
 }

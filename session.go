@@ -43,7 +43,11 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 	ss.mutex.Lock()
 	defer ss.mutex.Unlock()
 	if nameSpace = ss.nameSpaces[name]; nameSpace == nil {
-		nameSpace = NewNameSpace(ss, name)
+		ee := ss.server.EventEmitter
+		if name != "" {
+			ee = ss.server.eventEmitters[name]
+		}
+		nameSpace = NewNameSpace(ss, name, ee)
 		ss.nameSpaces[name] = nameSpace
 	}
 	return
@@ -98,9 +102,11 @@ func (ss *Session) RemoveAllListeners(name string) {
 }
 
 func (ss *Session) emit(name string, callback func([]interface{}), args ...interface{}) {
-	ss.Of("").emit(name, callback, args...)
+	ns := ss.Of("")
+	ns.emit(name, ns, callback, args...)
 }
 
 func (ss *Session) emitRaw(name string, callback func([]interface{}), data []byte) error {
-	return ss.Of("").emitRaw(name, callback, data)
+	ns := ss.Of("")
+	return ns.emitRaw(name, ns, callback, data)
 }
