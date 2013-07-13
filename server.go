@@ -65,19 +65,7 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "invalid uri: %s", r.URL)
 		return
 	}
-	transportId := pieces[3]
 	sessionId := pieces[4]
-	// connect
-	if transportId == "" { // imply session==""
-		srv.handShake(w, r)
-		return
-	}
-	// open
-	transport := srv.transports.Get(transportId)
-	if transport == nil {
-		http.Error(w, "transport not supported", 400)
-		return
-	}
 	session := srv.getSession(sessionId)
 	if session == nil {
 		http.Error(w, "invalid session id", 400)
@@ -85,7 +73,20 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer srv.removeSession(session)
 
-	session.transport = transport.New(session, srv.heartbeatTimeout)
+	transportId := pieces[3]
+	// connect
+	if transportId == "" { // imply session==""
+		srv.handShake(w, r)
+		return
+	}
+	// open
+	transport := srv.transports.Get(transportId, session, srv.heartbeatTimeout)
+	if transport == nil {
+		http.Error(w, "transport not supported", 400)
+		return
+	}
+
+	session.transport = transport
 	ns := session.Of("")
 	ns.emit("connect", ns, nil)
 

@@ -7,11 +7,12 @@ import (
 
 type Transport interface {
 	Name() string
-	New(session *Session, heartbeatTimeout int) Transport
 	OnData(http.ResponseWriter, *http.Request)
 	Send([]byte) error
 	Close()
 }
+
+type newTransportFunc func(session *Session, heartbeatTimeout int) Transport
 
 var (
 	DefaultTransports = NewTransportManager()
@@ -19,17 +20,17 @@ var (
 
 type TransportManager struct {
 	mutex      sync.RWMutex
-	transports map[string]Transport
+	transports map[string]newTransportFunc
 }
 
 func NewTransportManager() *TransportManager {
-	return &TransportManager{transports: make(map[string]Transport)}
+	return &TransportManager{transports: make(map[string]newTransportFunc)}
 }
 
-func (tm *TransportManager) RegisterTransport(transport Transport) {
+func (tm *TransportManager) RegisterTransport(name string, f newTransportFunc) {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
-	tm.transports[transport.Name()] = transport
+	tm.transports[name] = f
 }
 
 func (tm *TransportManager) GetTransportNames() (names []string) {
@@ -42,8 +43,12 @@ func (tm *TransportManager) GetTransportNames() (names []string) {
 	return
 }
 
-func (tm *TransportManager) Get(name string) Transport {
+func (tm *TransportManager) Get(name string, session *Session, heartbeatTimeout int) Transport {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	return tm.transports[name]
+	f, ok := tm.transports[name]
+	if !ok {
+		return nil
+	}
+	return f(session, heartbeatTimeout)
 }

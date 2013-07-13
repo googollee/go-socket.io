@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	DefaultTransports.RegisterTransport(WebSocket)
+	DefaultTransports.RegisterTransport("websocket", newWebSocket)
 }
 
 var WebSocket = new(webSocket)
@@ -23,14 +23,16 @@ type webSocket struct {
 	heartBeat time.Duration
 }
 
-func (ws *webSocket) Name() string {
-	return "websocket"
+func newWebSocket(session *Session, heartbeatTimeout int) Transport {
+	ret := &webSocket{
+		session:   session,
+		heartBeat: time.Duration(heartbeatTimeout) * time.Second / 2,
+	}
+	return ret
 }
 
-func (ws *webSocket) New(session *Session, heartbeatTimeout int) Transport {
-	ret := &webSocket{session: session}
-	ret.heartBeat = time.Duration(heartbeatTimeout) * time.Second / 2
-	return ret
+func (ws *webSocket) Name() string {
+	return "websocket"
 }
 
 func (ws *webSocket) webSocketHandler(conn *websocket.Conn) {
