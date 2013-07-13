@@ -9,9 +9,8 @@ type Transport interface {
 	Name() string
 	New(*Session) Transport
 	OnData(http.ResponseWriter, *http.Request)
-	Send([]byte)
+	Send([]byte) error
 	Close()
-	HeartbeatSupport() bool
 }
 
 var (

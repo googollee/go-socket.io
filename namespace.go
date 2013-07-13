@@ -86,8 +86,8 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 	ns.emitRaw(packet.name, ns, callback, packet.args)
 }
 
-func (ns *NameSpace) sendPacket(packet Packet) {
-	ns.session.transport.Send(encodePacket(packet))
+func (ns *NameSpace) sendPacket(packet Packet) error {
+	return ns.session.transport.Send(encodePacket(packet))
 }
 
 func (ns *NameSpace) onConnect() {

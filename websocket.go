@@ -56,17 +56,13 @@ func (ws *webSocket) OnData(w http.ResponseWriter, r *http.Request) {
 	websocket.Handler(webSocketHandler).ServeHTTP(w, r)
 }
 
-func (ws *webSocket) Send(data []byte) {
+func (ws *webSocket) Send(data []byte) error {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
-	websocket.Message.Send(ws.conn, string(data))
+	return websocket.Message.Send(ws.conn, string(data))
 }
 
 func (ws *webSocket) Close() {
 	ws.isOpen = false
 	ws.conn.Close()
-}
-
-func (ws *webSocket) HeartbeatSupport() bool {
-	return true
 }
