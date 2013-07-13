@@ -18,7 +18,7 @@ type Event struct {
 	Args json.RawMessage `json:"args"`
 }
 
-func encodePacket(packet Packet) []byte {
+func encodePacket(endpoint string, packet Packet) []byte {
 	buf := &bytes.Buffer{}
 	buf.WriteString(strconv.Itoa(int(packet.Type())))
 	buf.WriteByte(':')
@@ -29,7 +29,7 @@ func encodePacket(packet Packet) []byte {
 		}
 	}
 	buf.WriteByte(':')
-	buf.WriteString(packet.EndPoint())
+	buf.WriteString(endpoint)
 	buf.WriteByte(':')
 
 	enc := json.NewEncoder(buf)

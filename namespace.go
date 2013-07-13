@@ -87,7 +87,7 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 }
 
 func (ns *NameSpace) sendPacket(packet Packet) error {
-	return ns.session.transport.Send(encodePacket(packet))
+	return ns.session.transport.Send(encodePacket(ns.Name, packet))
 }
 
 func (ns *NameSpace) onConnect() {

@@ -79,5 +79,13 @@ func (ws *webSocket) Send(data []byte) error {
 
 func (ws *webSocket) Close() {
 	ws.isOpen = false
+	disconnect := new(disconnectPacket)
+	for _, ns := range ws.session.nameSpaces {
+		if ns.Name == "" {
+			continue
+		}
+		ns.sendPacket(disconnect)
+	}
+	ws.session.Of("").sendPacket(disconnect)
 	ws.conn.Close()
 }
