@@ -81,7 +81,7 @@ func (ws *webSocket) Close() {
 	ws.isOpen = false
 	disconnect := new(disconnectPacket)
 	for _, ns := range ws.session.nameSpaces {
-		if ns.Name == "" {
+		if ns.Endpoint() == "" {
 			continue
 		}
 		ns.sendPacket(disconnect)

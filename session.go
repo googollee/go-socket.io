@@ -12,6 +12,15 @@ const (
 	SessionIDCharset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 )
 
+type Session struct {
+	mutex      sync.Mutex
+	server     *SocketIOServer
+	SessionId  string
+	nameSpaces map[string]*NameSpace
+	transport  Transport
+	isConnect  bool
+}
+
 func NewSessionID() string {
 	b := make([]byte, SessionIDLength)
 
@@ -24,15 +33,6 @@ func NewSessionID() string {
 	}
 
 	return string(b)
-}
-
-type Session struct {
-	mutex      sync.Mutex
-	server     *SocketIOServer
-	SessionId  string
-	nameSpaces map[string]*NameSpace
-	transport  Transport
-	isConnect  bool
 }
 
 func NewSession(server *SocketIOServer, sessionId string) *Session {
@@ -86,27 +86,4 @@ func (ss *Session) onOpen() {
 		ss.Of("").sendPacket(packet)
 	}
 	ss.isConnect = true
-}
-
-// shortcut for Of("").(x)
-func (ss *Session) On(name string, fn interface{}) error {
-	return ss.Of("").On(name, fn)
-}
-
-func (ss *Session) RemoveListener(name string, fn interface{}) {
-	ss.Of("").RemoveListener(name, fn)
-}
-
-func (ss *Session) RemoveAllListeners(name string) {
-	ss.Of("").RemoveAllListeners(name)
-}
-
-func (ss *Session) emit(name string, callback func([]interface{}), args ...interface{}) {
-	ns := ss.Of("")
-	ns.emit(name, ns, callback, args...)
-}
-
-func (ss *Session) emitRaw(name string, callback func([]interface{}), data []byte) error {
-	ns := ss.Of("")
-	return ns.emitRaw(name, ns, callback, data)
 }

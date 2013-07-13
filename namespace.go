@@ -10,7 +10,7 @@ import (
 
 type NameSpace struct {
 	*EventEmitter
-	Name        string
+	endpoint    string
 	session     *Session
 	id          int
 	waitingLock sync.Mutex
@@ -18,10 +18,10 @@ type NameSpace struct {
 	onMessage   func([]byte) interface{}
 }
 
-func NewNameSpace(session *Session, name string, ee *EventEmitter) *NameSpace {
+func NewNameSpace(session *Session, endpoint string, ee *EventEmitter) *NameSpace {
 	ret := &NameSpace{
 		EventEmitter: ee,
-		Name:         name,
+		endpoint:     endpoint,
 		session:      session,
 		id:           1,
 		waiting:      make(map[int]chan []byte),
@@ -32,15 +32,15 @@ func NewNameSpace(session *Session, name string, ee *EventEmitter) *NameSpace {
 	return ret
 }
 
-func (ns *NameSpace) Of(name string) *NameSpace {
-	return ns.session.Of(name)
+func (ns *NameSpace) Endpoint() string {
+	return ns.endpoint
 }
 
 func (ns *NameSpace) Call(name string, reply []interface{}, args ...interface{}) error {
 	var c chan []byte
 
 	pack := new(eventPacket)
-	pack.endPoint = ns.Name
+	pack.endPoint = ns.endpoint
 	pack.name = name
 	if len(reply) > 0 {
 		c = make(chan []byte)
@@ -108,7 +108,7 @@ func (ns *NameSpace) onMessagePacket(packet messageMix) {
 		ack := new(ackPacket)
 		ack.ackId = packet.Id()
 		ack.args = nil
-		ack.endPoint = ns.Name
+		ack.endPoint = ns.endpoint
 		ns.sendPacket(ack)
 		return
 	}
@@ -124,7 +124,7 @@ func (ns *NameSpace) onMessagePacket(packet messageMix) {
 	ack := new(ackPacket)
 	ack.ackId = message.Id()
 	ack.args = ackData
-	ack.endPoint = ns.Name
+	ack.endPoint = ns.endpoint
 	ns.sendPacket(ack)
 }
 
@@ -137,7 +137,7 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 			return
 		}
 		ack.args = ackData
-		ack.endPoint = ns.Name
+		ack.endPoint = ns.endpoint
 		ns.sendPacket(ack)
 	}
 	if packet.Id() == 0 {
@@ -147,7 +147,7 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 }
 
 func (ns *NameSpace) sendPacket(packet Packet) error {
-	return ns.session.transport.Send(encodePacket(ns.Name, packet))
+	return ns.session.transport.Send(encodePacket(ns.endpoint, packet))
 }
 
 func (ns *NameSpace) onConnect() {
