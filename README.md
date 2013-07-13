@@ -4,7 +4,7 @@ forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-s
 
 simple demo:
 
-```golang
+```go
 package main
 
 import (
