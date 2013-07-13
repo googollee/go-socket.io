@@ -93,10 +93,6 @@ func (ss *Session) RemoveListener(name string, fn interface{}) {
 	ss.Of("").RemoveListener(name, fn)
 }
 
-func (ss *Session) Once(name string, fn interface{}) error {
-	return ss.Of("").Once(name, fn)
-}
-
 func (ss *Session) RemoveAllListeners(name string) {
 	ss.Of("").RemoveAllListeners(name)
 }

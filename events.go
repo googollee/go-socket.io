@@ -15,13 +15,12 @@ type eventHandler struct {
 }
 
 type EventEmitter struct {
-	mutex      sync.Mutex
-	events     map[string][]*eventHandler
-	eventsOnce map[string][]*eventHandler
+	mutex  sync.Mutex
+	events map[string][]*eventHandler
 }
 
 func NewEventEmitter() *EventEmitter {
-	return &EventEmitter{events: make(map[string][]*eventHandler), eventsOnce: make(map[string][]*eventHandler)}
+	return &EventEmitter{events: make(map[string][]*eventHandler)}
 }
 
 // global cache
@@ -78,21 +77,6 @@ func (ee *EventEmitter) On(name string, fn interface{}) error {
 	return nil
 }
 
-func (ee *EventEmitter) AddListener(name string, fn interface{}) error {
-	return ee.On(name, fn)
-}
-
-func (ee *EventEmitter) Once(name string, fn interface{}) error {
-	handler, err := genEventHandler(fn)
-	if err != nil {
-		return err
-	}
-	ee.mutex.Lock()
-	defer ee.mutex.Unlock()
-	ee.eventsOnce[name] = append(ee.eventsOnce[name], handler)
-	return nil
-}
-
 func (ee *EventEmitter) RemoveListener(name string, fn interface{}) {
 	ee.mutex.Lock()
 	defer ee.mutex.Unlock()
@@ -105,15 +89,6 @@ func (ee *EventEmitter) RemoveListener(name string, fn interface{}) {
 	if len(ee.events[name]) == 0 {
 		delete(ee.events, name)
 	}
-	for i, handler := range ee.eventsOnce[name] {
-		if handler.fn.Pointer() == reflect.ValueOf(fn).Pointer() {
-			ee.eventsOnce[name] = append(ee.eventsOnce[name][0:i], ee.eventsOnce[name][i+1:]...)
-			break
-		}
-	}
-	if len(ee.eventsOnce[name]) == 0 {
-		delete(ee.eventsOnce, name)
-	}
 }
 
 func (ee *EventEmitter) RemoveAllListeners(name string) {
@@ -121,16 +96,12 @@ func (ee *EventEmitter) RemoveAllListeners(name string) {
 	defer ee.mutex.Unlock()
 	// assign nil?
 	delete(ee.events, name)
-	delete(ee.eventsOnce, name)
 }
 
 func (ee *EventEmitter) fetchHandlers(name string) (handlers []*eventHandler) {
 	ee.mutex.Lock()
 	defer ee.mutex.Unlock()
-	handlers = ee.eventsOnce[name]
-	ee.eventsOnce[name] = nil
-	delete(ee.eventsOnce, name)
-	handlers = append(handlers, ee.events[name]...)
+	handlers = ee.events[name]
 	return
 }
 
