@@ -64,10 +64,7 @@ func (ws *webSocket) webSocketHandler(conn *websocket.Conn) {
 }
 
 func (ws *webSocket) OnData(w http.ResponseWriter, r *http.Request) {
-	webSocketHandler := func(conn *websocket.Conn) {
-		ws.webSocketHandler(conn)
-	}
-	websocket.Handler(webSocketHandler).ServeHTTP(w, r)
+	websocket.Handler(ws.webSocketHandler).ServeHTTP(w, r)
 }
 
 func (ws *webSocket) Send(data []byte) error {

@@ -3,7 +3,6 @@ package socketio
 import (
 	"crypto/rand"
 	"io"
-	"net/http"
 	"sync"
 )
 
@@ -55,10 +54,6 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 		ss.nameSpaces[name] = nameSpace
 	}
 	return
-}
-
-func (ss *Session) serve(transportId string, w http.ResponseWriter, r *http.Request) {
-	ss.transport.OnData(w, r)
 }
 
 func (ss *Session) onFrame(data []byte) {

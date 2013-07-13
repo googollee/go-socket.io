@@ -88,7 +88,8 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session.transport = transport.New(session, srv.heartbeatTimeout)
 	ns := session.Of("")
 	ns.emit("connect", ns, nil)
-	session.serve(transportId, w, r)
+
+	transport.OnData(w, r)
 }
 
 func (srv *SocketIOServer) Of(name string) *EventEmitter {
