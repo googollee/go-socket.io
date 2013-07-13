@@ -43,9 +43,9 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 	ss.mutex.Lock()
 	defer ss.mutex.Unlock()
 	if nameSpace = ss.nameSpaces[name]; nameSpace == nil {
-		ee := ss.server.EventEmitter
-		if name != "" {
-			ee = ss.server.eventEmitters[name]
+		ee := ss.server.eventEmitters[name]
+		if ee == nil {
+			ee = NewEventEmitter()
 		}
 		nameSpace = NewNameSpace(ss, name, ee)
 		ss.nameSpaces[name] = nameSpace

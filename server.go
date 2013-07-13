@@ -29,7 +29,6 @@ type SocketIOServer struct {
 	transports       *TransportManager
 	sessions         map[string]*Session
 	eventEmitters    map[string]*EventEmitter
-	*EventEmitter
 }
 
 func NewSocketIOServer(config *Config) *SocketIOServer {
@@ -53,7 +52,6 @@ func NewSocketIOServer(config *Config) *SocketIOServer {
 	if server.transports == nil {
 		server.transports = DefaultTransports
 	}
-	server.EventEmitter = NewEventEmitter()
 	server.sessions = make(map[string]*Session)
 	server.eventEmitters = make(map[string]*EventEmitter)
 	return server
@@ -84,7 +82,8 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid session id", 400)
 		return
 	}
-	srv.emit("connect", session.Of(""), nil)
+	ns := session.Of("")
+	ns.emit("connect", ns, nil)
 	session.serve(transportId, w, r)
 }
 
@@ -95,6 +94,18 @@ func (srv *SocketIOServer) Of(name string) *EventEmitter {
 		srv.eventEmitters[name] = ret
 	}
 	return ret
+}
+
+func (srv *SocketIOServer) On(name string, fn interface{}) error {
+	return srv.Of("").On(name, fn)
+}
+
+func (srv *SocketIOServer) RemoveListener(name string, fn interface{}) {
+	srv.Of("").RemoveListener(name, fn)
+}
+
+func (srv *SocketIOServer) RemoveAllListeners(name string) {
+	srv.Of("").RemoveAllListeners(name)
 }
 
 // authorize origin!!
