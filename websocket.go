@@ -2,8 +2,10 @@ package socketio
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"net"
 	"net/http"
 	"sync"
+	"time"
 )
 
 func init() {
@@ -13,12 +15,12 @@ func init() {
 var WebSocket = new(webSocket)
 
 type webSocket struct {
-	mutex       sync.Mutex
-	session     *Session
-	conn        *websocket.Conn
-	isConnect   bool
-	isOpen      bool
-	waitForOpen chan bool
+	mutex     sync.Mutex
+	session   *Session
+	conn      *websocket.Conn
+	isConnect bool
+	isOpen    bool
+	heartBeat time.Duration
 }
 
 func (ws *webSocket) Name() string {
@@ -26,7 +28,9 @@ func (ws *webSocket) Name() string {
 }
 
 func (ws *webSocket) New(session *Session) Transport {
-	return &webSocket{session: session}
+	ret := &webSocket{session: session}
+	ret.heartBeat = time.Duration(session.server.heartbeatTimeout) * time.Second / 2
+	return ret
 }
 
 func (ws *webSocket) webSocketHandler(conn *websocket.Conn) {
@@ -40,7 +44,17 @@ func (ws *webSocket) webSocketHandler(conn *websocket.Conn) {
 	ws.session.onOpen()
 	for {
 		var data string
+		ws.conn.SetDeadline(time.Now().Add(ws.heartBeat))
 		err := websocket.Message.Receive(conn, &data)
+		if e, ok := err.(net.Error); ok && e.Timeout() {
+			heartBeat := new(heartbeatPacket)
+			err = ws.session.Of("").sendPacket(heartBeat)
+			if err != nil {
+				ws.Close()
+				return
+			}
+			continue
+		}
 		if err != nil {
 			ws.Close()
 			return
@@ -59,6 +73,7 @@ func (ws *webSocket) OnData(w http.ResponseWriter, r *http.Request) {
 func (ws *webSocket) Send(data []byte) error {
 	ws.mutex.Lock()
 	defer ws.mutex.Unlock()
+	ws.conn.SetDeadline(time.Now().Add(ws.heartBeat))
 	return websocket.Message.Send(ws.conn, string(data))
 }
 
