@@ -1,18 +1,14 @@
 package socketio
 
 import (
-	"net/http"
+	"io"
 	"sync"
 )
 
 type Transport interface {
-	Name() string
-	OnData(http.ResponseWriter, *http.Request)
 	Send([]byte) error
-	Close()
+	Read() (io.Reader, error)
 }
-
-type newTransportFunc func(session *Session, heartbeatTimeout int) Transport
 
 var (
 	DefaultTransports = NewTransportManager()
@@ -20,17 +16,19 @@ var (
 
 type TransportManager struct {
 	mutex      sync.RWMutex
-	transports map[string]newTransportFunc
+	transports map[string]bool
 }
 
 func NewTransportManager() *TransportManager {
-	return &TransportManager{transports: make(map[string]newTransportFunc)}
+	return &TransportManager{
+		transports: make(map[string]bool),
+	}
 }
 
-func (tm *TransportManager) RegisterTransport(name string, f newTransportFunc) {
+func (tm *TransportManager) RegisterTransport(name string) {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
-	tm.transports[name] = f
+	tm.transports[name] = true
 }
 
 func (tm *TransportManager) GetTransportNames() (names []string) {
@@ -41,14 +39,4 @@ func (tm *TransportManager) GetTransportNames() (names []string) {
 		names = append(names, k)
 	}
 	return
-}
-
-func (tm *TransportManager) Get(name string, session *Session, heartbeatTimeout int) Transport {
-	tm.mutex.RLock()
-	defer tm.mutex.RUnlock()
-	f, ok := tm.transports[name]
-	if !ok {
-		return nil
-	}
-	return f(session, heartbeatTimeout)
 }

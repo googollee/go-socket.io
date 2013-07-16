@@ -1,6 +1,7 @@
 package socketio
 
 import (
+	"code.google.com/p/go.net/websocket"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -59,40 +60,39 @@ func NewSocketIOServer(config *Config) *SocketIOServer {
 
 func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	pieces := uriRegexp.FindStringSubmatch(path)
-	if pieces == nil {
-		w.WriteHeader(404)
-		fmt.Fprintln(w, "invalid uri: %s", r.URL)
+	if !strings.HasPrefix(path, "/socket.io/1/") {
+		http.NotFound(w, r)
 		return
 	}
-
-	transportId := pieces[3]
-	// connect
-	if transportId == "" { // imply session==""
+	path = path[len("/socket.io/1/"):]
+	if path == "" {
 		srv.handShake(w, r)
 		return
 	}
 
-	sessionId := pieces[4]
+	spliter := strings.SplitN(path, "/", 2)
+	if len(spliter) < 2 {
+		http.NotFound(w, r)
+		return
+	}
+
+	transportName, sessionId := spliter[0], spliter[1]
+	if transportName != "websocket" {
+		http.Error(w, "not websocket", http.StatusBadRequest)
+		return
+	}
+
 	session := srv.getSession(sessionId)
 	if session == nil {
-		http.Error(w, "invalid session id", 400)
+		http.Error(w, "invalid session id", http.StatusBadRequest)
 		return
 	}
 	defer srv.removeSession(session)
 
 	// open
-	transport := srv.transports.Get(transportId, session, srv.heartbeatTimeout)
-	if transport == nil {
-		http.Error(w, "transport not supported", 400)
-		return
-	}
+	transport := newWebSocket(session, srv.heartbeatTimeout)
 
-	session.transport = transport
-	ns := session.Of("")
-	ns.emit("connect", ns, nil)
-
-	transport.OnData(w, r)
+	websocket.Handler(transport.webSocketHandler).ServeHTTP(w, r)
 }
 
 func (srv *SocketIOServer) Of(name string) *EventEmitter {
@@ -138,7 +138,7 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		srv.heartbeatTimeout,
 		srv.closingTimeout,
 		strings.Join(transportNames, ","))
-	session := NewSession(srv.eventEmitters, sessionId)
+	session := NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout)
 	srv.addSession(session)
 }
 
@@ -158,8 +158,4 @@ func (srv *SocketIOServer) getSession(sessionId string) *Session {
 	srv.mutex.RLock()
 	defer srv.mutex.RUnlock()
 	return srv.sessions[sessionId]
-}
-
-func (srv *SocketIOServer) heartbeat() {
-
 }

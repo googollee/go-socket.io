@@ -3,7 +3,10 @@ package socketio
 import (
 	"crypto/rand"
 	"io"
+	"io/ioutil"
+	"net"
 	"sync"
+	"time"
 )
 
 const (
@@ -17,7 +20,7 @@ type Session struct {
 	emitters   map[string]*EventEmitter
 	nameSpaces map[string]*NameSpace
 	transport  Transport
-	isConnect  bool
+	timeout    time.Duration
 }
 
 func NewSessionID() string {
@@ -34,11 +37,12 @@ func NewSessionID() string {
 	return string(b)
 }
 
-func NewSession(emitters map[string]*EventEmitter, sessionId string) *Session {
+func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int) *Session {
 	return &Session{
 		emitters:   emitters,
 		SessionId:  sessionId,
 		nameSpaces: make(map[string]*NameSpace),
+		timeout:    time.Duration(timeout) * time.Second * 2 / 3,
 	}
 }
 
@@ -54,6 +58,35 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 		ss.nameSpaces[name] = nameSpace
 	}
 	return
+}
+
+func (ss *Session) loop() {
+	ss.onOpen()
+	last := time.Now()
+	for {
+		if time.Now().Sub(last) > ss.timeout {
+			if err := ss.heartbeat(); err != nil {
+				return
+			}
+			last = time.Now()
+		}
+		reader, err := ss.transport.Read()
+		if e, ok := err.(net.Error); ok && e.Timeout() {
+			continue
+		}
+		if err != nil {
+			return
+		}
+		b, err := ioutil.ReadAll(reader)
+		if err != nil {
+			return
+		}
+		ss.onFrame(b)
+	}
+}
+
+func (ss *Session) heartbeat() error {
+	return ss.Of("").sendPacket(new(heartbeatPacket))
 }
 
 func (ss *Session) onFrame(data []byte) {
@@ -77,9 +110,8 @@ func (ss *Session) onPacket(packet Packet) {
 }
 
 func (ss *Session) onOpen() {
-	if !ss.isConnect {
-		packet := new(connectPacket)
-		ss.Of("").sendPacket(packet)
-	}
-	ss.isConnect = true
+	packet := new(connectPacket)
+	ns := ss.Of("")
+	ns.sendPacket(packet)
+	ns.onConnect()
 }
