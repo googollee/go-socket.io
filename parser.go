@@ -79,6 +79,7 @@ func encodePayload(payloads [][]byte) []byte {
 }
 
 func decodePacket(b []byte) (packet Packet, err error) {
+	b = bytes.Trim(b, "\n \r\t")
 	pieces := packetRegexp.FindSubmatch(b)
 	if pieces == nil {
 		return nil, errors.New("invalid packet")
@@ -111,6 +112,9 @@ func decodePacket(b []byte) (packet Packet, err error) {
 		p.query = string(data)
 		packet = p
 	case 2: // heartbeat
+		p := new(heartbeatPacket)
+		p.packetCommon = common
+		packet = p
 	case 3: // message
 		p := new(messagePacket)
 		p.packetCommon = common
@@ -144,7 +148,7 @@ func decodePacket(b []byte) (packet Packet, err error) {
 				return
 			}
 		} else {
-			ackId, err = strconv.Atoi(string(data[0:ackId]))
+			ackId, err = strconv.Atoi(string(data[0:pos]))
 			if err != nil {
 				return
 			}

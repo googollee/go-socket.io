@@ -16,7 +16,7 @@ type webSocket struct {
 	conn    *websocket.Conn
 }
 
-func newWebSocket(session *Session, timeout int) *webSocket {
+func newWebSocket(session *Session) *webSocket {
 	ret := &webSocket{
 		session: session,
 	}

@@ -90,7 +90,7 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer srv.removeSession(session)
 
 	// open
-	transport := newWebSocket(session, srv.heartbeatTimeout)
+	transport := newWebSocket(session)
 
 	websocket.Handler(transport.webSocketHandler).ServeHTTP(w, r)
 }

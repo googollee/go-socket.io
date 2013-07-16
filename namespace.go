@@ -48,12 +48,11 @@ func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{
 	if len(reply) > 0 {
 		c = make(chan []byte)
 		ns.waitingLock.Lock()
-		id := ns.id
+		pack.id = ns.id
 		ns.id++
-		ns.waiting[id] = c
+		ns.waiting[pack.id] = c
 		ns.waitingLock.Unlock()
 
-		pack.id = id
 		pack.ack = true
 	}
 	var err error
@@ -70,11 +69,12 @@ func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{
 	if len(reply) > 0 {
 		select {
 		case replyRaw := <-c:
-			err := json.Unmarshal(replyRaw, reply)
+			err := json.Unmarshal(replyRaw, &reply)
 			if err != nil {
 				return err
 			}
 		case <-time.After(timeout):
+			delete(ns.waiting, pack.id)
 			return errors.New("time out")
 		}
 	}
@@ -86,7 +86,8 @@ func (ns *NameSpace) onAckPacket(packet *ackPacket) {
 	c := func() chan []byte {
 		ns.waitingLock.Lock()
 		defer ns.waitingLock.Unlock()
-		if c, ok := ns.waiting[packet.Id()]; ok {
+		c, ok := ns.waiting[packet.ackId]
+		if ok {
 			delete(ns.waiting, packet.Id())
 			return c
 		}

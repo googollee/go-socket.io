@@ -59,7 +59,7 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 	if nameSpace = ss.nameSpaces[name]; nameSpace == nil {
 		ee := ss.emitters[name]
 		if ee == nil {
-			ee = NewEventEmitter()
+			return nil
 		}
 		nameSpace = NewNameSpace(ss, name, ee)
 		ss.nameSpaces[name] = nameSpace
@@ -68,7 +68,9 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 }
 
 func (ss *Session) loop() {
-	ss.onOpen()
+	if ss.sendHeartBeat {
+		ss.onOpen()
+	}
 	ss.peerLast = time.Now()
 	last := time.Now()
 	for {
@@ -81,6 +83,7 @@ func (ss *Session) loop() {
 		}
 		if now.Sub(ss.peerLast) > ss.connectionTimeout {
 			ss.isConnected = false
+			return
 		}
 		reader, err := ss.transport.Read()
 		if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -107,25 +110,35 @@ func (ss *Session) heartbeat() error {
 
 func (ss *Session) onFrame(data []byte) {
 	packet, err := decodePacket(data)
-	if err != nil {
+	if err != nil || packet == nil {
 		return
 	}
 	ss.onPacket(packet)
 }
 
 func (ss *Session) onPacket(packet Packet) {
+	ns := ss.Of(packet.EndPoint())
+	if ns == nil {
+		return
+	}
 	switch p := packet.(type) {
 	case *heartbeatPacket:
 		ss.peerLast = time.Now()
 		ss.isConnected = true
+		if !ss.sendHeartBeat {
+			ss.Of(p.endPoint).sendPacket(new(heartbeatPacket))
+		}
 	case *disconnectPacket:
-		ss.Of(packet.EndPoint()).onDisconnect()
+		ns.onDisconnect()
 	case *connectPacket:
-		ss.Of(packet.EndPoint()).onConnect()
+		ss.isConnected = true
+		ns.onConnect()
 	case *messagePacket, *jsonPacket:
-		ss.Of(packet.EndPoint()).onMessagePacket(p.(messageMix))
+		ns.onMessagePacket(p.(messageMix))
 	case *eventPacket:
-		ss.Of(packet.EndPoint()).onEventPacket(p)
+		ns.onEventPacket(p)
+	case *ackPacket:
+		ns.onAckPacket(p)
 	}
 }
 
