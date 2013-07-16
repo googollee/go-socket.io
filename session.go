@@ -15,14 +15,16 @@ const (
 )
 
 type Session struct {
-	SessionId     string
-	mutex         sync.Mutex
-	emitters      map[string]*EventEmitter
-	nameSpaces    map[string]*NameSpace
-	transport     Transport
-	timeout       time.Duration
-	isConnected   bool
-	sendHeartBeat bool
+	SessionId         string
+	mutex             sync.Mutex
+	emitters          map[string]*EventEmitter
+	nameSpaces        map[string]*NameSpace
+	transport         Transport
+	heartbeatTimeout  time.Duration
+	connectionTimeout time.Duration
+	peerLast          time.Time
+	isConnected       bool
+	sendHeartBeat     bool
 }
 
 func NewSessionID() string {
@@ -46,11 +48,8 @@ func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int
 		nameSpaces:    make(map[string]*NameSpace),
 		sendHeartBeat: sendHeartbeat,
 	}
-	if ret.sendHeartBeat {
-		ret.timeout = time.Duration(timeout) * time.Second * 2 / 3
-	} else {
-		ret.timeout = time.Duration(timeout) * time.Second
-	}
+	ret.heartbeatTimeout = time.Duration(timeout) * time.Second * 2 / 3
+	ret.connectionTimeout = time.Duration(timeout) * time.Second
 	return ret
 }
 
@@ -70,18 +69,17 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 
 func (ss *Session) loop() {
 	ss.onOpen()
+	ss.peerLast = time.Now()
 	last := time.Now()
 	for {
-		if time.Now().Sub(last) > ss.timeout {
-			if ss.sendHeartBeat {
-				if err := ss.heartbeat(); err != nil {
-					ss.isConnected = false
-				} else {
-					ss.isConnected = true
-				}
-				last = time.Now()
+		now := time.Now()
+		if ss.sendHeartBeat && now.Sub(last) > ss.heartbeatTimeout {
+			last = now
+			if err := ss.heartbeat(); err != nil {
+				ss.isConnected = false
 			}
-		} else {
+		}
+		if now.Sub(ss.peerLast) > ss.connectionTimeout {
 			ss.isConnected = false
 		}
 		reader, err := ss.transport.Read()
@@ -100,7 +98,11 @@ func (ss *Session) loop() {
 }
 
 func (ss *Session) heartbeat() error {
-	return ss.Of("").sendPacket(new(heartbeatPacket))
+	connected := ss.isConnected
+	ss.isConnected = true
+	err := ss.Of("").sendPacket(new(heartbeatPacket))
+	ss.isConnected = connected
+	return err
 }
 
 func (ss *Session) onFrame(data []byte) {
@@ -114,6 +116,7 @@ func (ss *Session) onFrame(data []byte) {
 func (ss *Session) onPacket(packet Packet) {
 	switch p := packet.(type) {
 	case *heartbeatPacket:
+		ss.peerLast = time.Now()
 		ss.isConnected = true
 	case *disconnectPacket:
 		ss.Of(packet.EndPoint()).onDisconnect()
@@ -128,10 +131,12 @@ func (ss *Session) onPacket(packet Packet) {
 
 func (ss *Session) onOpen() {
 	packet := new(connectPacket)
+	ss.isConnected = true
 	ns := ss.Of("")
 	err := ns.sendPacket(packet)
 	if err == nil {
-		ss.isConnected = true
+		ns.onConnect()
+	} else {
+		ss.isConnected = false
 	}
-	ns.onConnect()
 }

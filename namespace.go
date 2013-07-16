@@ -37,6 +37,9 @@ func (ns *NameSpace) Endpoint() string {
 }
 
 func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
+	if !ns.session.isConnected {
+		return errors.New("not connected")
+	}
 	var c chan []byte
 
 	pack := new(eventPacket)
@@ -147,6 +150,9 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 }
 
 func (ns *NameSpace) sendPacket(packet Packet) error {
+	if !ns.session.isConnected {
+		return errors.New("not connected")
+	}
 	return ns.session.transport.Send(encodePacket(ns.endpoint, packet))
 }
 
