@@ -15,12 +15,14 @@ const (
 )
 
 type Session struct {
-	SessionId  string
-	mutex      sync.Mutex
-	emitters   map[string]*EventEmitter
-	nameSpaces map[string]*NameSpace
-	transport  Transport
-	timeout    time.Duration
+	SessionId     string
+	mutex         sync.Mutex
+	emitters      map[string]*EventEmitter
+	nameSpaces    map[string]*NameSpace
+	transport     Transport
+	timeout       time.Duration
+	isConnected   bool
+	sendHeartBeat bool
 }
 
 func NewSessionID() string {
@@ -37,13 +39,19 @@ func NewSessionID() string {
 	return string(b)
 }
 
-func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int) *Session {
-	return &Session{
-		emitters:   emitters,
-		SessionId:  sessionId,
-		nameSpaces: make(map[string]*NameSpace),
-		timeout:    time.Duration(timeout) * time.Second * 2 / 3,
+func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int, sendHeartbeat bool) *Session {
+	ret := &Session{
+		emitters:      emitters,
+		SessionId:     sessionId,
+		nameSpaces:    make(map[string]*NameSpace),
+		sendHeartBeat: sendHeartbeat,
 	}
+	if ret.sendHeartBeat {
+		ret.timeout = time.Duration(timeout) * time.Second * 2 / 3
+	} else {
+		ret.timeout = time.Duration(timeout) * time.Second
+	}
+	return ret
 }
 
 func (ss *Session) Of(name string) (nameSpace *NameSpace) {
@@ -65,10 +73,16 @@ func (ss *Session) loop() {
 	last := time.Now()
 	for {
 		if time.Now().Sub(last) > ss.timeout {
-			if err := ss.heartbeat(); err != nil {
-				return
+			if ss.sendHeartBeat {
+				if err := ss.heartbeat(); err != nil {
+					ss.isConnected = false
+				} else {
+					ss.isConnected = true
+				}
+				last = time.Now()
 			}
-			last = time.Now()
+		} else {
+			ss.isConnected = false
 		}
 		reader, err := ss.transport.Read()
 		if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -99,7 +113,10 @@ func (ss *Session) onFrame(data []byte) {
 
 func (ss *Session) onPacket(packet Packet) {
 	switch p := packet.(type) {
+	case *heartbeatPacket:
+		ss.isConnected = true
 	case *disconnectPacket:
+		ss.Of(packet.EndPoint()).onDisconnect()
 	case *connectPacket:
 		ss.Of(packet.EndPoint()).onConnect()
 	case *messagePacket, *jsonPacket:
@@ -112,6 +129,9 @@ func (ss *Session) onPacket(packet Packet) {
 func (ss *Session) onOpen() {
 	packet := new(connectPacket)
 	ns := ss.Of("")
-	ns.sendPacket(packet)
+	err := ns.sendPacket(packet)
+	if err == nil {
+		ss.isConnected = true
+	}
 	ns.onConnect()
 }

@@ -138,7 +138,7 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		srv.heartbeatTimeout,
 		srv.closingTimeout,
 		strings.Join(transportNames, ","))
-	session := NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout)
+	session := NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
 	srv.addSession(session)
 }
 
