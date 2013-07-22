@@ -90,3 +90,7 @@ func Dial(url_, origin string) (*Client, error) {
 func (c *Client) Run() {
 	c.Session.loop()
 }
+
+func (c *Client) Quit() error {
+	return nil
+}
