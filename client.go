@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -16,7 +17,8 @@ const (
 )
 
 type Client struct {
-	*Session
+	session  *Session
+	endpoint string
 	*EventEmitter
 }
 
@@ -82,15 +84,20 @@ func Dial(url_, origin string) (*Client, error) {
 	}
 
 	return &Client{
-		Session:      session,
+		session:      session,
+		endpoint:     endpoint,
 		EventEmitter: ee,
 	}, nil
 }
 
 func (c *Client) Run() {
-	c.Session.loop()
+	c.session.loop()
 }
 
 func (c *Client) Quit() error {
 	return nil
+}
+
+func (c *Client) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
+	return c.session.Of(c.endpoint).Call(name, timeout, reply, args...)
 }
