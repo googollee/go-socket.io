@@ -9,7 +9,7 @@ package main
 
 import (
     "fmt"
-    "github.com/googollee/go-socketio"
+    "github.com/googollee/go-socket.io"
     "log"
     "net/http"
 )
@@ -71,22 +71,24 @@ func main() {
 
 client:
 
-```html
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  var socket = io.connect('http://localhost:8080');
-  socket.emit('news', { my: 'data' }, function (i, s) {
-    console.log(i, s);
-  });
-  socket.on('news', function (data) {
-    console.log(data);
-    socket.emit('my other event', { my: 'data' });
-    socket.emit('ferret', 'tobi', 123, function (data) {
-      console.log(data); // data will be 'woot'
-    });
-    socket.emit('ferret', 'tobi', 123, function (data) {
-      console.log(data); // data will be 'woot'
-    });
-  });
-</script>
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/googollee/go-socket.io"
+    "time"
+)
+
+func main() {
+    client := socketio.NewClient()
+    client.On("news", func(ns *socketio.NameSpace, d string) { fmt.Println("news", d) })
+    client.On("connect", func(ns *socketio.NameSpace) {
+        var reply string
+        err := ns.Call("ferret", time.Second, []interface{}{&reply}, "abc", 1)
+        fmt.Println("err:", err, "reply:", reply)
+    })
+    err := client.Run("http://127.0.0.1:8080/", "http://127.0.0.1:8080")
+    fmt.Println(err)
+}
 ``` 
