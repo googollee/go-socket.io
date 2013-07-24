@@ -87,7 +87,6 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid session id", http.StatusBadRequest)
 		return
 	}
-	defer srv.removeSession(session)
 
 	// open
 	transport := newWebSocket(session)

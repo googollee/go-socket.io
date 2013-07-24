@@ -3,7 +3,6 @@ package socketio
 import (
 	"encoding/json"
 	"errors"
-	"reflect"
 	"sync"
 	"time"
 )
@@ -12,10 +11,10 @@ type NameSpace struct {
 	*EventEmitter
 	endpoint    string
 	session     *Session
+	connected   bool
 	id          int
 	waitingLock sync.Mutex
 	waiting     map[int]chan []byte
-	onMessage   func([]byte) interface{}
 }
 
 func NewNameSpace(session *Session, endpoint string, ee *EventEmitter) *NameSpace {
@@ -23,11 +22,9 @@ func NewNameSpace(session *Session, endpoint string, ee *EventEmitter) *NameSpac
 		EventEmitter: ee,
 		endpoint:     endpoint,
 		session:      session,
+		connected:    false,
 		id:           1,
 		waiting:      make(map[int]chan []byte),
-	}
-	if ret.EventEmitter == nil {
-		ret.EventEmitter = NewEventEmitter()
 	}
 	return ret
 }
@@ -37,36 +34,42 @@ func (ns *NameSpace) Endpoint() string {
 }
 
 func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
-	if !ns.session.isConnected {
-		return errors.New("not connected")
+	if !ns.connected {
+		return NotConnected
 	}
-	var c chan []byte
 
+	var c chan []byte
 	pack := new(eventPacket)
 	pack.endPoint = ns.endpoint
 	pack.name = name
 	if len(reply) > 0 {
+		pack.ack = true
 		c = make(chan []byte)
+
 		ns.waitingLock.Lock()
 		pack.id = ns.id
 		ns.id++
 		ns.waiting[pack.id] = c
 		ns.waitingLock.Unlock()
 
-		pack.ack = true
+		defer func() {
+			ns.waitingLock.Lock()
+			defer ns.waitingLock.Unlock()
+			delete(ns.waiting, pack.id)
+		}()
 	}
+
 	var err error
 	pack.args, err = json.Marshal(args)
 	if err != nil {
 		return err
 	}
-
 	err = ns.sendPacket(pack)
 	if err != nil {
 		return err
 	}
 
-	if len(reply) > 0 {
+	if c != nil {
 		select {
 		case replyRaw := <-c:
 			err := json.Unmarshal(replyRaw, &reply)
@@ -74,7 +77,6 @@ func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{
 				return err
 			}
 		case <-time.After(timeout):
-			delete(ns.waiting, pack.id)
 			return errors.New("time out")
 		}
 	}
@@ -82,54 +84,27 @@ func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{
 	return nil
 }
 
-func (ns *NameSpace) onAckPacket(packet *ackPacket) {
-	c := func() chan []byte {
-		ns.waitingLock.Lock()
-		defer ns.waitingLock.Unlock()
-		c, ok := ns.waiting[packet.ackId]
-		if ok {
-			delete(ns.waiting, packet.Id())
-			return c
-		}
-		return nil
-	}()
-	if c != nil {
-		c <- []byte(packet.args)
+func (ns *NameSpace) onPacket(packet Packet) {
+	switch p := packet.(type) {
+	case *disconnectPacket:
+		ns.onDisconnect()
+	case *connectPacket:
+		ns.onConnect()
+	// case *messagePacket, *jsonPacket:
+	// 	ns.onMessagePacket(p.(messageMix))
+	case *eventPacket:
+		ns.onEventPacket(p)
+	case *ackPacket:
+		ns.onAckPacket(p)
 	}
 }
 
-func (ns *NameSpace) onMessagePacket(packet messageMix) {
-	message, ok := packet.(messageMix)
+func (ns *NameSpace) onAckPacket(packet *ackPacket) {
+	c, ok := ns.waiting[packet.ackId]
 	if !ok {
 		return
 	}
-	data := message.Data()
-	result := ns.onMessage(data)
-	if message.Id() == 0 {
-		return
-	}
-	if !message.Ack() {
-		ack := new(ackPacket)
-		ack.ackId = packet.Id()
-		ack.args = nil
-		ack.endPoint = ns.endpoint
-		ns.sendPacket(ack)
-		return
-	}
-	kindOfResult := reflect.ValueOf(result).Kind()
-	var ackData []byte
-	if result != nil && kindOfResult != reflect.Invalid {
-		if kindOfResult == reflect.Array || kindOfResult == reflect.Slice {
-			ackData, _ = json.Marshal(result)
-		} else {
-			ackData, _ = json.Marshal([]interface{}{result})
-		}
-	}
-	ack := new(ackPacket)
-	ack.ackId = message.Id()
-	ack.args = ackData
-	ack.endPoint = ns.endpoint
-	ns.sendPacket(ack)
+	c <- []byte(packet.args)
 }
 
 func (ns *NameSpace) onEventPacket(packet *eventPacket) {
@@ -151,16 +126,18 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 }
 
 func (ns *NameSpace) sendPacket(packet Packet) error {
-	if !ns.session.isConnected {
-		return errors.New("not connected")
+	if !ns.connected {
+		return NotConnected
 	}
 	return ns.session.transport.Send(encodePacket(ns.endpoint, packet))
 }
 
 func (ns *NameSpace) onConnect() {
 	ns.emit("connect", ns, nil)
+	ns.connected = true
 }
 
 func (ns *NameSpace) onDisconnect() {
 	ns.emit("disconnect", ns, nil)
+	ns.connected = false
 }

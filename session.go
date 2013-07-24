@@ -2,6 +2,8 @@ package socketio
 
 import (
 	"crypto/rand"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -14,6 +16,8 @@ const (
 	SessionIDCharset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 )
 
+var NotConnected = errors.New("not connected")
+
 type Session struct {
 	SessionId         string
 	mutex             sync.Mutex
@@ -23,8 +27,9 @@ type Session struct {
 	heartbeatTimeout  time.Duration
 	connectionTimeout time.Duration
 	peerLast          time.Time
-	isConnected       bool
+	lastCheck         time.Time
 	sendHeartBeat     bool
+	defaultNS         *NameSpace
 }
 
 func NewSessionID() string {
@@ -43,13 +48,14 @@ func NewSessionID() string {
 
 func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int, sendHeartbeat bool) *Session {
 	ret := &Session{
-		emitters:      emitters,
-		SessionId:     sessionId,
-		nameSpaces:    make(map[string]*NameSpace),
-		sendHeartBeat: sendHeartbeat,
+		emitters:          emitters,
+		SessionId:         sessionId,
+		nameSpaces:        make(map[string]*NameSpace),
+		sendHeartBeat:     sendHeartbeat,
+		heartbeatTimeout:  time.Duration(timeout) * time.Second * 2 / 3,
+		connectionTimeout: time.Duration(timeout) * time.Second,
 	}
-	ret.heartbeatTimeout = time.Duration(timeout) * time.Second * 2 / 3
-	ret.connectionTimeout = time.Duration(timeout) * time.Second
+	ret.defaultNS = ret.Of("")
 	return ret
 }
 
@@ -68,88 +74,97 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 }
 
 func (ss *Session) loop() {
-	if ss.sendHeartBeat {
-		ss.onOpen()
+	fmt.Println("enter loop")
+	err := ss.onOpen()
+	if err != nil {
+		// log
+		return
 	}
-	ss.peerLast = time.Now()
-	last := time.Now()
+
 	for {
-		now := time.Now()
-		if ss.sendHeartBeat && now.Sub(last) > ss.heartbeatTimeout {
-			last = now
-			if err := ss.heartbeat(); err != nil {
-				ss.isConnected = false
-			}
-		}
-		if now.Sub(ss.peerLast) > ss.connectionTimeout {
-			ss.isConnected = false
+		if err := ss.checkConnection(); err != nil {
 			return
 		}
-		reader, err := ss.transport.Read()
-		if e, ok := err.(net.Error); ok && e.Timeout() {
+
+		packet, err := ss.getPacket()
+		if err != nil {
+			return
+		}
+		if packet == nil {
 			continue
 		}
-		if err != nil {
-			return
+
+		if packet.EndPoint() == "" {
+			if err := ss.onPacket(packet); err != nil {
+				return
+			}
 		}
-		b, err := ioutil.ReadAll(reader)
-		if err != nil {
-			return
+
+		ns := ss.Of(packet.EndPoint())
+		if ns == nil {
+			continue
 		}
-		ss.onFrame(b)
+		ns.onPacket(packet)
 	}
 }
 
-func (ss *Session) heartbeat() error {
-	connected := ss.isConnected
-	ss.isConnected = true
-	err := ss.Of("").sendPacket(new(heartbeatPacket))
-	ss.isConnected = connected
-	return err
+func (ss *Session) checkConnection() error {
+	now := time.Now()
+	if ss.sendHeartBeat && now.Sub(ss.lastCheck) > ss.heartbeatTimeout {
+		hb := new(heartbeatPacket)
+		if err := ss.defaultNS.sendPacket(hb); err != nil {
+			return err
+		}
+		ss.lastCheck = now
+	}
+	if now.Sub(ss.peerLast) > ss.connectionTimeout {
+		return NotConnected
+	}
+	return nil
 }
 
-func (ss *Session) onFrame(data []byte) {
-	packet, err := decodePacket(data)
-	if err != nil || packet == nil {
-		return
+func (ss *Session) getPacket() (Packet, error) {
+	reader, err := ss.transport.Read()
+	if e, ok := err.(net.Error); ok && e.Timeout() {
+		return nil, nil
 	}
-	ss.onPacket(packet)
+	if err != nil {
+		return nil, err
+	}
+	b, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodePacket(b)
 }
 
-func (ss *Session) onPacket(packet Packet) {
-	ns := ss.Of(packet.EndPoint())
-	if ns == nil {
-		return
-	}
-	switch p := packet.(type) {
+func (ss *Session) onPacket(packet Packet) error {
+	switch packet.(type) {
 	case *heartbeatPacket:
 		ss.peerLast = time.Now()
-		ss.isConnected = true
 		if !ss.sendHeartBeat {
-			ss.Of(p.endPoint).sendPacket(new(heartbeatPacket))
+			err := ss.defaultNS.sendPacket(new(heartbeatPacket))
+			if err != nil {
+				return err
+			}
+			ss.lastCheck = time.Now()
 		}
 	case *disconnectPacket:
-		ns.onDisconnect()
-	case *connectPacket:
-		ss.isConnected = true
-		ns.onConnect()
-	case *messagePacket, *jsonPacket:
-		ns.onMessagePacket(p.(messageMix))
-	case *eventPacket:
-		ns.onEventPacket(p)
-	case *ackPacket:
-		ns.onAckPacket(p)
+		ss.defaultNS.onDisconnect()
+		return NotConnected
 	}
+	return nil
 }
 
-func (ss *Session) onOpen() {
+func (ss *Session) onOpen() error {
 	packet := new(connectPacket)
-	ss.isConnected = true
-	ns := ss.Of("")
-	err := ns.sendPacket(packet)
+	ss.defaultNS.connected = true
+	err := ss.defaultNS.sendPacket(packet)
+	fmt.Println("open err:", err)
 	if err == nil {
-		ns.onConnect()
-	} else {
-		ss.isConnected = false
+		ss.defaultNS.onConnect()
 	}
+	ss.lastCheck, ss.peerLast = time.Now(), time.Now()
+	return err
 }
