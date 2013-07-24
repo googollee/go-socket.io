@@ -3,7 +3,6 @@ package socketio
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -74,7 +73,6 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 }
 
 func (ss *Session) loop() {
-	fmt.Println("enter loop")
 	err := ss.onOpen()
 	if err != nil {
 		// log
@@ -161,7 +159,6 @@ func (ss *Session) onOpen() error {
 	packet := new(connectPacket)
 	ss.defaultNS.connected = true
 	err := ss.defaultNS.sendPacket(packet)
-	fmt.Println("open err:", err)
 	if err == nil {
 		ss.defaultNS.onConnect()
 	}
