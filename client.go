@@ -75,7 +75,12 @@ func Dial(url_, origin string) (*Client, error) {
 	}
 
 	ee := NewEventEmitter()
-	session := NewSession(map[string]*EventEmitter{endpoint: ee}, sessionId, int(timeout), false)
+	emitters := make(map[string]*EventEmitter)
+	emitters[endpoint] = ee
+	if endpoint != "" {
+		emitters[""] = NewEventEmitter()
+	}
+	session := NewSession(emitters, sessionId, int(timeout), false)
 	transport := newWebSocket(session)
 	transport.conn = ws
 	session.transport = transport
