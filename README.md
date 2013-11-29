@@ -60,11 +60,8 @@ func main() {
     sio.Of("/abc").On("my other event", event)
     sio.Of("/abc").On("ferret", ferret)
 
-    mux := http.NewServeMux()
-    mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        sio.ServeHTTP(w, r)
-    })
-    log.Fatal(http.ListenAndServe(":8080", mux))
+    sio.Handle("/", http.FileServer(http.Dir("./public/")))
+    log.Fatal(http.ListenAndServe(":3000", sio))
 
     fmt.Println("end")
 }
