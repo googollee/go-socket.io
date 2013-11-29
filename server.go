@@ -2,8 +2,6 @@ package socketio
 
 import (
 	"code.google.com/p/go.net/websocket"
-	"github.com/gorilla/mux"
-  "time"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -24,6 +22,7 @@ type Config struct {
 }
 
 type SocketIOServer struct {
+  *http.ServeMux
 	mutex            sync.RWMutex
 	heartbeatTimeout int
 	closingTimeout   int
@@ -35,7 +34,7 @@ type SocketIOServer struct {
 }
 
 func NewSocketIOServer(config *Config) *SocketIOServer {
-	server := new(SocketIOServer)
+  server := &SocketIOServer{ServeMux: http.NewServeMux()}
 	if config != nil {
 		server.heartbeatTimeout = config.HeartbeatTimeout
 		server.closingTimeout = config.ClosingTimeout
@@ -60,47 +59,19 @@ func NewSocketIOServer(config *Config) *SocketIOServer {
 	return server
 }
 
-func (srv *SocketIOServer) ServeWebHTTP(r *mux.Router) {
-  r.PathPrefix("/socket.io/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    path := r.URL.Path
-    if !strings.HasPrefix(path, "/socket.io/1/") {
-      http.NotFound(w, r)
-      return
-    }
-    path = path[len("/socket.io/1/"):]
-    if path == "" {
-      srv.handShake(w, r)
-      return
-    }
-
-    spliter := strings.SplitN(path, "/", 2)
-    if len(spliter) < 2 {
-      http.NotFound(w, r)
-      return
-    }
-
-    transportName, sessionId := spliter[0], spliter[1]
-    if transportName != "websocket" {
-      http.Error(w, "not websocket", http.StatusBadRequest)
-      return
-    }
-
-    session := srv.getSession(sessionId)
-    if session == nil {
-      http.Error(w, "invalid session id", http.StatusBadRequest)
-      return
-    }
-
-    transport := newWebSocket(session)
-
-    websocket.Handler(transport.webSocketHandler).ServeHTTP(w, r)
-  })
-}
-
 func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/socket.io/1/") {
-		http.NotFound(w, r)
+
+    cookie, _ := r.Cookie("socket.io.sid")
+    if cookie == nil {
+      http.SetCookie(w, &http.Cookie{
+        Name:   "socket.io.sid",
+        Value:  NewSessionID(),
+        Path:   "/",
+      })
+    }
+    srv.ServeMux.ServeHTTP(w, r)
 		return
 	}
 	path = path[len("/socket.io/1/"):]
@@ -172,15 +143,10 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
   cookie, _ := r.Cookie("socket.io.sid")
-  var sessionId string
-  if cookie != nil {
-    sessionId = cookie.Value
-  } else {
-    sessionId = NewSessionID()
-    if sessionId == "" {
-      http.Error(w, "", 503)
-      return
-    }
+  sessionId := cookie.Value
+  if sessionId == "" {
+    http.Error(w, "", 503)
+    return
   }
 
 	transportNames := srv.transports.GetTransportNames()
@@ -190,16 +156,11 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		srv.closingTimeout,
 		strings.Join(transportNames, ","))
 
-  if cookie == nil {
-	  session := NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
-	  srv.addSession(session)
-  } else {
-	  http.SetCookie(w, &http.Cookie{
-      Name:   "socket.io.sid",
-      Value:  sessionId,
-      Path:   "/",
-      Expires:time.Now().Add(356*24*time.Hour),
-    })
+
+  session := srv.getSession(sessionId)
+  if session == nil {
+    session = NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
+    srv.addSession(session)
   }
 }
 
