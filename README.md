@@ -2,6 +2,12 @@ socket.io library for Golang
 
 forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-socketio)
 
+Added a socket.io client for quick use
+Fixed the disconnect event
+Added persistent sessionIds
+Going to add session values
+
+
 simple demo:
 
 ```go
