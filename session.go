@@ -29,6 +29,7 @@ type Session struct {
 	lastCheck         time.Time
 	sendHeartBeat     bool
 	defaultNS         *NameSpace
+	Values            map[interface{}]interface{}
 }
 
 func NewSessionID() string {
@@ -78,6 +79,8 @@ func (ss *Session) loop() {
 		// log
 		return
 	}
+
+  defer ss.defaultNS.onDisconnect()
 
 	for {
 		if err := ss.checkConnection(); err != nil {

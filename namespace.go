@@ -33,6 +33,14 @@ func (ns *NameSpace) Endpoint() string {
 	return ns.endpoint
 }
 
+func (ns *NameSpace) Id() string {
+  return ns.session.SessionId
+}
+
+func (ns *NameSpace) Session() *Session {
+  return ns.session
+}
+
 func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
 	if !ns.connected {
 		return NotConnected

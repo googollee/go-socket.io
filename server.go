@@ -2,6 +2,8 @@ package socketio
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"github.com/gorilla/mux"
+  "time"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -58,6 +60,43 @@ func NewSocketIOServer(config *Config) *SocketIOServer {
 	return server
 }
 
+func (srv *SocketIOServer) ServeWebHTTP(r *mux.Router) {
+  r.PathPrefix("/socket.io/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    path := r.URL.Path
+    if !strings.HasPrefix(path, "/socket.io/1/") {
+      http.NotFound(w, r)
+      return
+    }
+    path = path[len("/socket.io/1/"):]
+    if path == "" {
+      srv.handShake(w, r)
+      return
+    }
+
+    spliter := strings.SplitN(path, "/", 2)
+    if len(spliter) < 2 {
+      http.NotFound(w, r)
+      return
+    }
+
+    transportName, sessionId := spliter[0], spliter[1]
+    if transportName != "websocket" {
+      http.Error(w, "not websocket", http.StatusBadRequest)
+      return
+    }
+
+    session := srv.getSession(sessionId)
+    if session == nil {
+      http.Error(w, "invalid session id", http.StatusBadRequest)
+      return
+    }
+
+    transport := newWebSocket(session)
+
+    websocket.Handler(transport.webSocketHandler).ServeHTTP(w, r)
+  })
+}
+
 func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/socket.io/1/") {
@@ -94,6 +133,7 @@ func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	websocket.Handler(transport.webSocketHandler).ServeHTTP(w, r)
 }
 
+
 func (srv *SocketIOServer) Of(name string) *EventEmitter {
 	ret, ok := srv.eventEmitters[name]
 	if !ok {
@@ -101,6 +141,10 @@ func (srv *SocketIOServer) Of(name string) *EventEmitter {
 		srv.eventEmitters[name] = ret
 	}
 	return ret
+}
+
+func (srv *SocketIOServer) Emit(name string, fn interface{}) error {
+	return srv.Of("").On(name, fn)
 }
 
 func (srv *SocketIOServer) On(name string, fn interface{}) error {
@@ -126,19 +170,37 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("origin"))
 	w.Header().Set("Access-Control-Allow-Methods", "GET")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	sessionId := NewSessionID()
-	if sessionId == "" {
-		http.Error(w, "", 503)
-		return
-	}
+
+  cookie, _ := r.Cookie("socket.io.sid")
+  var sessionId string
+  if cookie != nil {
+    sessionId = cookie.Value
+  } else {
+    sessionId = NewSessionID()
+    if sessionId == "" {
+      http.Error(w, "", 503)
+      return
+    }
+  }
+
 	transportNames := srv.transports.GetTransportNames()
 	fmt.Fprintf(w, "%s:%d:%d:%s",
 		sessionId,
 		srv.heartbeatTimeout,
 		srv.closingTimeout,
 		strings.Join(transportNames, ","))
-	session := NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
-	srv.addSession(session)
+
+  if cookie == nil {
+	  session := NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
+	  srv.addSession(session)
+  } else {
+	  http.SetCookie(w, &http.Cookie{
+      Name:   "socket.io.sid",
+      Value:  sessionId,
+      Path:   "/",
+      Expires:time.Now().Add(356*24*time.Hour),
+    })
+  }
 }
 
 func (srv *SocketIOServer) addSession(ss *Session) {
