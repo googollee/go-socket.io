@@ -33,7 +33,7 @@ func news(ns *socketio.NameSpace, title, body string, article_num int) {
 func onConnect(ns *socketio.NameSpace) {
   fmt.Println("connected:", ns.Id(), " in channel ", ns.Endpoint())
   ns.Session.Values["name"] = "this guy"
-  ns.Call("news", "abc", 3)
+  ns.Emit("news", "abc", 3)
 }
 
 func onDisconnect(ns *socketio.NameSpace) {
@@ -84,7 +84,7 @@ func main() {
     panic(err)
   }
   client.On("connect", func(ns *socketio.NameSpace) {
-    ns.Call("news", "this is title", "this is body", 1)
+    ns.Emit("news", "this is title", "this is body", 1)
   })
   client.On("news", func(ns *socketio.NameSpace, message string, urgency int) { 
     fmt.Println("news", message, urgency) 

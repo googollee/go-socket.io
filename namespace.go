@@ -88,6 +88,27 @@ func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{
 	return nil
 }
 
+func (ns *NameSpace) Emit(name string, args ...interface{}) error {
+	if !ns.connected {
+		return NotConnected
+	}
+
+	pack := new(eventPacket)
+	pack.endPoint = ns.endpoint
+	pack.name = name
+
+	var err error
+	pack.args, err = json.Marshal(args)
+	if err != nil {
+		return err
+	}
+	err = ns.sendPacket(pack)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ns *NameSpace) onPacket(packet Packet) {
 	switch p := packet.(type) {
 	case *disconnectPacket:
