@@ -7,6 +7,8 @@ forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-s
 - Fixed the disconnect event
 - Added persistent sessionIds
 - Added session values
+- Added broadcast
+- Added a simpler Emit function to namespaces
 
 
 ##Demo
@@ -51,18 +53,22 @@ func main() {
   sio.On("connect", onConnect)
   sio.On("disconnect", onDisconnect)
   sio.On("news", news)
+  sio.On("ping", func(ns *socketio.NameSpace, message string){
+    sio.Broadcast("pong", message)
+  })
 
   //in channel abc
   sio.Of("/abc").On("connect", onConnect)
   sio.Of("/abc").On("disconnect", onDisconnect)
   sio.Of("/abc").On("news", news)
+  sio.Of("/abc").On("ping", func(ns *socketio.NameSpace, message string){
+    sio.In("/abc").Broadcast("pong", message)
+  })
 
   //this will serve a http static file server
   sio.Handle("/", http.FileServer(http.Dir("./public/")))
   //startup the server
   log.Fatal(http.ListenAndServe(":3000", sio))
-
-  fmt.Println("end")
 }
 ```
 
