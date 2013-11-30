@@ -114,8 +114,20 @@ func (srv *SocketIOServer) Of(name string) *EventEmitter {
 	return ret
 }
 
-func (srv *SocketIOServer) Emit(name string, fn interface{}) error {
-	return srv.Of("").On(name, fn)
+func (srv *SocketIOServer) In(name string) *Broadcaster {
+  namespaces := []*NameSpace{}
+  for _, session := range srv.sessions {
+    ns := session.Of(name)
+    if ns != nil {
+      namespaces = append(namespaces, ns)
+    }
+  }
+
+  return &Broadcaster{Namespaces: namespaces}
+}
+
+func (srv *SocketIOServer) Broadcast(name string, args ...interface{}) {
+	srv.In("").Broadcast(name, args...)
 }
 
 func (srv *SocketIOServer) On(name string, fn interface{}) error {
