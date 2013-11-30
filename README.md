@@ -15,30 +15,23 @@ package main
 
 import (
     "fmt"
-    "github.com/googollee/go-socket.io"
+    "github.com/tanema/go-socket.io"
     "log"
     "net/http"
     "time"
 )
 
-func ferret(ns *socketio.NameSpace, a string, i int) string {
-    fmt.Println(a, i)
-    return "woot"
+func news(ns *socketio.NameSpace, title, body string, article_num int) {
+    fmt.Printf("in %s, title: %s, body: %s, article number: %i", ns.Endpoint(), title, body, article_num)
 }
 
-func event(ns *socketio.NameSpace, data struct{ My string }) {
-    fmt.Println("event:", data.My)
+func onConnect(ns *socketio.NameSpace) {
+    fmt.Println("connected:", ns.Id(), " in channel ", ns.Endpoint())
+    ns.Call("news", "abc", 3)
 }
 
-func news(ns *socketio.NameSpace, arg map[string]string) (int, string) {
-    fmt.Printf("in news, name: %s, args: %#v\n", ns.Endpoint(), arg)
-    return 1, "str"
-}
-
-func onConnect(ns *socketio.NameSpace) string {
-    fmt.Println("connected:", ns.Endpoint())
-    ns.Call("news", time.Second, nil, "abc")
-    return "news"
+func onDisconnect(ns *socketio.NameSpace) {
+    fmt.Println("disconnected:", ns.Id(), " in channel ", ns.Endpoint())
 }
 
 func main() {
@@ -49,38 +42,33 @@ func main() {
     sio := socketio.NewSocketIOServer(sock_config)
 
     // Handler for new connections, also adds socket.io event handlers
-    err := sio.On("connect", onConnect)
-    fmt.Println(err)
-    err = sio.On("disconnect", func(ns *socketio.NameSpace) { fmt.Println("Disconnect!", ns.Endpoint()) })
-    fmt.Println(err)
-    err = sio.On("news", news)
-    fmt.Println(err)
-    err = sio.On("my other event", event)
-    fmt.Println(err)
-    err = sio.On("ferret", ferret)
-    fmt.Println(err)
+    sio.On("connect", onConnect)
+    sio.On("disconnect", onDisconnect)
+    sio.On("news", news)
 
+    //in channel abc
     sio.Of("/abc").On("connect", onConnect)
+    sio.Of("/abc").On("disconnect", onDisconnect)
     sio.Of("/abc").On("news", news)
-    sio.Of("/abc").On("disconnect", func(ns *socketio.NameSpace) { fmt.Println("Disconnect!", ns.Endpoint()) })
-    sio.Of("/abc").On("my other event", event)
-    sio.Of("/abc").On("ferret", ferret)
 
+    //this will serve a http static file server
     sio.Handle("/", http.FileServer(http.Dir("./public/")))
+    //startup the server
     log.Fatal(http.ListenAndServe(":3000", sio))
 
     fmt.Println("end")
 }
 ```
 
-client:
+go client:
 
 ```go
 package main
 
 import (
+    "os"
     "fmt"
-    "github.com/googollee/go-socket.io"
+    "github.com/tanema/go-socket.io"
     "time"
 )
 
@@ -89,13 +77,32 @@ func main() {
     if err != nil {
         panic(err)
     }
-    client.On("news", func(ns *socketio.NameSpace, d string) { fmt.Println("news", d) })
     client.On("connect", func(ns *socketio.NameSpace) {
-        var reply string
-        err := ns.Call("ferret", time.Second, []interface{}{&reply}, "abc", 1)
-        fmt.Println("err:", err, "reply:", reply)
+      ns.Call("news", "this is title", "this is body", 1)
+    })
+    client.On("news", func(ns *socketio.NameSpace, message string, urgency int) { 
+      fmt.Println("news", message, urgency) 
+    })
+    client.On("disconnect", func(ns *socketio.NameSpace) {
+      os.Exit(1)
     })
     client.Run()
-    fmt.Println(err)
 }
 ``` 
+
+javascript client
+*NOTE: There is a provided socket.io.js file in the lib folder for including in your project
+
+```javascript
+  var socket = io.connect();
+  socket.on("connect", function(){
+    socket.emit("news", "this is title", "this is body", 1)
+  })
+  socket.on("news", function(message, urgency){
+    console.log(message + urgency);
+  })
+  socket.on("disconnect", function() {
+    alert("You have disconnected from the server")
+  })
+```
+
