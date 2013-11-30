@@ -8,7 +8,10 @@ Added persistent sessionIds
 Added session values
 
 
-simple demo:
+Demo
+##
+
+*server:*
 
 ```go
 package main
@@ -60,7 +63,7 @@ func main() {
 }
 ```
 
-go client:
+*go client:*
 
 ```go
 package main
@@ -90,8 +93,9 @@ func main() {
 }
 ``` 
 
-javascript client
-*NOTE: There is a provided socket.io.js file in the lib folder for including in your project
+*javascript client*
+
+ *NOTE:* There is a provided socket.io.js file in the lib folder for including in your project
 
 ```javascript
   var socket = io.connect();
