@@ -10,7 +10,7 @@ import (
 type NameSpace struct {
 	*EventEmitter
 	endpoint    string
-	session     *Session
+	Session     *Session
 	connected   bool
 	id          int
 	waitingLock sync.Mutex
@@ -21,7 +21,7 @@ func NewNameSpace(session *Session, endpoint string, ee *EventEmitter) *NameSpac
 	ret := &NameSpace{
 		EventEmitter: ee,
 		endpoint:     endpoint,
-		session:      session,
+		Session:      session,
 		connected:    false,
 		id:           1,
 		waiting:      make(map[int]chan []byte),
@@ -34,11 +34,7 @@ func (ns *NameSpace) Endpoint() string {
 }
 
 func (ns *NameSpace) Id() string {
-  return ns.session.SessionId
-}
-
-func (ns *NameSpace) Session() *Session {
-  return ns.session
+  return ns.Session.SessionId
 }
 
 func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
@@ -137,7 +133,7 @@ func (ns *NameSpace) sendPacket(packet Packet) error {
 	if !ns.connected {
 		return NotConnected
 	}
-	return ns.session.transport.Send(encodePacket(ns.endpoint, packet))
+	return ns.Session.transport.Send(encodePacket(ns.endpoint, packet))
 }
 
 func (ns *NameSpace) onConnect() {

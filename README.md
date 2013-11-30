@@ -5,7 +5,7 @@ forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-s
 Added a socket.io client for quick use
 Fixed the disconnect event
 Added persistent sessionIds
-Going to add session values
+Added session values
 
 
 simple demo:

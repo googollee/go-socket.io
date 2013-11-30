@@ -54,6 +54,7 @@ func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int
 		sendHeartBeat:     sendHeartbeat,
 		heartbeatTimeout:  time.Duration(timeout) * time.Second * 2 / 3,
 		connectionTimeout: time.Duration(timeout) * time.Second,
+    Values:            make(map[interface{}]interface{}),
 	}
 	ret.defaultNS = ret.Of("")
 	return ret
