@@ -6,22 +6,19 @@ import (
 )
 
 func client() {
-  client, err := socketio.Dial("http://127.0.0.1:3000/", "http://127.0.0.1:3000")
+  client, err := socketio.Dial("http://127.0.0.1:3000", "http://127.0.0.1:3000")
   if err != nil {
     panic(err)
   }
   client.On("connect", func(ns *socketio.NameSpace) {
     log.Println("connected")
-    ns.Emit("ping", "test")
+    ns.Emit("ping", "I pinged")
   })
   client.On("news", func(ns *socketio.NameSpace, message string) {
     log.Println(message)
   })
   client.On("pong", func(ns *socketio.NameSpace, message string) {
     log.Println("got pong: ", message)
-  })
-  client.On("disconnect", func(ns *socketio.NameSpace) {
-    log.Println("connected")
   })
   client.Run()
 }
@@ -36,9 +33,6 @@ func pol() {
   })
   client.On("news", func(ns *socketio.NameSpace, message string) {
     log.Println(message, " in Pol")
-  })
-  client.On("disconnect", func(ns *socketio.NameSpace) {
-    log.Println("pol disconnected")
   })
   client.Run()
 }

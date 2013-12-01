@@ -10,12 +10,10 @@ forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-s
 - Added broadcast
 - Added a simpler Emit function to namespaces
 - Fixed connected event on endpoints
+- Added events without arguments
 
 **TODO**
 - double events on go client
-- add fully functional examples
-- events without arguments still work
-
 
 ##Demo
 
@@ -59,16 +57,16 @@ func main() {
   sio.On("connect", onConnect)
   sio.On("disconnect", onDisconnect)
   sio.On("news", news)
-  sio.On("ping", func(ns *socketio.NameSpace, message string){
-    sio.Broadcast("pong", message)
+  sio.On("ping", func(ns *socketio.NameSpace){
+    sio.Broadcast("pong", nil)
   })
 
   //in channel abc
   sio.Of("/abc").On("connect", onConnect)
   sio.Of("/abc").On("disconnect", onDisconnect)
   sio.Of("/abc").On("news", news)
-  sio.Of("/abc").On("ping", func(ns *socketio.NameSpace, message string){
-    sio.In("/abc").Broadcast("pong", message)
+  sio.Of("/abc").On("ping", func(ns *socketio.NameSpace){
+    sio.In("/abc").Broadcast("pong", nil)
   })
 
   //this will serve a http static file server
@@ -119,6 +117,10 @@ func main() {
   })
   socket.on("news", function(message, urgency){
     console.log(message + urgency);
+    socket.emit("ping")
+  })
+  socket.on("pong", function() {
+    console.log("got pong")
   })
   socket.on("disconnect", function() {
     alert("You have disconnected from the server")

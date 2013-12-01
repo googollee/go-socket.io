@@ -21,7 +21,6 @@ func main() {
     sio.Broadcast("news", message)
   })
   sio.On("ping", func(ns *socketio.NameSpace){
-    println("pingged")
     ns.Emit("pong", nil)
   })
   sio.Of("/pol").On("connect", func(ns *socketio.NameSpace){
