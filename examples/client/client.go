@@ -12,13 +12,13 @@ func client() {
   }
   client.On("connect", func(ns *socketio.NameSpace) {
     log.Println("connected")
-    ns.Emit("ping", "I pinged")
+    ns.Emit("ping", nil)
   })
   client.On("news", func(ns *socketio.NameSpace, message string) {
     log.Println(message)
   })
-  client.On("pong", func(ns *socketio.NameSpace, message string) {
-    log.Println("got pong: ", message)
+  client.On("pong", func(ns *socketio.NameSpace) {
+    log.Println("got pong")
   })
   client.Run()
 }

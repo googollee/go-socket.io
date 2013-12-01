@@ -8,7 +8,6 @@ import (
 
 func main() {
   sio := socketio.NewSocketIOServer(&socketio.Config{})
-
   sio.On("connect", func(ns *socketio.NameSpace){
     log.Println("Connected: ", ns.Id())
     sio.Broadcast("connected", ns.Id())
