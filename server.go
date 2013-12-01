@@ -155,7 +155,12 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
   cookie, _ := r.Cookie("socket.io.sid")
-  sessionId := cookie.Value
+  var sessionId string
+  if cookie == nil {
+    sessionId = NewSessionID()
+  } else {
+    sessionId = cookie.Value
+  }
   if sessionId == "" {
     http.Error(w, "", 503)
     return

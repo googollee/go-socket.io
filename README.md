@@ -9,6 +9,12 @@ forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-s
 - Added session values
 - Added broadcast
 - Added a simpler Emit function to namespaces
+- Fixed connected event on endpoints
+
+**TODO**
+- double events on go client
+- add fully functional examples
+- events without arguments still work
 
 
 ##Demo

@@ -115,8 +115,6 @@ func (ns *NameSpace) onPacket(packet Packet) {
 		ns.onDisconnect()
 	case *connectPacket:
 		ns.onConnect()
-	// case *messagePacket, *jsonPacket:
-	// 	ns.onMessagePacket(p.(messageMix))
 	case *eventPacket:
 		ns.onEventPacket(p)
 	case *ackPacket:
@@ -160,6 +158,7 @@ func (ns *NameSpace) sendPacket(packet Packet) error {
 func (ns *NameSpace) onConnect() {
 	ns.emit("connect", ns, nil)
 	ns.connected = true
+  ns.Emit("connect")
 }
 
 func (ns *NameSpace) onDisconnect() {

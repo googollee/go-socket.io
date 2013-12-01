@@ -75,12 +75,7 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 }
 
 func (ss *Session) loop() {
-	err := ss.onOpen()
-	if err != nil {
-		// log
-		return
-	}
-
+	ss.onOpen()
   defer ss.defaultNS.onDisconnect()
 
 	for {
@@ -95,6 +90,7 @@ func (ss *Session) loop() {
 		if packet == nil {
 			continue
 		}
+
 
 		if packet.EndPoint() == "" {
 			if err := ss.onPacket(packet); err != nil {
@@ -163,9 +159,7 @@ func (ss *Session) onOpen() error {
 	packet := new(connectPacket)
 	ss.defaultNS.connected = true
 	err := ss.defaultNS.sendPacket(packet)
-	if err == nil {
-		ss.defaultNS.onConnect()
-	}
+	ss.defaultNS.emit("connect", ss.defaultNS, nil)
 	ss.lastCheck, ss.peerLast = time.Now(), time.Now()
 	return err
 }
