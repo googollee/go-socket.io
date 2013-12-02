@@ -13,7 +13,8 @@ forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-s
 - Added events without arguments
 
 **TODO**
-- double events on go client
+- endpoint connect event on go client
+- events on endpoint on go client
 
 ##Demo
 

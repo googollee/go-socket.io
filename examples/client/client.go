@@ -6,7 +6,7 @@ import (
 )
 
 func client() {
-  client, err := socketio.Dial("http://127.0.0.1:3000", "http://127.0.0.1:3000")
+  client, err := socketio.Dial("http://127.0.0.1:3000")
   if err != nil {
     panic(err)
   }
@@ -24,7 +24,7 @@ func client() {
 }
 
 func pol() {
-  client, err := socketio.Dial("http://127.0.0.1:3000/pol", "http://127.0.0.1:3000")
+  client, err := socketio.Dial("http://127.0.0.1:3000/pol")
   if err != nil {
     panic(err)
   }

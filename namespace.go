@@ -156,9 +156,11 @@ func (ns *NameSpace) sendPacket(packet Packet) error {
 }
 
 func (ns *NameSpace) onConnect() {
-	ns.emit("connect", ns, nil)
-	ns.connected = true
-  ns.Emit("connect")
+  if ns.connected == false {
+    ns.emit("connect", ns, nil)
+    ns.connected = true
+    ns.Emit("connect")
+  }
 }
 
 func (ns *NameSpace) onDisconnect() {

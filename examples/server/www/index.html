@@ -17,6 +17,12 @@
       socket.on("news", function(message){
         $("body").append(message + "</br>")
       })
+      socket.on("pong", function(message){
+        $("body").append("got pong</br>")
+      })
+      socket.on("connected", function(id){
+        $("body").append("person connected " + id + "</br>")
+      })
       var pol = io.connect("http://localhost/pol");
       pol.on("connect", function(){
         $("body").append("pol connected</br>")

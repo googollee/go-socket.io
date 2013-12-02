@@ -28,6 +28,9 @@ func main() {
   sio.Of("/pol").On("news", func(ns *socketio.NameSpace, message string){
     sio.In("/pol").Broadcast("news", message)
   })
+  sio.Of("/pol").On("disconnect", func(ns *socketio.NameSpace){
+    log.Println("Pol Disconnected: ", ns.Id())
+  })
   sio.Handle("/", http.FileServer(http.Dir("./www/")))
 	println("listening on port 3000")
   log.Fatal(http.ListenAndServe(":3000", sio))

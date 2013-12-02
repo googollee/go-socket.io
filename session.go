@@ -75,8 +75,15 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 }
 
 func (ss *Session) loop() {
-	ss.onOpen()
-  defer ss.defaultNS.onDisconnect()
+	err := ss.onOpen()
+	if err != nil {
+		return
+	}
+  defer func() {
+    for _, ns := range ss.nameSpaces {
+      ns.onDisconnect()
+    }
+  }()
 
 	for {
 		if err := ss.checkConnection(); err != nil {
@@ -90,7 +97,6 @@ func (ss *Session) loop() {
 		if packet == nil {
 			continue
 		}
-
 
 		if packet.EndPoint() == "" {
 			if err := ss.onPacket(packet); err != nil {
