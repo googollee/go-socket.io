@@ -1,11 +1,11 @@
 package socketio
 
 type Broadcaster struct {
-  Namespaces []*NameSpace
+	Namespaces []*NameSpace
 }
 
 func (b *Broadcaster) Broadcast(name string, args ...interface{}) {
-  for _, ns := range b.Namespaces {
-    go ns.Emit(name, args...)
-  }
+	for _, ns := range b.Namespaces {
+		go ns.Emit(name, args...)
+	}
 }

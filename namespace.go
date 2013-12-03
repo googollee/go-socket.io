@@ -34,7 +34,7 @@ func (ns *NameSpace) Endpoint() string {
 }
 
 func (ns *NameSpace) Id() string {
-  return ns.Session.SessionId
+	return ns.Session.SessionId
 }
 
 func (ns *NameSpace) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
@@ -150,18 +150,18 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 
 func (ns *NameSpace) sendPacket(packet Packet) error {
 	if !ns.connected {
-    println(ns.endpoint + "not connected")
+		println(ns.endpoint + "not connected")
 		return NotConnected
 	}
 	return ns.Session.transport.Send(encodePacket(ns.endpoint, packet))
 }
 
 func (ns *NameSpace) onConnect() {
-  if ns.connected == false {
-    ns.emit("connect", ns, nil)
-    ns.connected = true
-    ns.Emit("connect")
-  }
+	if ns.connected == false {
+		ns.emit("connect", ns, nil)
+		ns.connected = true
+		ns.Emit("connect")
+	}
 }
 
 func (ns *NameSpace) onDisconnect() {

@@ -54,7 +54,7 @@ func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int
 		sendHeartBeat:     sendHeartbeat,
 		heartbeatTimeout:  time.Duration(timeout) * time.Second * 2 / 3,
 		connectionTimeout: time.Duration(timeout) * time.Second,
-    Values:            make(map[interface{}]interface{}),
+		Values:            make(map[interface{}]interface{}),
 	}
 	ret.defaultNS = ret.Of("")
 	return ret
@@ -66,8 +66,8 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 	if nameSpace = ss.nameSpaces[name]; nameSpace == nil {
 		ee := ss.emitters[name]
 		if ee == nil {
-      ss.emitters[name] = NewEventEmitter()
-      ee = ss.emitters[name]
+			ss.emitters[name] = NewEventEmitter()
+			ee = ss.emitters[name]
 		}
 		nameSpace = NewNameSpace(ss, name, ee)
 		ss.nameSpaces[name] = nameSpace
@@ -80,11 +80,11 @@ func (ss *Session) loop() {
 	if err != nil {
 		return
 	}
-  defer func() {
-    for _, ns := range ss.nameSpaces {
-      ns.onDisconnect()
-    }
-  }()
+	defer func() {
+		for _, ns := range ss.nameSpaces {
+			ns.onDisconnect()
+		}
+	}()
 
 	for {
 		if err := ss.checkConnection(); err != nil {

@@ -27,10 +27,10 @@ func Dial(origin string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-  endpoint := parseEndpoint(u)
+	endpoint := parseEndpoint(u)
 	u.Path = ""
 
-  url_ := fmt.Sprintf("%s/socket.io/%d/", u.String(), ProtocolVersion)
+	url_ := fmt.Sprintf("%s/socket.io/%d/", u.String(), ProtocolVersion)
 	r, err := http.Get(url_)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func Dial(origin string) (*Client, error) {
 	transport.conn = ws
 	session.transport = transport
 	if endpoint != "" {
-    session.transport.Send(encodePacket(endpoint, new(connectPacket)))
+		session.transport.Send(encodePacket(endpoint, new(connectPacket)))
 	}
 
 	return &Client{
@@ -97,7 +97,7 @@ func parseEndpoint(u *url.URL) string {
 			endpoint = path
 		}
 	}
-  return endpoint
+	return endpoint
 }
 
 func (c *Client) Run() {
@@ -110,12 +110,12 @@ func (c *Client) Quit() error {
 
 func (c *Client) Of(name string) (nameSpace *NameSpace) {
 	ee := c.session.emitters[name]
-  ns := c.session.Of(name)
+	ns := c.session.Of(name)
 	if ee == nil {
-    c.session.transport.Send(encodePacket(name, new(connectPacket)))
-    ns.connected = true
-  }
-  return ns
+		c.session.transport.Send(encodePacket(name, new(connectPacket)))
+		ns.connected = true
+	}
+	return ns
 }
 
 func (c *Client) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
