@@ -150,6 +150,7 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 
 func (ns *NameSpace) sendPacket(packet Packet) error {
 	if !ns.connected {
+    println(ns.endpoint + "not connected")
 		return NotConnected
 	}
 	return ns.Session.transport.Send(encodePacket(ns.endpoint, packet))

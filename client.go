@@ -74,9 +74,7 @@ func Dial(origin string) (*Client, error) {
 	transport.conn = ws
 	session.transport = transport
 	if endpoint != "" {
-    packet := new(connectPacket)
-    packet.endPoint = endpoint
-		session.Of(endpoint).sendPacket(packet)
+    session.transport.Send(encodePacket(endpoint, new(connectPacket)))
 	}
 
 	return &Client{
@@ -110,10 +108,20 @@ func (c *Client) Quit() error {
 	return nil
 }
 
+func (c *Client) Of(name string) (nameSpace *NameSpace) {
+	ee := c.session.emitters[name]
+  ns := c.session.Of(name)
+	if ee == nil {
+    c.session.transport.Send(encodePacket(name, new(connectPacket)))
+    ns.connected = true
+  }
+  return ns
+}
+
 func (c *Client) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
-	return c.session.Of(c.endpoint).Call(name, timeout, reply, args...)
+	return c.Of(c.endpoint).Call(name, timeout, reply, args...)
 }
 
 func (c *Client) Emit(name string, args ...interface{}) error {
-	return c.session.Of(c.endpoint).Emit(name, args...)
+	return c.Of(c.endpoint).Emit(name, args...)
 }

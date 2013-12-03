@@ -123,7 +123,22 @@ func main() {
   socket.on("pong", function() {
     console.log("got pong")
   })
+  socket.of("/abc").on("news", function(message, urgency){
+    console.log(message + urgency);
+    socket.emit("ping")
+  })
+  socket.of("/abc").on("pong", function() {
+    console.log("got pong")
+  })
   socket.on("disconnect", function() {
     alert("You have disconnected from the server")
+  })
+  var abc = io.connect("http://localhost/pol");
+  abc.on("pong", function() {
+    console.log("got pong from pol")
+  })
+  abc.on("news", function(message, urgency){
+    console.log(message + urgency);
+    socket.emit("ping")
   })
 ```

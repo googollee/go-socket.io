@@ -66,7 +66,8 @@ func (ss *Session) Of(name string) (nameSpace *NameSpace) {
 	if nameSpace = ss.nameSpaces[name]; nameSpace == nil {
 		ee := ss.emitters[name]
 		if ee == nil {
-			return nil
+      ss.emitters[name] = NewEventEmitter()
+      ee = ss.emitters[name]
 		}
 		nameSpace = NewNameSpace(ss, name, ee)
 		ss.nameSpaces[name] = nameSpace
