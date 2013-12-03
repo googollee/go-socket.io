@@ -2,20 +2,6 @@
 
 forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-socketio)
 
-**this forks improvments**
-- Added a socket.io client for quick use
-- Fixed the disconnect event
-- Added persistent sessionIds
-- Added session values
-- Added broadcast
-- Added a simpler Emit function to namespaces
-- Fixed connected event on endpoints
-- Added events without arguments
-
-**TODO**
-- endpoint connect event on go client
-- events on endpoint on go client
-
 ##Demo
 
 **server:**
@@ -161,3 +147,14 @@ func main() {
     socket.emit("ping")
   })
 ```
+
+==Changlog
+- Added a socket.io client for quick use
+- Fixed the disconnect event
+- Added persistent sessionIds
+- Added session values
+- Added broadcast
+- Added a simpler Emit function to namespaces
+- Fixed connected event on endpoints
+- Added events without arguments
+- Fixed go client endpoints
