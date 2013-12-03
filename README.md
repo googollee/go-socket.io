@@ -148,7 +148,7 @@ func main() {
   })
 ```
 
-==Changlog
+##Changlog
 - Added a socket.io client for quick use
 - Fixed the disconnect event
 - Added persistent sessionIds
