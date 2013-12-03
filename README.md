@@ -40,7 +40,7 @@ func news(ns *socketio.NameSpace, title, body string, article_num int) {
 func onConnect(ns *socketio.NameSpace) {
   fmt.Println("connected:", ns.Id(), " in channel ", ns.Endpoint())
   ns.Session.Values["name"] = "this guy"
-  ns.Emit("news", "abc", 3)
+  ns.Emit("news", "this is totally news", 3)
 }
 
 func onDisconnect(ns *socketio.NameSpace) {
@@ -62,12 +62,12 @@ func main() {
     sio.Broadcast("pong", nil)
   })
 
-  //in channel abc
-  sio.Of("/abc").On("connect", onConnect)
-  sio.Of("/abc").On("disconnect", onDisconnect)
-  sio.Of("/abc").On("news", news)
-  sio.Of("/abc").On("ping", func(ns *socketio.NameSpace){
-    sio.In("/abc").Broadcast("pong", nil)
+  //in politics channel
+  sio.Of("/pol").On("connect", onConnect)
+  sio.Of("/pol").On("disconnect", onDisconnect)
+  sio.Of("/pol").On("news", news)
+  sio.Of("/pol").On("ping", func(ns *socketio.NameSpace){
+    sio.In("/pol").Broadcast("pong", nil)
   })
 
   //this will serve a http static file server
@@ -83,26 +83,45 @@ func main() {
 package main
 
 import (
-  "os"
-  "fmt"
+  "log"
   "github.com/tanema/go-socket.io"
-  "time"
 )
 
-func main() {
-  client, err := socketio.Dial("http://127.0.0.1:8080/", "http://127.0.0.1:8080")
+func pol() {
+  client, err := socketio.Dial("http://127.0.0.1:3000/pol")
   if err != nil {
     panic(err)
   }
   client.On("connect", func(ns *socketio.NameSpace) {
-    ns.Emit("news", "this is title", "this is body", 1)
+    log.Println("pol connected")
   })
-  client.On("news", func(ns *socketio.NameSpace, message string, urgency int) { 
-    fmt.Println("news", message, urgency) 
+  client.On("news", func(ns *socketio.NameSpace, message string) {
+    log.Println(message, " in Pol")
   })
-  client.On("disconnect", func(ns *socketio.NameSpace) {
-    os.Exit(1)
+  client.Run()
+}
+
+func main() {
+  client, err := socketio.Dial("http://127.0.0.1:3000/")
+  if err != nil {
+    panic(err)
+  }
+  client.On("connect", func(ns *socketio.NameSpace) {
+    log.Println("connected")
+    ns.Emit("ping", nil)
   })
+  client.Of("/pol").On("news", func(ns *socketio.NameSpace, message string) {
+    log.Println(message, " in Pol 2")
+  })
+  client.On("news", func(ns *socketio.NameSpace, message string) {
+    log.Println(message)
+  })
+  client.On("pong", func(ns *socketio.NameSpace) {
+    log.Println("got pong")
+  })
+
+  go pol()
+
   client.Run()
 }
 ``` 
@@ -123,21 +142,21 @@ func main() {
   socket.on("pong", function() {
     console.log("got pong")
   })
-  socket.of("/abc").on("news", function(message, urgency){
+  socket.of("/pol").on("news", function(message, urgency){
     console.log(message + urgency);
     socket.emit("ping")
   })
-  socket.of("/abc").on("pong", function() {
+  socket.of("/pol").on("pong", function() {
     console.log("got pong")
   })
   socket.on("disconnect", function() {
     alert("You have disconnected from the server")
   })
-  var abc = io.connect("http://localhost/pol");
-  abc.on("pong", function() {
+  var pol = io.connect("http://localhost/pol");
+  pol.on("pong", function() {
     console.log("got pong from pol")
   })
-  abc.on("news", function(message, urgency){
+  pol.on("news", function(message, urgency){
     console.log(message + urgency);
     socket.emit("ping")
   })
