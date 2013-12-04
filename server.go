@@ -129,6 +129,10 @@ func (srv *SocketIOServer) Broadcast(name string, args ...interface{}) {
 	srv.In("").Broadcast(name, args...)
 }
 
+func (srv *SocketIOServer) Except(ns *NameSpace) *Broadcaster {
+	return srv.In("").Except(ns)
+}
+
 func (srv *SocketIOServer) On(name string, fn interface{}) error {
 	return srv.Of("").On(name, fn)
 }
