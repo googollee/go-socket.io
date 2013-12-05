@@ -22,6 +22,7 @@ type Config struct {
 }
 
 type SocketIOServer struct {
+	*http.ServeMux
 	mutex            sync.RWMutex
 	heartbeatTimeout int
 	closingTimeout   int
@@ -33,7 +34,7 @@ type SocketIOServer struct {
 }
 
 func NewSocketIOServer(config *Config) *SocketIOServer {
-	server := new(SocketIOServer)
+	server := &SocketIOServer{ServeMux: http.NewServeMux()}
 	if config != nil {
 		server.heartbeatTimeout = config.HeartbeatTimeout
 		server.closingTimeout = config.ClosingTimeout
@@ -61,7 +62,16 @@ func NewSocketIOServer(config *Config) *SocketIOServer {
 func (srv *SocketIOServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/socket.io/1/") {
-		http.NotFound(w, r)
+
+		cookie, _ := r.Cookie("socket.io.sid")
+		if cookie == nil {
+			http.SetCookie(w, &http.Cookie{
+				Name:  "socket.io.sid",
+				Value: NewSessionID(),
+				Path:  "/",
+			})
+		}
+		srv.ServeMux.ServeHTTP(w, r)
 		return
 	}
 	path = path[len("/socket.io/1/"):]
@@ -103,6 +113,26 @@ func (srv *SocketIOServer) Of(name string) *EventEmitter {
 	return ret
 }
 
+func (srv *SocketIOServer) In(name string) *Broadcaster {
+	namespaces := []*NameSpace{}
+	for _, session := range srv.sessions {
+		ns := session.Of(name)
+		if ns != nil {
+			namespaces = append(namespaces, ns)
+		}
+	}
+
+	return &Broadcaster{Namespaces: namespaces}
+}
+
+func (srv *SocketIOServer) Broadcast(name string, args ...interface{}) {
+	srv.In("").Broadcast(name, args...)
+}
+
+func (srv *SocketIOServer) Except(ns *NameSpace) *Broadcaster {
+	return srv.In("").Except(ns)
+}
+
 func (srv *SocketIOServer) On(name string, fn interface{}) error {
 	return srv.Of("").On(name, fn)
 }
@@ -126,19 +156,31 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("origin"))
 	w.Header().Set("Access-Control-Allow-Methods", "GET")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	sessionId := NewSessionID()
+
+	cookie, _ := r.Cookie("socket.io.sid")
+	var sessionId string
+	if cookie == nil {
+		sessionId = NewSessionID()
+	} else {
+		sessionId = cookie.Value
+	}
 	if sessionId == "" {
 		http.Error(w, "", 503)
 		return
 	}
+
 	transportNames := srv.transports.GetTransportNames()
 	fmt.Fprintf(w, "%s:%d:%d:%s",
 		sessionId,
 		srv.heartbeatTimeout,
 		srv.closingTimeout,
 		strings.Join(transportNames, ","))
-	session := NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
-	srv.addSession(session)
+
+	session := srv.getSession(sessionId)
+	if session == nil {
+		session = NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
+		srv.addSession(session)
+	}
 }
 
 func (srv *SocketIOServer) addSession(ss *Session) {

@@ -22,26 +22,15 @@ type Client struct {
 	*EventEmitter
 }
 
-func Dial(url_, origin string) (*Client, error) {
-	u, err := url.Parse(url_)
+func Dial(origin string) (*Client, error) {
+	u, err := url.Parse(origin)
 	if err != nil {
 		return nil, err
 	}
-	path := u.Path
-	if l := len(path); l > 0 && path[len(path)-1] == '/' {
-		path = path[:l-1]
-	}
-	lastPath := strings.LastIndex(path, "/")
-	endpoint := ""
-	if lastPath >= 0 {
-		path := path[lastPath:]
-		if len(path) > 0 {
-			endpoint = path
-		}
-	}
+	endpoint := parseEndpoint(u)
 	u.Path = ""
 
-	url_ = fmt.Sprintf("%s/socket.io/%d/", u.String(), ProtocolVersion)
+	url_ := fmt.Sprintf("%s/socket.io/%d/", u.String(), ProtocolVersion)
 	r, err := http.Get(url_)
 	if err != nil {
 		return nil, err
@@ -64,7 +53,7 @@ func Dial(url_, origin string) (*Client, error) {
 	sessionId := parts[0]
 	wsurl := "ws" + url_[4:]
 	wsurl = fmt.Sprintf("%swebsocket/%s", wsurl, sessionId)
-	ws, err := websocket.Dial(wsurl, "", origin)
+	ws, err := websocket.Dial(wsurl, "", url_)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +74,7 @@ func Dial(url_, origin string) (*Client, error) {
 	transport.conn = ws
 	session.transport = transport
 	if endpoint != "" {
-		session.Of(endpoint).sendPacket(new(connectPacket))
+		session.transport.Send(encodePacket(endpoint, new(connectPacket)))
 	}
 
 	return &Client{
@@ -93,6 +82,22 @@ func Dial(url_, origin string) (*Client, error) {
 		endpoint:     endpoint,
 		EventEmitter: ee,
 	}, nil
+}
+
+func parseEndpoint(u *url.URL) string {
+	path := u.Path
+	if l := len(path); l > 0 && path[len(path)-1] == '/' {
+		path = path[:l-1]
+	}
+	lastPath := strings.LastIndex(path, "/")
+	endpoint := ""
+	if lastPath >= 0 {
+		path := path[lastPath:]
+		if len(path) > 0 {
+			endpoint = path
+		}
+	}
+	return endpoint
 }
 
 func (c *Client) Run() {
@@ -103,6 +108,20 @@ func (c *Client) Quit() error {
 	return nil
 }
 
+func (c *Client) Of(name string) (nameSpace *NameSpace) {
+	ee := c.session.emitters[name]
+	ns := c.session.Of(name)
+	if ee == nil {
+		c.session.transport.Send(encodePacket(name, new(connectPacket)))
+		ns.connected = true
+	}
+	return ns
+}
+
 func (c *Client) Call(name string, timeout time.Duration, reply []interface{}, args ...interface{}) error {
-	return c.session.Of(c.endpoint).Call(name, timeout, reply, args...)
+	return c.Of(c.endpoint).Call(name, timeout, reply, args...)
+}
+
+func (c *Client) Emit(name string, args ...interface{}) error {
+	return c.Of(c.endpoint).Emit(name, args...)
 }

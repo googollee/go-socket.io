@@ -126,14 +126,18 @@ func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]inte
 		for i, arg := range handler.args[1:] {
 			args[i] = reflect.New(arg).Interface()
 		}
-		err := json.Unmarshal(data, &args)
-		if err != nil {
-			return err
+		if len(data) != 0 {
+			err := json.Unmarshal(data, &args)
+			if err != nil {
+				return err
+			}
 		}
-		callArgs = make([]reflect.Value, len(args)+1)
-		callArgs[0] = reflect.ValueOf(ns)
-		for i, arg := range args {
-			callArgs[i+1] = reflect.ValueOf(arg).Elem()
+		callArgs = []reflect.Value{reflect.ValueOf(ns)}
+
+		if args != nil && len(args) > 0 && args[0] != nil {
+			for _, arg := range args {
+				callArgs = append(callArgs, reflect.ValueOf(arg).Elem())
+			}
 		}
 	}
 	for _, handler := range handlers {
