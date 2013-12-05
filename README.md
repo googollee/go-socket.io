@@ -11,7 +11,7 @@ package main
 
 import (
   "fmt"
-  "github.com/tanema/go-socket.io"
+  "github.com/googollee/go-socket.io"
   "log"
   "net/http"
   "time"
@@ -70,7 +70,7 @@ package main
 
 import (
   "log"
-  "github.com/tanema/go-socket.io"
+  "github.com/googollee/go-socket.io"
 )
 
 func pol() {

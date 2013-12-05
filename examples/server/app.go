@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/tanema/go-socket.io"
+	"github.com/googollee/go-socket.io"
 	"log"
 	"net/http"
 )
