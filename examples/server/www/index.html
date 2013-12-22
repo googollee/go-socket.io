@@ -6,7 +6,7 @@
   </head>
   <body>
   Message in main <input id="text" type="text" /><button id="btn"> Send Message </button></br>
-  Message in politics <input id="pol_text" type="text" /><button id="pol_btn"> Send Message </button></br>
+  Message in politics <input id="pol_text" type="text" /><button id="pol_btn"> Send Message </button><button id="pol_poll_btn"> Send Poll </button></br>
     <script src='/socket.io.js'         type="text/javascript"></script>
     <script type="text/javascript">
       var socket = io.connect();
@@ -38,12 +38,17 @@
       pol.on("news", function(message){
         $("body").append(message + " in pol</br>")
       })
-    
+
       $("#btn").click(function(){
         socket.emit("news", $("#text").val())
       })
       $("#pol_btn").click(function(){
         pol.emit("news", $("#pol_text").val())
+      })
+      $("#pol_poll_btn").click(function(){
+        pol.emit("poll", $("#pol_text").val(), function(result) {
+            $("body").append("Poll response: " + result + "; in pol</br>")
+        })
       })
     </script>
   </body>
