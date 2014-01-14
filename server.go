@@ -170,11 +170,17 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transportNames := srv.transports.GetTransportNames()
-	fmt.Fprintf(w, "%s:%d:%d:%s",
+	response := fmt.Sprintf("%s:%d:%d:%s",
 		sessionId,
 		srv.heartbeatTimeout,
 		srv.closingTimeout,
 		strings.Join(transportNames, ","))
+
+	if jsonp_idx := r.URL.Query().Get("jsonp"); jsonp_idx != "" {
+		fmt.Fprintf(w, "io.j[%s](%q);", jsonp_idx, response)
+	} else {
+		fmt.Fprint(w, response)
+	}
 
 	session := srv.getSession(sessionId)
 	if session == nil {
