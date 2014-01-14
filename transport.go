@@ -35,7 +35,7 @@ func (tm *TransportManager) GetTransportNames() (names []string) {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
 	names = make([]string, 0, len(tm.transports))
-	for k, _ := range tm.transports {
+	for k := range tm.transports {
 		names = append(names, k)
 	}
 	return
