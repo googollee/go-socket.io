@@ -158,6 +158,10 @@ func (ss *Session) onPacket(packet Packet) error {
 	case *disconnectPacket:
 		ss.defaultNS.onDisconnect()
 		return NotConnected
+	default:
+		if ss.defaultNS != nil {
+			ss.defaultNS.onPacket(packet)
+		}
 	}
 	return nil
 }
