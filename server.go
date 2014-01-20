@@ -177,6 +177,7 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 		strings.Join(transportNames, ","))
 
 	if jsonp_idx := r.URL.Query().Get("jsonp"); jsonp_idx != "" {
+		w.Header().Set("Content-Type", "text/javascript")
 		fmt.Fprintf(w, "io.j[%s](%q);", jsonp_idx, response)
 	} else {
 		fmt.Fprint(w, response)
