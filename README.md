@@ -14,7 +14,6 @@ import (
   "github.com/googollee/go-socket.io"
   "log"
   "net/http"
-  "time"
 )
 
 func news(ns *socketio.NameSpace, title, body string, article_num int) {
