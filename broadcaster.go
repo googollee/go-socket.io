@@ -12,10 +12,10 @@ func (b *Broadcaster) Broadcast(name string, args ...interface{}) {
 
 func (b *Broadcaster) Except(namespace *NameSpace) *Broadcaster {
 	for i, ns := range b.Namespaces {
-    if ns == namespace {
-      b.Namespaces = append(b.Namespaces[:i], b.Namespaces[i+1:]...)
-      return b
-    }
+		if ns == namespace {
+			b.Namespaces = append(b.Namespaces[:i], b.Namespaces[i+1:]...)
+			return b
+		}
 	}
-  return b
+	return b
 }
