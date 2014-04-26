@@ -136,7 +136,11 @@ func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]inte
 
 		if args != nil && len(args) > 0 && args[0] != nil {
 			for _, arg := range args {
-				callArgs = append(callArgs, reflect.ValueOf(arg).Elem())
+				val := reflect.ValueOf(arg)
+				if val.Kind() == reflect.Interface || val.Kind() == reflect.Ptr {
+					val = val.Elem()
+				}
+				callArgs = append(callArgs, val)
 			}
 		}
 	}
