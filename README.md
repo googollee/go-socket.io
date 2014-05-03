@@ -1,7 +1,7 @@
 ##socket.io library for Golang
 
-forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-socketio)
-
+forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-socketio)  
+Documentation: http://godoc.org/github.com/googollee/go-socket.io
 ##Demo
 
 **server:**
