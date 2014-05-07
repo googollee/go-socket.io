@@ -28,9 +28,9 @@ func Dial(origin string) (*Client, error) {
 		return nil, err
 	}
 	endpoint := parseEndpoint(u)
-	u.Path = ""
+	u.Path = fmt.Sprintf("/socket.io/%d/", ProtocolVersion)
 
-	url_ := fmt.Sprintf("%s/socket.io/%d/", u.String(), ProtocolVersion)
+	url_ := u.String()
 	r, err := http.Get(url_)
 	if err != nil {
 		return nil, err
@@ -51,9 +51,9 @@ func Dial(origin string) (*Client, error) {
 		return nil, errors.New("server does not support websockets")
 	}
 	sessionId := parts[0]
-	wsurl := "ws" + url_[4:]
-	wsurl = fmt.Sprintf("%swebsocket/%s", wsurl, sessionId)
-	ws, err := websocket.Dial(wsurl, "", url_)
+	u.Scheme = "ws" + u.Scheme[4:]
+	u.Path = fmt.Sprintf("%swebsocket/%s", u.Path, sessionId)
+	ws, err := websocket.Dial(u.String(), "", url_)
 	if err != nil {
 		return nil, err
 	}
