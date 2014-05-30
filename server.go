@@ -18,7 +18,7 @@ type Config struct {
 	ClosingTimeout   int
 	NewSessionID     func() string
 	Transports       *TransportManager
-	Authorize        func(*http.Request) bool
+	Authorize        func(*http.Request, map[interface{}]interface{}) bool
 }
 
 type SocketIOServer struct {
@@ -26,7 +26,7 @@ type SocketIOServer struct {
 	mutex            sync.RWMutex
 	heartbeatTimeout int
 	closingTimeout   int
-	authorize        func(*http.Request) bool
+	authorize        func(*http.Request, map[interface{}]interface{}) bool
 	newSessionId     func() string
 	transports       *TransportManager
 	sessions         map[string]*Session
@@ -147,8 +147,9 @@ func (srv *SocketIOServer) RemoveAllListeners(name string) {
 
 // authorize origin!!
 func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
+	var values = make(map[interface{}]interface{})
 	if srv.authorize != nil {
-		if ok := srv.authorize(r); !ok {
+		if ok := srv.authorize(r, values); !ok {
 			http.Error(w, "", 401)
 			return
 		}
@@ -180,6 +181,12 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	if session == nil {
 		session = NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
 		srv.addSession(session)
+	}
+
+	if values != nil {
+		for k, v := range values {
+			session.Values[k] = v
+		}
 	}
 }
 
