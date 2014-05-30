@@ -18,7 +18,7 @@ type Config struct {
 	ClosingTimeout   int
 	NewSessionID     func() string
 	Transports       *TransportManager
-	Authorize        func(*http.Request, *map[interface{}]interface{}) bool
+	Authorize        func(*http.Request, map[interface{}]interface{}) bool
 }
 
 type SocketIOServer struct {
@@ -26,7 +26,7 @@ type SocketIOServer struct {
 	mutex            sync.RWMutex
 	heartbeatTimeout int
 	closingTimeout   int
-	authorize        func(*http.Request, *map[interface{}]interface{}) bool
+	authorize        func(*http.Request, map[interface{}]interface{}) bool
 	newSessionId     func() string
 	transports       *TransportManager
 	sessions         map[string]*Session
@@ -149,7 +149,7 @@ func (srv *SocketIOServer) RemoveAllListeners(name string) {
 func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	var values = make(map[interface{}]interface{})
 	if srv.authorize != nil {
-		if ok := srv.authorize(r, &values); !ok {
+		if ok := srv.authorize(r, values); !ok {
 			http.Error(w, "", 401)
 			return
 		}
@@ -184,7 +184,6 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if values != nil {
-		fmt.Println("Copying values set by authorize")
 		for k, v := range values {
 			session.Values[k] = v
 		}
@@ -208,4 +207,3 @@ func (srv *SocketIOServer) getSession(sessionId string) *Session {
 	defer srv.mutex.RUnlock()
 	return srv.sessions[sessionId]
 }
-
