@@ -62,6 +62,6 @@ func main() {
 	sio.Handle("/", http.FileServer(http.Dir("./www/")))
 
 	// Start listening for socket.io connections
-	println("listening on port 3000")
+	log.Println("listening on port 3000")
 	log.Fatal(http.ListenAndServe(":3000", sio))
 }
