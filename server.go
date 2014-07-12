@@ -180,6 +180,7 @@ func (srv *SocketIOServer) handShake(w http.ResponseWriter, r *http.Request) {
 	session := srv.getSession(sessionId)
 	if session == nil {
 		session = NewSession(srv.eventEmitters, sessionId, srv.heartbeatTimeout, true)
+		session.Request=r
 		srv.addSession(session)
 	}
 
