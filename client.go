@@ -105,7 +105,8 @@ func (c *Client) Run() {
 }
 
 func (c *Client) Quit() error {
-	return nil
+	dc := new(disconnectPacket)
+	return c.session.defaultNS.sendPacket(dc)
 }
 
 func (c *Client) Of(name string) (nameSpace *NameSpace) {
