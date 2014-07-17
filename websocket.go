@@ -3,6 +3,7 @@ package engineio
 import (
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	ws "github.com/gorilla/websocket"
@@ -17,15 +18,18 @@ type websocket struct {
 	socket       Socket
 	conn         *ws.Conn
 	quitChan     chan struct{}
+	pingChan     chan time.Time
 	pingInterval time.Duration
 	pingTimeout  time.Duration
 	lastPing     time.Time
 	isClosed     bool
+	writeLocker  sync.Mutex
 }
 
 func NewWebsocketTransport(req *http.Request, pingInterval, pingTimeout time.Duration) (Transport, error) {
 	ret := &websocket{
 		quitChan:     make(chan struct{}, 1),
+		pingChan:     make(chan time.Time),
 		pingInterval: pingInterval,
 		pingTimeout:  pingTimeout,
 		lastPing:     time.Now(),
@@ -71,57 +75,66 @@ func (p *websocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	p.conn = conn
 	defer func() {
+		close(p.quitChan)
 		p.conn.Close()
 		p.socket.onClose()
 	}()
 
-	go func() {
-		defer func() {
-			if !p.isClosed {
-				p.isClosed = true
-				close(p.quitChan)
-			}
-		}()
+	go func(lastPing time.Time) {
 		for {
-			t, r, err := conn.NextReader()
-			if err != nil {
+			diff := time.Now().Sub(lastPing)
+			select {
+			case lastPing = <-p.pingChan:
+			case <-time.After(p.pingInterval - diff):
+				w, _ := p.NextWriter(MessageText, PING)
+				w.Close()
+			case <-time.After(p.pingTimeout - diff):
+				return
+			case <-p.quitChan:
 				return
 			}
-
-			if t == ws.TextMessage || t == ws.BinaryMessage {
-				decoder, _ := NewDecoder(r)
-				switch decoder.Type() {
-				case PING:
-					w, _ := p.NextWriter(MessageText, PONG)
-					io.Copy(w, decoder)
-					w.Close()
-					fallthrough
-				case PONG:
-					p.lastPing = time.Now()
-				case CLOSE:
-					p.Close()
-					return
-				case UPGRADE:
-				case NOOP:
-				default:
-					p.socket.onMessage(decoder)
-				}
-				decoder.Close()
-			}
 		}
-	}()
+	}(p.lastPing)
 
 	for {
-		diff := time.Now().Sub(p.lastPing)
-		select {
-		case <-time.After(p.pingInterval - diff):
-			w, _ := p.NextWriter(MessageText, PING)
-			w.Close()
-		case <-time.After(p.pingTimeout - diff):
-			return
-		case <-p.quitChan:
+		t, r, err := conn.NextReader()
+		if err != nil {
 			return
 		}
+
+		if t == ws.TextMessage || t == ws.BinaryMessage {
+			decoder, _ := NewDecoder(r)
+			switch decoder.Type() {
+			case PING:
+				w, _ := p.NextWriter(MessageText, PONG)
+				io.Copy(w, decoder)
+				w.Close()
+				fallthrough
+			case PONG:
+				p.lastPing = time.Now()
+				p.pingChan <- p.lastPing
+			case CLOSE:
+				p.Close()
+				return
+			case UPGRADE:
+			case NOOP:
+			default:
+				p.socket.onMessage(decoder)
+			}
+			decoder.Close()
+		}
+	}
+}
+
+type websocketWriter struct {
+	io.WriteCloser
+	locker *sync.Mutex
+}
+
+func newWebsocketWriter(w io.WriteCloser, locker *sync.Mutex) websocketWriter {
+	return websocketWriter{
+		WriteCloser: w,
+		locker:      locker,
 	}
 }
 
@@ -134,7 +147,7 @@ func (p *websocket) NextWriter(msgType MessageType, packetType PacketType) (io.W
 		if err != nil {
 			return nil, err
 		}
-		return ret, nil
+		return newWebsocketWriter(ret, &p.writeLocker), nil
 	}
 	var ret io.WriteCloser
 	var err error
@@ -155,7 +168,7 @@ func (p *websocket) NextWriter(msgType MessageType, packetType PacketType) (io.W
 	if err != nil {
 		return nil, err
 	}
-	return ret, nil
+	return newWebsocketWriter(ret, &p.writeLocker), nil
 }
 
 func (p *websocket) Close() error {
@@ -165,7 +178,7 @@ func (p *websocket) Close() error {
 	}
 	w.Close()
 	p.isClosed = true
-	close(p.quitChan)
+	p.conn.Close()
 	return nil
 }
 
