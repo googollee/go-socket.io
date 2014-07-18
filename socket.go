@@ -5,11 +5,28 @@ import (
 	"net/http"
 )
 
+type MessageType int // func(*PayloadEncoder, PacketType) (io.WriteCloser, error)
+
+const (
+	MessageText MessageType = iota
+	MessageBinary
+)
+
+func (t MessageType) String() string {
+	switch t {
+	case MessageText:
+		return "message text"
+	case MessageBinary:
+		return "message binary"
+	}
+	return "message known"
+}
+
 type Socket interface {
 	Request() *http.Request
 	Upgraded() bool
 	Close() error
-	NextReader() (io.ReadCloser, error)
+	NextReader() (MessageType, io.ReadCloser, error)
 	NextWriter(messageType MessageType) (io.WriteCloser, error)
 	// SetReadDeadline(t time.Time) error
 	// SetWriteDeadline(t time.Time) error
@@ -18,7 +35,7 @@ type Socket interface {
 
 	transport() Transport
 	upgrade(transport Transport)
-	onMessage(r io.Reader)
+	onMessage(r *PacketDecoder)
 	onClose()
 }
 
@@ -28,7 +45,7 @@ type socket struct {
 	t          Transport
 	upgraded   bool
 	isClosed   bool
-	readerChan chan io.ReadCloser
+	readerChan chan *connReader
 	req        *http.Request
 }
 
@@ -39,7 +56,7 @@ func newSocket(id string, server *Server, transport Transport, req *http.Request
 		t:          transport,
 		upgraded:   false,
 		isClosed:   false,
-		readerChan: make(chan io.ReadCloser),
+		readerChan: make(chan *connReader),
 		req:        req,
 	}
 	transport.SetSocket(ret)
@@ -63,12 +80,12 @@ func (s *socket) Close() error {
 	return s.transport().Close()
 }
 
-type connReaer struct {
-	io.Reader
+type connReader struct {
+	*PacketDecoder
 	closeChan chan struct{}
 }
 
-func (r *connReaer) Close() error {
+func (r *connReader) Close() error {
 	if r.closeChan == nil {
 		return nil
 	}
@@ -77,16 +94,16 @@ func (r *connReaer) Close() error {
 	return nil
 }
 
-func (s *socket) NextReader() (io.ReadCloser, error) {
+func (s *socket) NextReader() (MessageType, io.ReadCloser, error) {
 	if s.isClosed {
-		return nil, io.EOF
+		return MessageText, nil, io.EOF
 	}
 	reader := <-s.readerChan
 	if reader == nil {
-		return nil, io.EOF
+		return MessageText, nil, io.EOF
 	}
 
-	return reader, nil
+	return reader.MessageType(), reader, nil
 }
 
 func (s *socket) NextWriter(messageType MessageType) (io.WriteCloser, error) {
@@ -107,15 +124,15 @@ func (s *socket) upgrade(transport Transport) {
 	s.upgraded = true
 }
 
-func (s *socket) onMessage(r io.Reader) {
+func (s *socket) onMessage(decoder *PacketDecoder) {
 	if s.isClosed {
 		return
 	}
 
 	closeChan := make(chan struct{})
-	reader := &connReaer{
-		Reader:    r,
-		closeChan: closeChan,
+	reader := &connReader{
+		PacketDecoder: decoder,
+		closeChan:     closeChan,
 	}
 	s.readerChan <- reader
 	<-closeChan

@@ -6,13 +6,6 @@ import (
 	"time"
 )
 
-type MessageType int // func(*PayloadEncoder, PacketType) (io.WriteCloser, error)
-
-const (
-	MessageText MessageType = iota
-	MessageBinary
-)
-
 type TransportCreateFunc func(req *http.Request, pingInterval, pingTimeout time.Duration) (Transport, error)
 
 type Transport interface {

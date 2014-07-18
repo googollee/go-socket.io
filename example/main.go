@@ -16,10 +16,10 @@ func main() {
 			go func() {
 				defer conn.Close()
 				for i := 0; i < 10; i++ {
-					r, _ := conn.NextReader()
+					t, r, _ := conn.NextReader()
 					b, _ := ioutil.ReadAll(r)
 					r.Close()
-					log.Println(string(b))
+					log.Println(t, string(b))
 					w, _ := conn.NextWriter(engineio.MessageText)
 					w.Write([]byte("pong"))
 					w.Close()

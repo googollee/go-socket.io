@@ -25,9 +25,6 @@ const (
 )
 
 func byteToType(b byte) (PacketType, error) {
-	if b >= '0' {
-		b = b - '0'
-	}
 	switch b {
 	case 0:
 		return OPEN, nil
@@ -142,9 +139,10 @@ func (e *PacketEncoder) Close() error {
 }
 
 type PacketDecoder struct {
-	r      io.Reader
-	closer io.Closer
-	t      PacketType
+	r       io.Reader
+	closer  io.Closer
+	t       PacketType
+	msgType MessageType
 }
 
 func NewDecoder(r io.Reader) (*PacketDecoder, error) {
@@ -156,20 +154,26 @@ func NewDecoder(r io.Reader) (*PacketDecoder, error) {
 	if c, ok := r.(io.Closer); ok {
 		closer = c
 	}
+	msgType := MessageBinary
 	if b[0] == 'b' {
 		if _, err := r.Read(b); err != nil {
 			return nil, err
 		}
 		r = base64.NewDecoder(base64.StdEncoding, r)
 	}
+	if b[0] >= '0' {
+		b[0] = b[0] - '0'
+		msgType = MessageText
+	}
 	t, err := byteToType(b[0])
 	if err != nil {
 		return nil, err
 	}
 	return &PacketDecoder{
-		r:      r,
-		closer: closer,
-		t:      t,
+		r:       r,
+		closer:  closer,
+		t:       t,
+		msgType: msgType,
 	}, nil
 }
 
@@ -179,6 +183,10 @@ func (d *PacketDecoder) Read(p []byte) (int, error) {
 
 func (d *PacketDecoder) Type() PacketType {
 	return d.t
+}
+
+func (d *PacketDecoder) MessageType() MessageType {
+	return d.msgType
 }
 
 func (d *PacketDecoder) Close() error {
