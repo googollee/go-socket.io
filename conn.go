@@ -22,7 +22,7 @@ func (t MessageType) String() string {
 	return "message known"
 }
 
-type Socket interface {
+type Conn interface {
 	Request() *http.Request
 	Upgraded() bool
 	Close() error
@@ -39,7 +39,7 @@ type Socket interface {
 	onClose()
 }
 
-type socket struct {
+type conn struct {
 	id         string
 	server     *Server
 	t          Transport
@@ -49,8 +49,8 @@ type socket struct {
 	req        *http.Request
 }
 
-func newSocket(id string, server *Server, transport Transport, req *http.Request) *socket {
-	ret := &socket{
+func newSocket(id string, server *Server, transport Transport, req *http.Request) *conn {
+	ret := &conn{
 		id:         id,
 		server:     server,
 		t:          transport,
@@ -64,15 +64,15 @@ func newSocket(id string, server *Server, transport Transport, req *http.Request
 	return ret
 }
 
-func (s *socket) Request() *http.Request {
+func (s *conn) Request() *http.Request {
 	return s.req
 }
 
-func (s *socket) Upgraded() bool {
+func (s *conn) Upgraded() bool {
 	return s.upgraded
 }
 
-func (s *socket) Close() error {
+func (s *conn) Close() error {
 	if s.isClosed {
 		return nil
 	}
@@ -94,7 +94,7 @@ func (r *connReader) Close() error {
 	return nil
 }
 
-func (s *socket) NextReader() (MessageType, io.ReadCloser, error) {
+func (s *conn) NextReader() (MessageType, io.ReadCloser, error) {
 	if s.isClosed {
 		return MessageText, nil, io.EOF
 	}
@@ -106,25 +106,25 @@ func (s *socket) NextReader() (MessageType, io.ReadCloser, error) {
 	return reader.MessageType(), reader, nil
 }
 
-func (s *socket) NextWriter(messageType MessageType) (io.WriteCloser, error) {
+func (s *conn) NextWriter(messageType MessageType) (io.WriteCloser, error) {
 	if s.isClosed {
 		return nil, io.EOF
 	}
 	return s.transport().NextWriter(messageType, MESSAGE)
 }
 
-func (s *socket) transport() Transport {
+func (s *conn) transport() Transport {
 	return s.t
 }
 
-func (s *socket) upgrade(transport Transport) {
+func (s *conn) upgrade(transport Transport) {
 	s.t.Upgraded()
 	transport.SetSocket(s)
 	s.t = transport
 	s.upgraded = true
 }
 
-func (s *socket) onMessage(decoder *PacketDecoder) {
+func (s *conn) onMessage(decoder *PacketDecoder) {
 	if s.isClosed {
 		return
 	}
@@ -139,7 +139,7 @@ func (s *socket) onMessage(decoder *PacketDecoder) {
 	close(closeChan)
 }
 
-func (s *socket) onClose() {
+func (s *conn) onClose() {
 	s.isClosed = true
 	close(s.readerChan)
 	s.server.onClose(s)

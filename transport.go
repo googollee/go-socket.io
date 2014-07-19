@@ -10,7 +10,7 @@ type TransportCreateFunc func(req *http.Request, pingInterval, pingTimeout time.
 
 type Transport interface {
 	Name() string
-	SetSocket(socket Socket)
+	SetSocket(socket Conn)
 	HandlesUpgrades() bool
 	SupportsFraming() bool
 	ServeHTTP(http.ResponseWriter, *http.Request)

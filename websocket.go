@@ -15,7 +15,7 @@ func init() {
 }
 
 type websocket struct {
-	socket       Socket
+	socket       Conn
 	conn         *ws.Conn
 	quitChan     chan struct{}
 	pingChan     chan time.Time
@@ -42,7 +42,7 @@ func (*websocket) Name() string {
 	return "websocket"
 }
 
-func (p *websocket) SetSocket(s Socket) {
+func (p *websocket) SetSocket(s Conn) {
 	p.socket = s
 }
 

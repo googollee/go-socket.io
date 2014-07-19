@@ -14,7 +14,7 @@ func init() {
 type polling struct {
 	sendChan     chan struct{}
 	encoder      *PayloadEncoder
-	socket       Socket
+	socket       Conn
 	pingInterval time.Duration
 	pingTimeout  time.Duration
 	lastPing     time.Time
@@ -38,7 +38,7 @@ func (*polling) Name() string {
 	return "polling"
 }
 
-func (p *polling) SetSocket(s Socket) {
+func (p *polling) SetSocket(s Conn) {
 	p.socket = s
 }
 

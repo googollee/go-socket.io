@@ -32,15 +32,15 @@ var DefaultConfig = Config{
 
 type Server struct {
 	config     Config
-	socketChan chan Socket
-	sessions   map[string]*socket
+	socketChan chan Conn
+	sessions   map[string]*conn
 }
 
 func NewServer(conf Config) *Server {
 	return &Server{
 		config:     conf,
-		socketChan: make(chan Socket),
-		sessions:   make(map[string]*socket),
+		socketChan: make(chan Conn),
+		sessions:   make(map[string]*conn),
 	}
 }
 
@@ -48,7 +48,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	cookies := r.Cookies()
-	var socket *socket
+	var conn *conn
 	sid := r.URL.Query().Get("sid")
 	transportName := r.URL.Query().Get("transport")
 	if sid == "" {
@@ -70,26 +70,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		encoder.Write(sum[:])
 		encoder.Close()
 		sid = buf.String()[:20]
-		socket = newSocket(sid, s, transport, r)
-		if err := s.onOpen(socket); err != nil {
+		conn = newSocket(sid, s, transport, r)
+		if err := s.onOpen(conn); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		s.sessions[sid] = socket
+		s.sessions[sid] = conn
 		cookies = append(cookies, &http.Cookie{
 			Name:  s.config.Cookie,
 			Value: sid,
 		})
-		s.socketChan <- socket
+		s.socketChan <- conn
 	} else {
 		var ok bool
-		socket, ok = s.sessions[sid]
+		conn, ok = s.sessions[sid]
 		if !ok {
 			http.Error(w, "invalid sid", http.StatusBadRequest)
 			return
 		}
-		if socket.transport().Name() != transportName && !socket.Upgraded() {
+		if conn.transport().Name() != transportName && !conn.Upgraded() {
 			creater := getTransportCreater(transportName)
 			if creater == nil {
 				http.Error(w, "invalid transport", http.StatusBadRequest)
@@ -100,21 +100,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			socket.upgrade(transport)
+			conn.upgrade(transport)
 		}
 	}
 
 	for _, c := range cookies {
 		w.Header().Set("Set-Cookie", c.String())
 	}
-	socket.transport().ServeHTTP(w, r)
+	conn.transport().ServeHTTP(w, r)
 }
 
-func (s *Server) Accept() (Socket, error) {
+func (s *Server) Accept() (Conn, error) {
 	return <-s.socketChan, nil
 }
 
-func (s *Server) onOpen(so *socket) error {
+func (s *Server) onOpen(so *conn) error {
 	resp := struct {
 		Sid          string        `json:"sid"`
 		Upgrades     []string      `json:"upgrades"`
@@ -140,6 +140,6 @@ func (s *Server) onOpen(so *socket) error {
 	return nil
 }
 
-func (s *Server) onClose(so *socket) {
+func (s *Server) onClose(so *conn) {
 	delete(s.sessions, so.id)
 }
