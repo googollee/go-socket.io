@@ -23,6 +23,7 @@ func (t MessageType) String() string {
 }
 
 type Conn interface {
+	Id() string
 	Request() *http.Request
 	Upgraded() bool
 	Close() error
@@ -62,6 +63,10 @@ func newSocket(id string, server *Server, transport Transport, req *http.Request
 	transport.SetSocket(ret)
 
 	return ret
+}
+
+func (s *conn) Id() string {
+	return s.id
 }
 
 func (s *conn) Request() *http.Request {
