@@ -1,212 +1,331 @@
 package socketio
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
-	"regexp"
+	"fmt"
+	"github.com/googollee/go-engine.io"
+	"io"
+	"io/ioutil"
 	"strconv"
 )
 
-var (
-	packetSep    = []byte{0xff, 0xfd}
-	packetRegexp = regexp.MustCompile(`^([^:]+):([0-9]+)?(\+)?:([^:]+)?:?(.*)?$`)
+const Protocol = 4
+
+type PacketType int
+
+const (
+	CONNECT PacketType = iota
+	DISCONNECT
+	EVENT
+	ACK
+	ERROR
+	BINARY_EVENT
+	BINARY_ACK
 )
 
-type Event struct {
-	Name string          `json:"name"`
-	Args json.RawMessage `json:"args"`
+func (t PacketType) String() string {
+	switch t {
+	case CONNECT:
+		return "connect"
+	case DISCONNECT:
+		return "disconnect"
+	case EVENT:
+		return "event"
+	case ACK:
+		return "ack"
+	case ERROR:
+		return "error"
+	case BINARY_EVENT:
+		return "binary_event"
+	case BINARY_ACK:
+		return "binary_ack"
+	}
+	return fmt.Sprintf("unknown(%d)", t)
 }
 
-func encodePacket(endpoint string, packet Packet) []byte {
-	buf := &bytes.Buffer{}
-	buf.WriteString(strconv.Itoa(int(packet.Type())))
-	buf.WriteByte(':')
-	if packet.Id() != 0 {
-		buf.WriteString(strconv.Itoa(packet.Id()))
-		if packet.Ack() {
-			buf.WriteByte('+')
+type FrameReader interface {
+	NextReader() (engineio.MessageType, io.ReadCloser, error)
+}
+
+type FrameWriter interface {
+	NextWriter(engineio.MessageType) (io.WriteCloser, error)
+}
+
+type Packet struct {
+	Type         PacketType
+	NSP          string
+	Id           int
+	Data         interface{}
+	attachNumber int
+}
+
+type Encoder struct {
+	w   FrameWriter
+	err error
+}
+
+func NewEncoder(w FrameWriter) *Encoder {
+	return &Encoder{
+		w: w,
+	}
+}
+
+func (e *Encoder) Encode(v Packet) error {
+	attachments := encodeAttachments(v.Data)
+	v.attachNumber = len(attachments)
+	if v.attachNumber > 0 {
+		v.Type += BINARY_EVENT - EVENT
+	}
+	if err := e.encodePacket(v); err != nil {
+		return err
+	}
+	for _, a := range attachments {
+		if err := e.writeBinary(a); err != nil {
+			return err
 		}
 	}
-	buf.WriteByte(':')
-	buf.WriteString(endpoint)
-	buf.WriteByte(':')
+	return nil
+}
 
-	enc := json.NewEncoder(buf)
-	switch p := packet.(type) {
-	case *connectPacket:
-		buf.WriteString(p.query)
-	case *ackPacket:
-		ackIdStr := strconv.Itoa(p.ackId)
-		buf.WriteString(ackIdStr)
-		if p.args != nil {
-			buf.WriteByte('+')
-			buf.Write(p.args)
+func (e *Encoder) encodePacket(v Packet) error {
+	writer, err := e.w.NextWriter(engineio.MessageText)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	w := NewTrimWriter(writer, "\n")
+	wh := NewWriterHelper(w)
+	wh.Write([]byte{byte(v.Type) + '0'})
+	if v.Type == BINARY_EVENT || v.Type == BINARY_ACK {
+		wh.Write([]byte(fmt.Sprintf("%d-", v.attachNumber)))
+	}
+	needEnd := false
+	if v.NSP != "" {
+		wh.Write([]byte(v.NSP))
+		needEnd = true
+	}
+	if v.Id >= 0 {
+		f := "%d"
+		if needEnd {
+			f = ",%d"
+			needEnd = false
 		}
-	case *jsonPacket:
-		buf.Write(p.data)
-	case *messagePacket:
-		buf.Write(p.data)
-	case *eventPacket:
-		event := &Event{Name: p.name, Args: p.args}
-		err := enc.Encode(event)
+		wh.Write([]byte(fmt.Sprintf(f, v.Id)))
+	}
+	if v.Data != nil {
+		if needEnd {
+			wh.Write([]byte{','})
+			needEnd = false
+		}
+		if wh.Error() != nil {
+			return wh.Error()
+		}
+		encoder := json.NewEncoder(w)
+		return encoder.Encode(v.Data)
+	}
+	return wh.Error()
+}
+
+func (e *Encoder) writeBinary(r io.Reader) error {
+	writer, err := e.w.NextWriter(engineio.MessageBinary)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	if _, err := io.Copy(writer, r); err != nil {
+		return err
+	}
+	return nil
+
+}
+
+type Decoder struct {
+	reader        FrameReader
+	message       string
+	current       io.Reader
+	currentCloser io.Closer
+}
+
+func NewDecoder(r FrameReader) *Decoder {
+	return &Decoder{
+		reader: r,
+	}
+}
+
+func (d *Decoder) Decode(v *Packet) error {
+	ty, r, err := d.reader.NextReader()
+	if err != nil {
+		return err
+	}
+	if d.current != nil {
+		d.currentCloser.Close()
+		d.current = nil
+		d.currentCloser = nil
+	}
+	defer func() {
+		if d.current == nil {
+			r.Close()
+		}
+	}()
+
+	if ty != engineio.MessageText {
+		return fmt.Errorf("need text package")
+	}
+	reader := bufio.NewReader(r)
+
+	v.Id = -1
+
+	t, err := reader.ReadByte()
+	if err != nil {
+		return err
+	}
+	v.Type = PacketType(t - '0')
+
+	if v.Type == BINARY_EVENT || v.Type == BINARY_ACK {
+		num, err := reader.ReadBytes('-')
 		if err != nil {
+			return err
+		}
+		numLen := len(num)
+		if numLen == 0 {
+			return fmt.Errorf("invalid packet")
+		}
+		n, err := strconv.ParseInt(string(num[:numLen-1]), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid packet")
+		}
+		v.attachNumber = int(n)
+	}
+
+	next, err := reader.Peek(1)
+	if err == io.EOF {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if len(next) == 0 {
+		return fmt.Errorf("invalid packet")
+	}
+
+	if next[0] == '/' {
+		path, err := reader.ReadBytes(',')
+		if err != nil && err != io.EOF {
+			return err
+		}
+		pathLen := len(path)
+		if pathLen == 0 {
+			return fmt.Errorf("invalid packet")
+		}
+		if err == nil {
+			path = path[:pathLen-1]
+		}
+		v.NSP = string(path)
+		if err == io.EOF {
 			return nil
 		}
-	case *errorPacket:
-		buf.WriteString(p.reason)
-		if p.advice != "" {
-			buf.WriteByte('+')
-			buf.WriteString(p.advice)
+	}
+
+	id := bytes.NewBuffer(nil)
+	finish := false
+	for {
+		next, err := reader.Peek(1)
+		if err == io.EOF {
+			finish = true
+			break
 		}
-	}
-
-	return buf.Bytes()
-}
-
-func encodePayload(payloads [][]byte) []byte {
-	if len(payloads) == 1 {
-		return payloads[0]
-	}
-	buf := &bytes.Buffer{}
-	for _, payload := range payloads {
-		buf.Write(packetSep)
-		buf.WriteString(strconv.Itoa(len(payload)))
-		buf.Write(packetSep)
-		buf.Write(payload)
-	}
-	return buf.Bytes()
-}
-
-func decodePacket(b []byte) (packet Packet, err error) {
-	b = bytes.Trim(b, "\n \r\t")
-	pieces := packetRegexp.FindSubmatch(b)
-	if pieces == nil {
-		return nil, errors.New("invalid packet")
-	}
-	var tid int
-	tid, err = strconv.Atoi(string(pieces[1]))
-	if err != nil {
-		return
-	}
-	common := packetCommon{}
-	if len(pieces[2]) == 0 {
-		common.id = -1
-	} else {
-		common.id, err = strconv.Atoi(string(pieces[2]))
 		if err != nil {
-			return
+			return err
 		}
-	}
-	common.ack = string(pieces[3]) == "+"
-	common.endPoint = string(pieces[4])
-	data := pieces[5]
-	switch tid {
-	case 0: // disconnect
-		p := new(disconnectPacket)
-		p.packetCommon = common
-		packet = p
-	case 1: // connect
-		p := new(connectPacket)
-		p.packetCommon = common
-		p.query = string(data)
-		packet = p
-	case 2: // heartbeat
-		p := new(heartbeatPacket)
-		p.packetCommon = common
-		packet = p
-	case 3: // message
-		p := new(messagePacket)
-		p.packetCommon = common
-		p.data = data
-		packet = p
-	case 4: //jsonmessage
-		p := new(jsonPacket)
-		p.packetCommon = common
-		p.data = data
-		packet = p
-	case 5: //event
-		event := new(Event)
-		err = json.Unmarshal(data, event)
-		if err != nil {
-			return
-		}
-		p := new(eventPacket)
-		p.packetCommon = common
-		p.name = event.Name
-		p.args = event.Args
-		packet = p
-	case 6: // ack
-		p := new(ackPacket)
-		p.packetCommon = common
-		pos := bytes.Index(data, []byte{'+'})
-		var ackId int
-		var args json.RawMessage
-		if pos < 0 {
-			ackId, err = strconv.Atoi(string(data))
-			if err != nil {
-				return
+		if '0' <= next[0] && next[0] <= '9' {
+			if err := id.WriteByte(next[0]); err != nil {
+				return err
 			}
 		} else {
-			ackId, err = strconv.Atoi(string(data[0:pos]))
-			if err != nil {
-				return
-			}
-			err = json.Unmarshal(data[pos+1:], &args)
-			if err != nil {
-				return
-			}
+			break
 		}
-		p.ackId = ackId
-		p.args = args
-		packet = p
-	case 7: //error
-		p := new(errorPacket)
-		p.packetCommon = common
-		pos := bytes.Index(data, []byte{'+'})
-		if pos < 0 {
-			p.reason = string(data)
-		} else {
-			p.reason = string(data[0:pos])
-			p.advice = string(data[pos+1:])
-		}
-		packet = p
-	default:
-		return nil, errors.New("invalid message type")
+		reader.ReadByte()
 	}
-	return
+	if id.Len() > 0 {
+		id, err := strconv.ParseInt(id.String(), 10, 64)
+		if err != nil {
+			return err
+		}
+		v.Id = int(id)
+	}
+	if finish {
+		return nil
+	}
+
+	switch v.Type {
+	case EVENT:
+		fallthrough
+	case BINARY_EVENT:
+		msgReader, err := newMessageReader(reader)
+		if err != nil {
+			return err
+		}
+		d.message = msgReader.Message()
+		d.current = msgReader
+		d.currentCloser = r
+	case ACK:
+		fallthrough
+	case BINARY_ACK:
+		d.current = reader
+		d.currentCloser = r
+	}
+	return nil
 }
 
-func decodePayload(data []byte) (packets []Packet, err error) {
-	if len(data) >= 2 && bytes.Equal(data[0:2], packetSep) {
-		for {
-			if len(data) == 0 {
-				break
-			}
-			data = data[2:]
-			pos := bytes.Index(data[2:], packetSep)
-			var length int
-			length, err = strconv.Atoi(string(data[0:pos]))
-			if err != nil {
-				return
-			}
-			data = data[pos+2:]
-			var packet Packet
-			packet, err = decodePacket(data[0:length])
-			if err != nil {
-				return
-			}
-			packets = append(packets, packet)
-			data = data[length:]
-		}
-	} else {
-		var packet Packet
-		packet, err = decodePacket(data)
-		if err != nil {
-			return
-		}
-		return []Packet{packet}, nil
+func (d *Decoder) Message() string {
+	return d.message
+}
+
+func (d *Decoder) DecodeData(v *Packet) error {
+	if d.current == nil {
+		return nil
 	}
-	panic("not reached")
-	return
+	defer func() {
+		d.currentCloser.Close()
+		d.current = nil
+		d.currentCloser = nil
+	}()
+	decoder := json.NewDecoder(d.current)
+	if err := decoder.Decode(v.Data); err != nil {
+		return err
+	}
+	if v.Type == BINARY_EVENT || v.Type == BINARY_ACK {
+		binary, err := d.decodeBinary(v.attachNumber)
+		if err != nil {
+			return err
+		}
+		if err := decodeAttachments(v.Data, binary); err != nil {
+			return err
+		}
+		v.Type -= BINARY_EVENT - EVENT
+	}
+	return nil
+}
+
+func (d *Decoder) decodeBinary(num int) ([][]byte, error) {
+	ret := make([][]byte, num)
+	for i := 0; i < num; i++ {
+		t, r, err := d.reader.NextReader()
+		if err != nil {
+			return nil, err
+		}
+		if t == engineio.MessageText {
+			return nil, fmt.Errorf("need binary")
+		}
+		b, err := ioutil.ReadAll(r)
+		if err != nil {
+			return nil, err
+		}
+		ret[i] = b
+	}
+	return ret, nil
 }
