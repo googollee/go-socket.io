@@ -1,6 +1,8 @@
 ##socket.io library for Golang
 
-forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-socketio)  
+*Branch master branch is compatible with socket.io 0.9.x. For latest version, please check branch 1.0.*
+
+forked from [http://code.google.com/p/go-socketio](http://code.google.com/p/go-socketio)
 Documentation: http://godoc.org/github.com/googollee/go-socket.io
 ##Demo
 
@@ -109,7 +111,7 @@ func main() {
 
   client.Run()
 }
-``` 
+```
 
 **javascript client**
 
