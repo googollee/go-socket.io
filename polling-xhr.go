@@ -11,14 +11,14 @@ func init() {
 
 type polling struct {
 	sendChan chan bool
-	encoder  *PayloadEncoder
+	encoder  *payloadEncoder
 	conn     Conn
 }
 
 func newPollingTransport(req *http.Request) (Transport, error) {
-	newEncoder := NewBinaryPayloadEncoder
+	newEncoder := newBinaryPayloadEncoder
 	if req.URL.Query()["b64"] != nil {
-		newEncoder = NewStringPayloadEncoder
+		newEncoder = newStringPayloadEncoder
 	}
 	ret := &polling{
 		sendChan: make(chan bool, 1),
@@ -107,7 +107,7 @@ func (p *polling) post(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "closed", http.StatusBadRequest)
 		return
 	}
-	decoder := NewPayloadDecoder(r.Body)
+	decoder := newPayloadDecoder(r.Body)
 	for {
 		d, err := decoder.Next()
 		if err == io.EOF {

@@ -114,7 +114,7 @@ func TestStringParser(t *testing.T) {
 		Convey("Given a packet type "+test.name, t, func() {
 
 			Convey("Create encoder", func() {
-				encoder, err := NewStringEncoder(buf, test.t)
+				encoder, err := newStringEncoder(buf, test.t)
 				So(err, ShouldBeNil)
 				So(encoder, ShouldImplement, (*io.WriteCloser)(nil))
 
@@ -134,7 +134,7 @@ func TestStringParser(t *testing.T) {
 			})
 
 			Convey("Create decoder", func() {
-				decoder, err := NewDecoder(buf)
+				decoder, err := newDecoder(buf)
 				So(err, ShouldBeNil)
 				So(decoder, ShouldImplement, (*io.ReadCloser)(nil))
 				So(decoder.MessageType(), ShouldEqual, MessageText)
@@ -176,7 +176,7 @@ func TestBinaryParser(t *testing.T) {
 		Convey("Given a packet type "+test.name, t, func() {
 
 			Convey("Create Encoder", func() {
-				encoder, err := NewBinaryEncoder(buf, test.t)
+				encoder, err := newBinaryEncoder(buf, test.t)
 				So(err, ShouldBeNil)
 				So(encoder, ShouldImplement, (*io.WriteCloser)(nil))
 
@@ -196,7 +196,7 @@ func TestBinaryParser(t *testing.T) {
 			})
 
 			Convey("Create decoder", func() {
-				decoder, err := NewDecoder(buf)
+				decoder, err := newDecoder(buf)
 				So(err, ShouldBeNil)
 				So(decoder, ShouldImplement, (*io.ReadCloser)(nil))
 				So(decoder.MessageType(), ShouldEqual, MessageBinary)
@@ -238,7 +238,7 @@ func TestBase64Parser(t *testing.T) {
 		Convey("Given a packet type "+test.name, t, func() {
 
 			Convey("Create Encoder", func() {
-				encoder, err := NewB64Encoder(buf, test.t)
+				encoder, err := newB64Encoder(buf, test.t)
 				So(err, ShouldBeNil)
 				So(encoder, ShouldImplement, (*io.WriteCloser)(nil))
 
@@ -258,7 +258,7 @@ func TestBase64Parser(t *testing.T) {
 			})
 
 			Convey("Create decoder", func() {
-				decoder, err := NewDecoder(buf)
+				decoder, err := newDecoder(buf)
 				So(err, ShouldBeNil)
 				So(decoder, ShouldImplement, (*io.ReadCloser)(nil))
 				So(decoder.MessageType(), ShouldEqual, MessageBinary)
@@ -303,7 +303,7 @@ func TestStringPayload(t *testing.T) {
 		Convey("Given an array of packet "+test.name, t, func() {
 
 			Convey("Create encoder", func() {
-				encoder := NewStringPayloadEncoder()
+				encoder := newStringPayloadEncoder()
 
 				Convey("Encoded", func() {
 					for _, p := range test.packets {
@@ -333,7 +333,7 @@ func TestStringPayload(t *testing.T) {
 			})
 
 			Convey("Create decoder", func() {
-				decoder := NewPayloadDecoder(buf)
+				decoder := newPayloadDecoder(buf)
 
 				Convey("Decode", func() {
 					for i := 0; ; i++ {
@@ -383,7 +383,7 @@ func TestBinaryPayload(t *testing.T) {
 		Convey("Given an array of packet "+test.name, t, func() {
 
 			Convey("Create encoder", func() {
-				encoder := NewBinaryPayloadEncoder()
+				encoder := newBinaryPayloadEncoder()
 
 				Convey("Encoded", func() {
 					for _, p := range test.packets {
@@ -413,7 +413,7 @@ func TestBinaryPayload(t *testing.T) {
 			})
 
 			Convey("Create decoder", func() {
-				decoder := NewPayloadDecoder(buf)
+				decoder := newPayloadDecoder(buf)
 
 				Convey("Decode", func() {
 					for i := 0; ; i++ {
@@ -447,7 +447,7 @@ func TestLimitReaderDecoder(t *testing.T) {
 	Convey("Test decoder with limit reader", t, func() {
 		buf := bytes.NewBufferString("\x34\xe6\xb5\x8b\xe8\xaf\x95123")
 		reader := newLimitReader(buf, 7)
-		decoder, err := NewDecoder(reader)
+		decoder, err := newDecoder(reader)
 		So(err, ShouldBeNil)
 		So(decoder.Type(), ShouldEqual, MESSAGE)
 		err = decoder.Close()
@@ -465,7 +465,7 @@ func TestParalletEncode(t *testing.T) {
 		max := 1000
 		buf1 := bytes.NewBuffer(nil)
 		buf2 := bytes.NewBuffer(nil)
-		encoder := NewStringPayloadEncoder()
+		encoder := newStringPayloadEncoder()
 		for i := 0; i < max; i++ {
 			go func() {
 				e, err := encoder.NextString(MESSAGE)

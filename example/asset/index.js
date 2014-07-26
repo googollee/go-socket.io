@@ -4097,14 +4097,19 @@ function render(){
 // socket
 var socket = new eio.Socket();
 var last;
-var count = 0;
+var sendBuf = false;
+var buf = new ArrayBuffer(2);
+var ab = new Uint8Array(buf, 0, 2);
+ab.set([1,2]);
 function send(){
-  // count++;
-  // if (count > 10) {
-  //   socket.close();
-  // }
+  if (sendBuf) {
+    socket.send(buf);
+    sendBuf = false;
+  } else {
+    socket.send('ping');
+    sendBuf = true;
+  }
   last = new Date;
-  socket.send('ping');
   $('transport').innerHTML = socket.transport.name;
 }
 socket.on('open', function(){

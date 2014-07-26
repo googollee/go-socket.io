@@ -39,7 +39,7 @@ type Conn interface {
 	NextWriter(messageType MessageType) (io.WriteCloser, error)
 
 	onOpen() error
-	onPacket(r *PacketDecoder)
+	onPacket(r *packetDecoder)
 	onClose()
 	serveHTTP(w http.ResponseWriter, r *http.Request)
 }
@@ -185,7 +185,7 @@ func (s *conn) onOpen() error {
 	return nil
 }
 
-func (s *conn) onPacket(decoder *PacketDecoder) {
+func (s *conn) onPacket(decoder *packetDecoder) {
 	switch decoder.Type() {
 	case PING:
 		if s.origin != nil {

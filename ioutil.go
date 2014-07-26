@@ -6,13 +6,13 @@ import (
 )
 
 type connReader struct {
-	*PacketDecoder
+	*packetDecoder
 	closeChan chan struct{}
 }
 
-func newConnReader(d *PacketDecoder, closeChan chan struct{}) *connReader {
+func newConnReader(d *packetDecoder, closeChan chan struct{}) *connReader {
 	return &connReader{
-		PacketDecoder: d,
+		packetDecoder: d,
 		closeChan:     closeChan,
 	}
 }

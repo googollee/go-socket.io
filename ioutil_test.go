@@ -15,7 +15,7 @@ func TestConnIoutil(t *testing.T) {
 	Convey("Reader", t, func() {
 		Convey("Normal read", func() {
 			r := bytes.NewBufferString("\x34\xe6\xb5\x8b\xe8\xaf\x95")
-			decoder, err := NewDecoder(r)
+			decoder, err := newDecoder(r)
 			So(err, ShouldBeNil)
 
 			closeChan := make(chan struct{})

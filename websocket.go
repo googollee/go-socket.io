@@ -55,7 +55,7 @@ func (p *websocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if t == ws.TextMessage || t == ws.BinaryMessage {
-			decoder, err := NewDecoder(r)
+			decoder, err := newDecoder(r)
 			if err != nil {
 				return
 			}
@@ -66,9 +66,9 @@ func (p *websocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *websocket) NextWriter(msgType MessageType, packetType PacketType) (io.WriteCloser, error) {
-	wsType, newEncoder := ws.TextMessage, NewStringEncoder
+	wsType, newEncoder := ws.TextMessage, newStringEncoder
 	if msgType == MessageBinary {
-		wsType, newEncoder = ws.BinaryMessage, NewBinaryEncoder
+		wsType, newEncoder = ws.BinaryMessage, newBinaryEncoder
 	}
 	w, err := p.conn.NextWriter(wsType)
 	if err != nil {
