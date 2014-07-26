@@ -261,7 +261,7 @@ func TestBase64Parser(t *testing.T) {
 				decoder, err := NewDecoder(buf)
 				So(err, ShouldBeNil)
 				So(decoder, ShouldImplement, (*io.ReadCloser)(nil))
-				So(decoder.MessageType(), ShouldEqual, MessageText)
+				So(decoder.MessageType(), ShouldEqual, MessageBinary)
 
 				Convey("Decoded", func() {
 					So(decoder.Type(), ShouldEqual, test.t)

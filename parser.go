@@ -144,16 +144,18 @@ func NewDecoder(r io.Reader) (*PacketDecoder, error) {
 	if _, err := r.Read(b); err != nil {
 		return nil, err
 	}
-	msgType := MessageBinary
+	msgType := MessageText
 	if b[0] == 'b' {
 		if _, err := r.Read(b); err != nil {
 			return nil, err
 		}
 		r = base64.NewDecoder(base64.StdEncoding, r)
+		msgType = MessageBinary
 	}
 	if b[0] >= '0' {
 		b[0] = b[0] - '0'
-		msgType = MessageText
+	} else {
+		msgType = MessageBinary
 	}
 	t, err := byteToType(b[0])
 	if err != nil {
