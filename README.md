@@ -1,16 +1,11 @@
-# engine.io
+# go-engine.io [![GoDoc](http://godoc.org/github.com/googollee/go-engine.io?status.svg)](http://godoc.org/github.com/googollee/go-engine.io)
 
-engine.io for golang. Supported long-polling and websocket transport.
+go-engine.io is the implement of engine.io in golang. It supported long-polling and websocket transport.
 
-It compatible with node.js implement.
+It is compatible with node.js implement.
+
+## Document
 
 ## Example
 
 Please check example folder
-
-## TODO
-
- - Support JSONP
- - More unit tests
- - Error handler
- - Document

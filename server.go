@@ -4,38 +4,47 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 )
 
+// Config is the configuration of engine.io server.
 type Config struct {
-	PingTimeout       time.Duration
-	PingInterval      time.Duration
-	MaxHttpBufferSize int
-	AllowRequest      func(*http.Request) (bool, error)
-	Transports        []string
-	AllowUpgrades     bool
-	Cookie            string
+	// PingTimeout is the timeout of ping. When time out, server will close connection.
+	PingTimeout time.Duration
+	// PingInterval is the interval of ping.
+	PingInterval time.Duration
+	// AllowRequest is middleware when establish connection. If it return non-nil, connection won't be established.
+	AllowRequest func(*http.Request) error
+	// Transports are the list of supported transport.
+	Transports []string
+	// AllowUpgrades specify whether server allows transport upgrade.
+	AllowUpgrades bool
+	// Cookie is the name of cookie which used by engine.io.
+	Cookie string
+	// MaxHttpBufferSize int
 }
 
+// DefaultConfig is the default configuration.
 var DefaultConfig = Config{
-	PingTimeout:       60000 * time.Millisecond,
-	PingInterval:      25000 * time.Millisecond,
-	MaxHttpBufferSize: 0x10E7,
-	AllowRequest:      func(*http.Request) (bool, error) { return true, nil },
-	Transports:        []string{"polling", "websocket"},
-	AllowUpgrades:     true,
-	Cookie:            "io",
+	PingTimeout:   60000 * time.Millisecond,
+	PingInterval:  25000 * time.Millisecond,
+	AllowRequest:  func(*http.Request) error { return nil },
+	Transports:    []string{"polling", "websocket"},
+	AllowUpgrades: true,
+	Cookie:        "io",
+	// MaxHttpBufferSize: 0x10E7,
 }
 
+// Server is the server of engine.io.
 type Server struct {
 	config     Config
 	socketChan chan Conn
 	sessions   map[string]*conn
 }
 
+// NewServer returns the server.
 func NewServer(conf Config) *Server {
 	return &Server{
 		config:     conf,
@@ -44,20 +53,24 @@ func NewServer(conf Config) *Server {
 	}
 }
 
+// ServeHTTP handles http request.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	cookies := r.Cookies()
-	var conn *conn
 	sid := r.URL.Query().Get("sid")
-	transportName := r.URL.Query().Get("transport")
 	if sid == "" {
+		if err := s.config.AllowRequest(r); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		transportName := r.URL.Query().Get("transport")
 		transportCreater := getTransportCreater(transportName)
 		if transportCreater == nil {
 			http.Error(w, "invalid transport", http.StatusBadRequest)
 			return
 		}
-		transport, err := transportCreater(r, s.config.PingInterval, s.config.PingTimeout)
+		transport, err := transportCreater(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -70,8 +83,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		encoder.Write(sum[:])
 		encoder.Close()
 		sid = buf.String()[:20]
-		conn = newSocket(sid, s, transport, r)
-		if err := s.onOpen(conn); err != nil {
+		conn := newSocket(sid, s, transport, r)
+		if err := conn.onOpen(); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -82,62 +95,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Value: sid,
 		})
 		s.socketChan <- conn
-	} else {
-		var ok bool
-		conn, ok = s.sessions[sid]
-		if !ok {
-			http.Error(w, "invalid sid", http.StatusBadRequest)
-			return
-		}
-		if conn.transport().Name() != transportName && !conn.Upgraded() {
-			creater := getTransportCreater(transportName)
-			if creater == nil {
-				http.Error(w, "invalid transport", http.StatusBadRequest)
-				return
-			}
-			transport, err := creater(r, s.config.PingInterval, s.config.PingTimeout)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			conn.upgrade(transport)
-		}
+	}
+	conn, ok := s.sessions[sid]
+	if !ok {
+		http.Error(w, "invalid sid", http.StatusBadRequest)
+		return
 	}
 
 	for _, c := range cookies {
 		w.Header().Set("Set-Cookie", c.String())
 	}
-	conn.transport().ServeHTTP(w, r)
+	conn.serveHTTP(w, r)
 }
 
+// Accept returns Conn when client connect to server.
 func (s *Server) Accept() (Conn, error) {
 	return <-s.socketChan, nil
-}
-
-func (s *Server) onOpen(so *conn) error {
-	resp := struct {
-		Sid          string        `json:"sid"`
-		Upgrades     []string      `json:"upgrades"`
-		PingInterval time.Duration `json:"pingInterval"`
-		PingTimeout  time.Duration `json:"pingTimeout"`
-	}{
-		Sid:          so.id,
-		Upgrades:     getUpgradesHandlers(),
-		PingInterval: s.config.PingInterval / time.Millisecond,
-		PingTimeout:  s.config.PingTimeout / time.Millisecond,
-	}
-	w, err := so.transport().NextWriter(MessageText, OPEN)
-	if err != nil {
-		return err
-	}
-	encoder := json.NewEncoder(w)
-	if err := encoder.Encode(resp); err != nil {
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *Server) onClose(so *conn) {

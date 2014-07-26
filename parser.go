@@ -12,6 +12,7 @@ import (
 
 const Protocol = 3
 
+// PacketType is the type of packet
 type PacketType string
 
 const (
@@ -44,6 +45,7 @@ func byteToType(b byte) (PacketType, error) {
 	return NOOP, fmt.Errorf("invalid byte 0x%x", b)
 }
 
+// Byte return the byte of type
 func (t PacketType) Byte() byte {
 	switch t {
 	case OPEN:
@@ -62,15 +64,18 @@ func (t PacketType) Byte() byte {
 	return 6
 }
 
+// PacketEncoder is the encoder which encode the packet.
 type PacketEncoder struct {
 	closer io.Closer
 	w      io.Writer
 }
 
+// NewStringEncoder return the encoder which encode type t to writer w, as string.
 func NewStringEncoder(w io.Writer, t PacketType) (*PacketEncoder, error) {
 	return newEncoder(w, t.Byte()+'0')
 }
 
+// NewBinaryEncoder return the encoder which encode type t to writer w, as binary.
 func NewBinaryEncoder(w io.Writer, t PacketType) (*PacketEncoder, error) {
 	return newEncoder(w, t.Byte())
 }
@@ -89,48 +94,25 @@ func newEncoder(w io.Writer, t byte) (*PacketEncoder, error) {
 	}, nil
 }
 
-type multiCloser struct {
-	closers []io.Closer
-}
-
-func (c *multiCloser) Append(closer io.Closer) {
-	c.closers = append(c.closers, closer)
-}
-
-func (c *multiCloser) Close() error {
-	for _, closer := range c.closers {
-		if err := closer.Close(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
+// NewB64Encoder return the encoder which encode type t to writer w, as string. When write binary, it uses base64.
 func NewB64Encoder(w io.Writer, t PacketType) (*PacketEncoder, error) {
 	_, err := w.Write([]byte{'b', t.Byte() + '0'})
 	if err != nil {
 		return nil, err
 	}
 	base := base64.NewEncoder(base64.StdEncoding, w)
-	closer, ok := w.(io.Closer)
-	if !ok {
-		closer = base
-	} else {
-		mc := &multiCloser{}
-		mc.Append(base)
-		mc.Append(closer)
-		closer = mc
-	}
 	return &PacketEncoder{
-		closer: closer,
+		closer: base,
 		w:      base,
 	}, nil
 }
 
+// Write writes bytes p.
 func (e *PacketEncoder) Write(p []byte) (int, error) {
 	return e.w.Write(p)
 }
 
+// Close closes the encoder.
 func (e *PacketEncoder) Close() error {
 	if e.closer != nil {
 		return e.closer.Close()
@@ -138,21 +120,29 @@ func (e *PacketEncoder) Close() error {
 	return nil
 }
 
+// PacketDecoder is the decoder which decode data to packet.
 type PacketDecoder struct {
-	r       io.Reader
 	closer  io.Closer
+	r       io.Reader
 	t       PacketType
 	msgType MessageType
 }
 
+// NewDecoder return the decoder which decode from reader r.
 func NewDecoder(r io.Reader) (*PacketDecoder, error) {
+	var closer io.Closer
+	if limit, ok := r.(*limitReader); ok {
+		closer = limit
+	}
+	defer func() {
+		if closer != nil {
+			closer.Close()
+		}
+	}()
+
 	b := []byte{0xff}
 	if _, err := r.Read(b); err != nil {
 		return nil, err
-	}
-	var closer io.Closer
-	if c, ok := r.(io.Closer); ok {
-		closer = c
 	}
 	msgType := MessageBinary
 	if b[0] == 'b' {
@@ -169,26 +159,32 @@ func NewDecoder(r io.Reader) (*PacketDecoder, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PacketDecoder{
-		r:       r,
+	ret := &PacketDecoder{
 		closer:  closer,
+		r:       r,
 		t:       t,
 		msgType: msgType,
-	}, nil
+	}
+	closer = nil
+	return ret, nil
 }
 
+// Read reads packet data to bytes p.
 func (d *PacketDecoder) Read(p []byte) (int, error) {
 	return d.r.Read(p)
 }
 
+// Type returns the type of packet.
 func (d *PacketDecoder) Type() PacketType {
 	return d.t
 }
 
+// MessageType returns the type of message, binary or string.
 func (d *PacketDecoder) MessageType() MessageType {
 	return d.msgType
 }
 
+// Close closes the decoder.
 func (d *PacketDecoder) Close() error {
 	if d.closer != nil {
 		return d.closer.Close()
@@ -196,18 +192,21 @@ func (d *PacketDecoder) Close() error {
 	return nil
 }
 
+// PayloadEncoder is the encoder to encode packets as payload. It can be used in multi-thread.
 type PayloadEncoder struct {
 	buffers  [][]byte
 	locker   sync.Mutex
 	isString bool
 }
 
+// NewStringPayloadEncoder returns the encoder which encode as string.
 func NewStringPayloadEncoder() *PayloadEncoder {
 	return &PayloadEncoder{
 		isString: true,
 	}
 }
 
+// NewStringPayloadEncoder returns the encoder which encode as binary.
 func NewBinaryPayloadEncoder() *PayloadEncoder {
 	return &PayloadEncoder{
 		isString: false,
@@ -244,6 +243,7 @@ func (e encoder) Close() error {
 	return nil
 }
 
+// NextString returns the encoder with packet type t and encode as string.
 func (e *PayloadEncoder) NextString(t PacketType) (io.WriteCloser, error) {
 	buf := bytes.NewBuffer(nil)
 	pEncoder, err := NewStringEncoder(buf, t)
@@ -258,6 +258,7 @@ func (e *PayloadEncoder) NextString(t PacketType) (io.WriteCloser, error) {
 	}, nil
 }
 
+// NextBinary returns the encoder with packet type t and encode as binary.
 func (e *PayloadEncoder) NextBinary(t PacketType) (io.WriteCloser, error) {
 	buf := bytes.NewBuffer(nil)
 	var pEncoder *PacketEncoder
@@ -278,6 +279,7 @@ func (e *PayloadEncoder) NextBinary(t PacketType) (io.WriteCloser, error) {
 	}, nil
 }
 
+// EncodeTo writes encoded payload to writer w. It will clear the buffer of encoder.
 func (e *PayloadEncoder) EncodeTo(w io.Writer) error {
 	e.locker.Lock()
 	buffers := e.buffers
@@ -296,10 +298,12 @@ func (e *PayloadEncoder) EncodeTo(w io.Writer) error {
 	return nil
 }
 
+// PayloadDecoder is the decoder to decode payload.
 type PayloadDecoder struct {
 	r *bufio.Reader
 }
 
+// NewPaylaodDecoder returns the payload decoder which read from reader r.
 func NewPayloadDecoder(r io.Reader) *PayloadDecoder {
 	br, ok := r.(*bufio.Reader)
 	if !ok {
@@ -310,6 +314,7 @@ func NewPayloadDecoder(r io.Reader) *PayloadDecoder {
 	}
 }
 
+// Next returns the packet decoder. Make sure it will be closed after used.
 func (d *PayloadDecoder) Next() (*PacketDecoder, error) {
 	firstByte, err := d.r.Peek(1)
 	if err != nil {
@@ -339,14 +344,5 @@ func (d *PayloadDecoder) Next() (*PacketDecoder, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid input")
 	}
-	b := make([]byte, packetLen)
-	for buf := b; len(buf) > 0; {
-		n, err := d.r.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-		buf = buf[n:]
-	}
-	buf := bytes.NewBuffer(b)
-	return NewDecoder(buf)
+	return NewDecoder(newLimitReader(d.r, int(packetLen)))
 }

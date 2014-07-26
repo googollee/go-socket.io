@@ -137,6 +137,7 @@ func TestStringParser(t *testing.T) {
 				decoder, err := NewDecoder(buf)
 				So(err, ShouldBeNil)
 				So(decoder, ShouldImplement, (*io.ReadCloser)(nil))
+				So(decoder.MessageType(), ShouldEqual, MessageText)
 
 				Convey("Decoded", func() {
 					So(decoder.Type(), ShouldEqual, test.t)
@@ -198,6 +199,7 @@ func TestBinaryParser(t *testing.T) {
 				decoder, err := NewDecoder(buf)
 				So(err, ShouldBeNil)
 				So(decoder, ShouldImplement, (*io.ReadCloser)(nil))
+				So(decoder.MessageType(), ShouldEqual, MessageBinary)
 
 				Convey("Decoded", func() {
 					So(decoder.Type(), ShouldEqual, test.t)
@@ -259,6 +261,7 @@ func TestBase64Parser(t *testing.T) {
 				decoder, err := NewDecoder(buf)
 				So(err, ShouldBeNil)
 				So(decoder, ShouldImplement, (*io.ReadCloser)(nil))
+				So(decoder.MessageType(), ShouldEqual, MessageText)
 
 				Convey("Decoded", func() {
 					So(decoder.Type(), ShouldEqual, test.t)
@@ -438,6 +441,19 @@ func TestBinaryPayload(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestLimitReaderDecoder(t *testing.T) {
+	Convey("Test decoder with limit reader", t, func() {
+		buf := bytes.NewBufferString("\x34\xe6\xb5\x8b\xe8\xaf\x95123")
+		reader := newLimitReader(buf, 7)
+		decoder, err := NewDecoder(reader)
+		So(err, ShouldBeNil)
+		So(decoder.Type(), ShouldEqual, MESSAGE)
+		err = decoder.Close()
+		So(err, ShouldBeNil)
+		So(buf.String(), ShouldEqual, "123")
+	})
 }
 
 func TestParalletEncode(t *testing.T) {
