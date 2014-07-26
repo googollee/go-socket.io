@@ -6,7 +6,7 @@ import (
 
 type sessions struct {
 	sessions map[string]*conn
-	locker   sync.Mutex
+	locker   sync.RWMutex
 }
 
 func newSessions() *sessions {
@@ -16,8 +16,8 @@ func newSessions() *sessions {
 }
 
 func (s *sessions) Get(id string) *conn {
-	s.locker.Lock()
-	defer s.locker.Unlock()
+	s.locker.RLock()
+	defer s.locker.RUnlock()
 
 	ret, ok := s.sessions[id]
 	if !ok {
