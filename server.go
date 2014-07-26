@@ -76,13 +76,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		hash := fmt.Sprintf("%s %s", r.RemoteAddr, time.Now())
-		buf := bytes.NewBuffer(nil)
-		sum := md5.Sum([]byte(hash))
-		encoder := base64.NewEncoder(base64.URLEncoding, buf)
-		encoder.Write(sum[:])
-		encoder.Close()
-		sid = buf.String()[:20]
+		sid = s.newId(r)
 		conn, err := newSocket(sid, s, transport, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -115,4 +109,14 @@ func (s *Server) Accept() (Conn, error) {
 
 func (s *Server) onClose(so *conn) {
 	s.sessions.Remove(so.Id())
+}
+
+func (s *Server) newId(r *http.Request) string {
+	hash := fmt.Sprintf("%s %s", r.RemoteAddr, time.Now())
+	buf := bytes.NewBuffer(nil)
+	sum := md5.Sum([]byte(hash))
+	encoder := base64.NewEncoder(base64.URLEncoding, buf)
+	encoder.Write(sum[:])
+	encoder.Close()
+	return buf.String()[:20]
 }
