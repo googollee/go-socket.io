@@ -1,10 +1,11 @@
 package main
 
 import (
-	".."
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/googollee/go-engine.io"
 )
 
 func main() {
