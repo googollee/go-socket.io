@@ -41,7 +41,7 @@ var DefaultConfig = Config{
 type Server struct {
 	config     Config
 	socketChan chan Conn
-	sessions   map[string]*conn
+	sessions   *sessions
 }
 
 // NewServer returns the server.
@@ -49,7 +49,7 @@ func NewServer(conf Config) *Server {
 	return &Server{
 		config:     conf,
 		socketChan: make(chan Conn),
-		sessions:   make(map[string]*conn),
+		sessions:   newSessions(),
 	}
 }
 
@@ -89,15 +89,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s.sessions[sid] = conn
+		s.sessions.Set(sid, conn)
 		cookies = append(cookies, &http.Cookie{
 			Name:  s.config.Cookie,
 			Value: sid,
 		})
 		s.socketChan <- conn
 	}
-	conn, ok := s.sessions[sid]
-	if !ok {
+	conn := s.sessions.Get(sid)
+	if conn == nil {
 		http.Error(w, "invalid sid", http.StatusBadRequest)
 		return
 	}
@@ -114,5 +114,5 @@ func (s *Server) Accept() (Conn, error) {
 }
 
 func (s *Server) onClose(so *conn) {
-	delete(s.sessions, so.id)
+	s.sessions.Remove(so.Id())
 }
