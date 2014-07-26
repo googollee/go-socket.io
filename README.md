@@ -49,8 +49,12 @@ func main() {
 					t, r, _ := conn.NextReader()
 					b, _ := ioutil.ReadAll(r)
 					r.Close()
-					log.Println(t, string(b))
-					w, _ := conn.NextWriter(engineio.MessageText)
+					if t == engineio.MessageText {
+						log.Println(t, string(b))
+					} else {
+						log.Println(t, hex.EncodeToString(b))
+					}
+					w, _ := conn.NextWriter(t)
 					w.Write([]byte("pong"))
 					w.Close()
 				}
