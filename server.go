@@ -83,8 +83,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		encoder.Write(sum[:])
 		encoder.Close()
 		sid = buf.String()[:20]
-		conn := newSocket(sid, s, transport, r)
-		if err := conn.onOpen(); err != nil {
+		conn, err := newSocket(sid, s, transport, r)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

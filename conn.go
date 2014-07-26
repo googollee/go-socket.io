@@ -57,7 +57,7 @@ type conn struct {
 	origin       Transport
 }
 
-func newSocket(id string, server *Server, transport Transport, req *http.Request) *conn {
+func newSocket(id string, server *Server, transport Transport, req *http.Request) (*conn, error) {
 	ret := &conn{
 		id:           id,
 		server:       server,
@@ -69,9 +69,14 @@ func newSocket(id string, server *Server, transport Transport, req *http.Request
 		req:          req,
 	}
 	transport.SetConn(ret)
+	err := ret.onOpen()
+	if err != nil {
+		return nil, err
+	}
+
 	go ret.pingLoop()
 
-	return ret
+	return ret, nil
 }
 
 func (s *conn) Id() string {
