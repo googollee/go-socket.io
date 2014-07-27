@@ -65,7 +65,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		transportName := r.URL.Query().Get("transport")
-		transportCreater := getTransportCreater(transportName)
+		transportCreater := transports.GetCreater(transportName)
 		if transportCreater == nil {
 			http.Error(w, "invalid transport", http.StatusBadRequest)
 			return

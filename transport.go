@@ -3,6 +3,7 @@ package engineio
 import (
 	"io"
 	"net/http"
+	"sync"
 )
 
 // TransportCreateFunc is a function to create transport.
@@ -28,22 +29,31 @@ type transportMeta struct {
 	handlesUpgrades bool
 }
 
-type transportsType map[string]transportMeta
+type transportsType struct {
+	transports map[string]transportMeta
+	locker     sync.RWMutex
+}
 
-var transports = make(transportsType)
+var transports transportsType
 
-// RegisterTransport registers a transport with name and whether can handle upgrades.
-func RegisterTransport(name string, handlesUpgrades bool, creater transportCreateFunc) {
-	transports[name] = transportMeta{
+func (t *transportsType) Register(name string, handlesUpgrades bool, creater transportCreateFunc) {
+	t.locker.Lock()
+	defer t.locker.Unlock()
+	if t.transports == nil {
+		t.transports = make(map[string]transportMeta)
+	}
+	t.transports[name] = transportMeta{
 		creater:         creater,
 		name:            name,
 		handlesUpgrades: handlesUpgrades,
 	}
 }
 
-func getUpgradesHandlers() []string {
+func (t *transportsType) Names() []string {
+	t.locker.RLock()
+	defer t.locker.RUnlock()
 	var ret []string
-	for name, transport := range transports {
+	for name, transport := range t.transports {
 		if transport.handlesUpgrades {
 			ret = append(ret, name)
 		}
@@ -51,16 +61,20 @@ func getUpgradesHandlers() []string {
 	return ret
 }
 
-func getTransportCreater(name string) transportCreateFunc {
-	ret, ok := transports[name]
+func (t *transportsType) GetCreater(name string) transportCreateFunc {
+	t.locker.RLock()
+	defer t.locker.RUnlock()
+	ret, ok := t.transports[name]
 	if !ok {
 		return nil
 	}
 	return ret.creater
 }
 
-func getTransportUpgrade(name string) transportCreateFunc {
-	ret, ok := transports[name]
+func (t *transportsType) GetUpgrade(name string) transportCreateFunc {
+	t.locker.RLock()
+	defer t.locker.RUnlock()
+	ret, ok := t.transports[name]
 	if !ok {
 		return nil
 	}
