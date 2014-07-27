@@ -11,19 +11,24 @@ import (
 
 // Config is the configuration of engine.io server.
 type Config struct {
+
 	// PingTimeout is the timeout of ping. When time out, server will close connection.
 	PingTimeout time.Duration
+
 	// PingInterval is the interval of ping.
 	PingInterval time.Duration
+
 	// AllowRequest is middleware when establish connection. If it return non-nil, connection won't be established.
 	AllowRequest func(*http.Request) error
+
 	// Transports are the list of supported transport.
 	Transports []string
+
 	// AllowUpgrades specify whether server allows transport upgrade.
 	AllowUpgrades bool
+
 	// Cookie is the name of cookie which used by engine.io.
 	Cookie string
-	// MaxHttpBufferSize int
 }
 
 // DefaultConfig is the default configuration.
@@ -34,7 +39,6 @@ var DefaultConfig = Config{
 	Transports:    []string{"polling", "websocket"},
 	AllowUpgrades: true,
 	Cookie:        "io",
-	// MaxHttpBufferSize: 0x10E7,
 }
 
 // Server is the server of engine.io.
