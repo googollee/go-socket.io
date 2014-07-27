@@ -1,18 +1,21 @@
 package socketio
 
 import (
+	"fmt"
 	"reflect"
 )
 
 type baseHandler struct {
 	events    map[string]*caller
+	name      string
 	broadcast BroadcastAdaptor
 }
 
-func newBaseHandler() *baseHandler {
+func newBaseHandler(name string, broadcast BroadcastAdaptor) *baseHandler {
 	return &baseHandler{
 		events:    make(map[string]*caller),
-		broadcast: newBroadcast(),
+		name:      name,
+		broadcast: broadcast,
 	}
 }
 
@@ -23,10 +26,6 @@ func (h *baseHandler) On(message string, f interface{}) error {
 	}
 	h.events[message] = c
 	return nil
-}
-
-func (h *baseHandler) BroadcastTo(room, message string, args ...interface{}) error {
-	return h.broadcast.Send(nil, room, message, args)
 }
 
 type socketHandler struct {
@@ -88,7 +87,7 @@ func (h *socketHandler) Rooms() []string {
 }
 
 func (h *socketHandler) Join(room string) error {
-	if err := h.baseHandler.broadcast.Join(room, h.socket); err != nil {
+	if err := h.baseHandler.broadcast.Join(h.broadcastName(room), h.socket); err != nil {
 		return err
 	}
 	h.rooms[room] = struct{}{}
@@ -96,7 +95,7 @@ func (h *socketHandler) Join(room string) error {
 }
 
 func (h *socketHandler) Leave(room string) error {
-	if err := h.baseHandler.broadcast.Leave(room, h.socket); err != nil {
+	if err := h.baseHandler.broadcast.Leave(h.broadcastName(room), h.socket); err != nil {
 		return err
 	}
 	delete(h.rooms, room)
@@ -105,7 +104,7 @@ func (h *socketHandler) Leave(room string) error {
 
 func (h *socketHandler) LeaveAll() error {
 	for room := range h.rooms {
-		if err := h.baseHandler.broadcast.Leave(room, h.socket); err != nil {
+		if err := h.baseHandler.broadcast.Leave(h.broadcastName(room), h.socket); err != nil {
 			return err
 		}
 	}
@@ -113,7 +112,11 @@ func (h *socketHandler) LeaveAll() error {
 }
 
 func (h *socketHandler) BroadcastTo(room, message string, args ...interface{}) error {
-	return h.baseHandler.broadcast.Send(h.socket, room, message, args)
+	return h.baseHandler.broadcast.Send(h.socket, h.broadcastName(room), message, args)
+}
+
+func (h *socketHandler) broadcastName(room string) string {
+	return fmt.Sprintf("%s:%s", h.baseHandler.name, room)
 }
 
 func (h *socketHandler) onPacket(decoder *Decoder, packet *Packet) ([]interface{}, error) {

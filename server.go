@@ -7,23 +7,23 @@ import (
 )
 
 type Config struct {
-	PingTimeout       time.Duration
-	PingInterval      time.Duration
-	MaxHttpBufferSize int
-	AllowRequest      func(*http.Request) (bool, error)
-	Transports        []string
-	AllowUpgrades     bool
-	Cookie            string
+	PingTimeout   time.Duration
+	PingInterval  time.Duration
+	AllowRequest  func(*http.Request) error
+	Transports    []string
+	AllowUpgrades bool
+	Cookie        string
+	Adaptor       BroadcastAdaptor
 }
 
 var DefaultConfig = Config{
-	PingTimeout:       60000 * time.Millisecond,
-	PingInterval:      25000 * time.Millisecond,
-	MaxHttpBufferSize: 0x10E7,
-	AllowRequest:      func(*http.Request) (bool, error) { return true, nil },
-	Transports:        []string{"polling", "websocket"},
-	AllowUpgrades:     true,
-	Cookie:            "io",
+	PingTimeout:   60000 * time.Millisecond,
+	PingInterval:  25000 * time.Millisecond,
+	AllowRequest:  func(*http.Request) error { return nil },
+	Transports:    []string{"polling", "websocket"},
+	AllowUpgrades: true,
+	Cookie:        "io",
+	Adaptor:       newBroadcastDefault(),
 }
 
 type Server struct {
@@ -33,16 +33,15 @@ type Server struct {
 
 func NewServer(conf Config) *Server {
 	econf := engineio.Config{
-		PingTimeout:       conf.PingTimeout,
-		PingInterval:      conf.PingInterval,
-		MaxHttpBufferSize: conf.MaxHttpBufferSize,
-		AllowRequest:      conf.AllowRequest,
-		Transports:        conf.Transports,
-		AllowUpgrades:     conf.AllowUpgrades,
-		Cookie:            conf.Cookie,
+		PingTimeout:   conf.PingTimeout,
+		PingInterval:  conf.PingInterval,
+		AllowRequest:  conf.AllowRequest,
+		Transports:    conf.Transports,
+		AllowUpgrades: conf.AllowUpgrades,
+		Cookie:        conf.Cookie,
 	}
 	ret := &Server{
-		namespace: newNamespace(),
+		namespace: newNamespace(conf.Adaptor),
 		eio:       engineio.NewServer(econf),
 	}
 	go ret.loop()

@@ -4,27 +4,24 @@ type Namespace interface {
 	Name() string
 	Of(namespace string) Namespace
 	On(message string, f interface{}) error
-	BroadcastTo(room, message string, args ...interface{}) error
 }
 
 type namespace struct {
 	*baseHandler
-	name string
 	root map[string]Namespace
 }
 
-func newNamespace() *namespace {
+func newNamespace(broadcast BroadcastAdaptor) *namespace {
 	ret := &namespace{
-		baseHandler: newBaseHandler(),
-		name:        "",
+		baseHandler: newBaseHandler("", broadcast),
 		root:        make(map[string]Namespace),
 	}
-	ret.root[ret.name] = ret
+	ret.root[ret.Name()] = ret
 	return ret
 }
 
 func (n *namespace) Name() string {
-	return n.name
+	return n.baseHandler.name
 }
 
 func (n *namespace) Of(name string) Namespace {
@@ -35,8 +32,7 @@ func (n *namespace) Of(name string) Namespace {
 		return ret
 	}
 	ret := &namespace{
-		baseHandler: newBaseHandler(),
-		name:        name,
+		baseHandler: newBaseHandler(name, n.baseHandler.broadcast),
 		root:        n.root,
 	}
 	n.root[name] = ret
