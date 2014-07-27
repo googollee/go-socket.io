@@ -6,10 +6,10 @@ import (
 )
 
 // TransportCreateFunc is a function to create transport.
-type TransportCreateFunc func(req *http.Request) (Transport, error)
+type transportCreateFunc func(req *http.Request) (transport, error)
 
 // Transport is a trasport layer to connect server and client.
-type Transport interface {
+type transport interface {
 	// Name returns the name of transport.
 	Name() string
 	// SetConn set the connection conn to transport.
@@ -19,11 +19,11 @@ type Transport interface {
 	// Close closes the transport
 	Close() error
 	// NextWriter returns packet writer. This function call should be synced.
-	NextWriter(messageType MessageType, packetType PacketType) (io.WriteCloser, error)
+	NextWriter(messageType MessageType, packetType packetType) (io.WriteCloser, error)
 }
 
 type transportMeta struct {
-	creater         TransportCreateFunc
+	creater         transportCreateFunc
 	name            string
 	handlesUpgrades bool
 }
@@ -33,7 +33,7 @@ type transportsType map[string]transportMeta
 var transports = make(transportsType)
 
 // RegisterTransport registers a transport with name and whether can handle upgrades.
-func RegisterTransport(name string, handlesUpgrades bool, creater TransportCreateFunc) {
+func RegisterTransport(name string, handlesUpgrades bool, creater transportCreateFunc) {
 	transports[name] = transportMeta{
 		creater:         creater,
 		name:            name,
@@ -51,7 +51,7 @@ func getUpgradesHandlers() []string {
 	return ret
 }
 
-func getTransportCreater(name string) TransportCreateFunc {
+func getTransportCreater(name string) transportCreateFunc {
 	ret, ok := transports[name]
 	if !ok {
 		return nil
@@ -59,7 +59,7 @@ func getTransportCreater(name string) TransportCreateFunc {
 	return ret.creater
 }
 
-func getTransportUpgrade(name string) TransportCreateFunc {
+func getTransportUpgrade(name string) transportCreateFunc {
 	ret, ok := transports[name]
 	if !ok {
 		return nil

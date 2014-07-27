@@ -16,43 +16,43 @@ func TestPacketType(t *testing.T) {
 		Convey("Open", func() {
 			t, err := byteToType(0)
 			So(err, ShouldBeNil)
-			So(t, ShouldEqual, OPEN)
+			So(t, ShouldEqual, _OPEN)
 		})
 
 		Convey("Close", func() {
 			t, err := byteToType(1)
 			So(err, ShouldBeNil)
-			So(t, ShouldEqual, CLOSE)
+			So(t, ShouldEqual, _CLOSE)
 		})
 
 		Convey("Ping", func() {
 			t, err := byteToType(2)
 			So(err, ShouldBeNil)
-			So(t, ShouldEqual, PING)
+			So(t, ShouldEqual, _PING)
 		})
 
 		Convey("Pong", func() {
 			t, err := byteToType(3)
 			So(err, ShouldBeNil)
-			So(t, ShouldEqual, PONG)
+			So(t, ShouldEqual, _PONG)
 		})
 
 		Convey("Message", func() {
 			t, err := byteToType(4)
 			So(err, ShouldBeNil)
-			So(t, ShouldEqual, MESSAGE)
+			So(t, ShouldEqual, _MESSAGE)
 		})
 
 		Convey("Upgrade", func() {
 			t, err := byteToType(5)
 			So(err, ShouldBeNil)
-			So(t, ShouldEqual, UPGRADE)
+			So(t, ShouldEqual, _UPGRADE)
 		})
 
 		Convey("Noop", func() {
 			t, err := byteToType(6)
 			So(err, ShouldBeNil)
-			So(t, ShouldEqual, NOOP)
+			So(t, ShouldEqual, _NOOP)
 		})
 
 		Convey("Error", func() {
@@ -65,31 +65,31 @@ func TestPacketType(t *testing.T) {
 	Convey("Type to byte", t, func() {
 
 		Convey("Open", func() {
-			So(OPEN.Byte(), ShouldEqual, 0)
+			So(_OPEN.Byte(), ShouldEqual, 0)
 		})
 
 		Convey("Close", func() {
-			So(CLOSE.Byte(), ShouldEqual, 1)
+			So(_CLOSE.Byte(), ShouldEqual, 1)
 		})
 
 		Convey("Ping", func() {
-			So(PING.Byte(), ShouldEqual, 2)
+			So(_PING.Byte(), ShouldEqual, 2)
 		})
 
 		Convey("Pong", func() {
-			So(PONG.Byte(), ShouldEqual, 3)
+			So(_PONG.Byte(), ShouldEqual, 3)
 		})
 
 		Convey("Message", func() {
-			So(MESSAGE.Byte(), ShouldEqual, 4)
+			So(_MESSAGE.Byte(), ShouldEqual, 4)
 		})
 
 		Convey("Upgrade", func() {
-			So(UPGRADE.Byte(), ShouldEqual, 5)
+			So(_UPGRADE.Byte(), ShouldEqual, 5)
 		})
 
 		Convey("Noop", func() {
-			So(NOOP.Byte(), ShouldEqual, 6)
+			So(_NOOP.Byte(), ShouldEqual, 6)
 		})
 
 	})
@@ -99,13 +99,13 @@ func TestPacketType(t *testing.T) {
 func TestStringParser(t *testing.T) {
 	type Test struct {
 		name   string
-		t      PacketType
+		t      packetType
 		data   []byte
 		output string
 	}
 	var tests = []Test{
-		{"without data", OPEN, nil, "0"},
-		{"with data", MESSAGE, []byte("测试"), "\x34\xe6\xb5\x8b\xe8\xaf\x95"},
+		{"without data", _OPEN, nil, "0"},
+		{"with data", _MESSAGE, []byte("测试"), "\x34\xe6\xb5\x8b\xe8\xaf\x95"},
 	}
 
 	for _, test := range tests {
@@ -162,13 +162,13 @@ func TestStringParser(t *testing.T) {
 func TestBinaryParser(t *testing.T) {
 	type Test struct {
 		name   string
-		t      PacketType
+		t      packetType
 		data   []byte
 		output string
 	}
 	var tests = []Test{
-		{"without data", OPEN, nil, "\x00"},
-		{"with data", MESSAGE, []byte("测试"), "\x04\xe6\xb5\x8b\xe8\xaf\x95"},
+		{"without data", _OPEN, nil, "\x00"},
+		{"with data", _MESSAGE, []byte("测试"), "\x04\xe6\xb5\x8b\xe8\xaf\x95"},
 	}
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
@@ -224,13 +224,13 @@ func TestBinaryParser(t *testing.T) {
 func TestBase64Parser(t *testing.T) {
 	type Test struct {
 		name   string
-		t      PacketType
+		t      packetType
 		data   []byte
 		output string
 	}
 	var tests = []Test{
-		{"without data", OPEN, nil, "b0"},
-		{"with data", MESSAGE, []byte("测试"), "b45rWL6K+V"},
+		{"without data", _OPEN, nil, "b0"},
+		{"with data", _MESSAGE, []byte("测试"), "b45rWL6K+V"},
 	}
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
@@ -285,7 +285,7 @@ func TestBase64Parser(t *testing.T) {
 
 func TestStringPayload(t *testing.T) {
 	type packet struct {
-		Type     PacketType
+		Type     packetType
 		Data     []byte
 		IsString bool
 	}
@@ -295,7 +295,7 @@ func TestStringPayload(t *testing.T) {
 		output  string
 	}
 	var tests = []Test{
-		{"all in one", []packet{packet{OPEN, nil, true}, packet{MESSAGE, []byte("测试"), true}, packet{MESSAGE, []byte("测试"), false}}, "\x31\x3a\x30\x37\x3a\x34\xe6\xb5\x8b\xe8\xaf\x95\x31\x30\x3a\x62\x34\x35\x72\x57\x4c\x36\x4b\x2b\x56"},
+		{"all in one", []packet{packet{_OPEN, nil, true}, packet{_MESSAGE, []byte("测试"), true}, packet{_MESSAGE, []byte("测试"), false}}, "\x31\x3a\x30\x37\x3a\x34\xe6\xb5\x8b\xe8\xaf\x95\x31\x30\x3a\x62\x34\x35\x72\x57\x4c\x36\x4b\x2b\x56"},
 	}
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
@@ -365,7 +365,7 @@ func TestStringPayload(t *testing.T) {
 
 func TestBinaryPayload(t *testing.T) {
 	type packet struct {
-		Type     PacketType
+		Type     packetType
 		Data     []byte
 		IsString bool
 	}
@@ -375,7 +375,7 @@ func TestBinaryPayload(t *testing.T) {
 		output  string
 	}
 	var tests = []Test{
-		{"all in one", []packet{packet{OPEN, nil, true}, packet{MESSAGE, []byte("测试"), true}, packet{MESSAGE, []byte("测试"), false}}, "\x00\x01\xff\x30\x00\x07\xff\x34\xe6\xb5\x8b\xe8\xaf\x95\x01\x07\xff\x04\xe6\xb5\x8b\xe8\xaf\x95"},
+		{"all in one", []packet{packet{_OPEN, nil, true}, packet{_MESSAGE, []byte("测试"), true}, packet{_MESSAGE, []byte("测试"), false}}, "\x00\x01\xff\x30\x00\x07\xff\x34\xe6\xb5\x8b\xe8\xaf\x95\x01\x07\xff\x04\xe6\xb5\x8b\xe8\xaf\x95"},
 	}
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
@@ -449,7 +449,7 @@ func TestLimitReaderDecoder(t *testing.T) {
 		reader := newLimitReader(buf, 7)
 		decoder, err := newDecoder(reader)
 		So(err, ShouldBeNil)
-		So(decoder.Type(), ShouldEqual, MESSAGE)
+		So(decoder.Type(), ShouldEqual, _MESSAGE)
 		err = decoder.Close()
 		So(err, ShouldBeNil)
 		So(buf.String(), ShouldEqual, "123")
@@ -468,7 +468,7 @@ func TestParalletEncode(t *testing.T) {
 		encoder := newStringPayloadEncoder()
 		for i := 0; i < max; i++ {
 			go func() {
-				e, err := encoder.NextString(MESSAGE)
+				e, err := encoder.NextString(_MESSAGE)
 				So(err, ShouldBeNil)
 				_, err = e.Write([]byte("1234"))
 				So(err, ShouldBeNil)

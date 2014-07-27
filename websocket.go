@@ -17,7 +17,7 @@ type websocket struct {
 	isClosed bool
 }
 
-func newWebsocketTransport(req *http.Request) (Transport, error) {
+func newWebsocketTransport(req *http.Request) (transport, error) {
 	ret := &websocket{
 		isClosed: false,
 	}
@@ -65,7 +65,7 @@ func (p *websocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *websocket) NextWriter(msgType MessageType, packetType PacketType) (io.WriteCloser, error) {
+func (p *websocket) NextWriter(msgType MessageType, packetType packetType) (io.WriteCloser, error) {
 	wsType, newEncoder := ws.TextMessage, newStringEncoder
 	if msgType == MessageBinary {
 		wsType, newEncoder = ws.BinaryMessage, newBinaryEncoder

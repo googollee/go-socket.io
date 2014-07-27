@@ -13,52 +13,52 @@ import (
 const Protocol = 3
 
 // PacketType is the type of packet
-type PacketType string
+type packetType string
 
 const (
-	OPEN    PacketType = "open"
-	CLOSE   PacketType = "close"
-	PING    PacketType = "ping"
-	PONG    PacketType = "pong"
-	MESSAGE PacketType = "message"
-	UPGRADE PacketType = "upgrade"
-	NOOP    PacketType = "noop"
+	_OPEN    packetType = "open"
+	_CLOSE   packetType = "close"
+	_PING    packetType = "ping"
+	_PONG    packetType = "pong"
+	_MESSAGE packetType = "message"
+	_UPGRADE packetType = "upgrade"
+	_NOOP    packetType = "noop"
 )
 
-func byteToType(b byte) (PacketType, error) {
+func byteToType(b byte) (packetType, error) {
 	switch b {
 	case 0:
-		return OPEN, nil
+		return _OPEN, nil
 	case 1:
-		return CLOSE, nil
+		return _CLOSE, nil
 	case 2:
-		return PING, nil
+		return _PING, nil
 	case 3:
-		return PONG, nil
+		return _PONG, nil
 	case 4:
-		return MESSAGE, nil
+		return _MESSAGE, nil
 	case 5:
-		return UPGRADE, nil
+		return _UPGRADE, nil
 	case 6:
-		return NOOP, nil
+		return _NOOP, nil
 	}
-	return NOOP, fmt.Errorf("invalid byte 0x%x", b)
+	return _NOOP, fmt.Errorf("invalid byte 0x%x", b)
 }
 
 // Byte return the byte of type
-func (t PacketType) Byte() byte {
+func (t packetType) Byte() byte {
 	switch t {
-	case OPEN:
+	case _OPEN:
 		return 0
-	case CLOSE:
+	case _CLOSE:
 		return 1
-	case PING:
+	case _PING:
 		return 2
-	case PONG:
+	case _PONG:
 		return 3
-	case MESSAGE:
+	case _MESSAGE:
 		return 4
-	case UPGRADE:
+	case _UPGRADE:
 		return 5
 	}
 	return 6
@@ -71,12 +71,12 @@ type packetEncoder struct {
 }
 
 // NewStringEncoder return the encoder which encode type t to writer w, as string.
-func newStringEncoder(w io.Writer, t PacketType) (*packetEncoder, error) {
+func newStringEncoder(w io.Writer, t packetType) (*packetEncoder, error) {
 	return newEncoder(w, t.Byte()+'0')
 }
 
 // NewBinaryEncoder return the encoder which encode type t to writer w, as binary.
-func newBinaryEncoder(w io.Writer, t PacketType) (*packetEncoder, error) {
+func newBinaryEncoder(w io.Writer, t packetType) (*packetEncoder, error) {
 	return newEncoder(w, t.Byte())
 }
 
@@ -95,7 +95,7 @@ func newEncoder(w io.Writer, t byte) (*packetEncoder, error) {
 }
 
 // NewB64Encoder return the encoder which encode type t to writer w, as string. When write binary, it uses base64.
-func newB64Encoder(w io.Writer, t PacketType) (*packetEncoder, error) {
+func newB64Encoder(w io.Writer, t packetType) (*packetEncoder, error) {
 	_, err := w.Write([]byte{'b', t.Byte() + '0'})
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (e *packetEncoder) Close() error {
 type packetDecoder struct {
 	closer  io.Closer
 	r       io.Reader
-	t       PacketType
+	t       packetType
 	msgType MessageType
 }
 
@@ -177,7 +177,7 @@ func (d *packetDecoder) Read(p []byte) (int, error) {
 }
 
 // Type returns the type of packet.
-func (d *packetDecoder) Type() PacketType {
+func (d *packetDecoder) Type() packetType {
 	return d.t
 }
 
@@ -246,7 +246,7 @@ func (e encoder) Close() error {
 }
 
 // NextString returns the encoder with packet type t and encode as string.
-func (e *payloadEncoder) NextString(t PacketType) (io.WriteCloser, error) {
+func (e *payloadEncoder) NextString(t packetType) (io.WriteCloser, error) {
 	buf := bytes.NewBuffer(nil)
 	pEncoder, err := newStringEncoder(buf, t)
 	if err != nil {
@@ -261,7 +261,7 @@ func (e *payloadEncoder) NextString(t PacketType) (io.WriteCloser, error) {
 }
 
 // NextBinary returns the encoder with packet type t and encode as binary.
-func (e *payloadEncoder) NextBinary(t PacketType) (io.WriteCloser, error) {
+func (e *payloadEncoder) NextBinary(t packetType) (io.WriteCloser, error) {
 	buf := bytes.NewBuffer(nil)
 	var pEncoder *packetEncoder
 	var err error

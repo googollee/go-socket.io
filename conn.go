@@ -47,17 +47,17 @@ type Conn interface {
 type conn struct {
 	id           string
 	server       *Server
-	t            Transport
+	t            transport
 	readerChan   chan *connReader
 	pingInterval time.Duration
 	pingTimeout  time.Duration
 	pingChan     chan bool
 	req          *http.Request
 	writerLocker sync.Mutex
-	origin       Transport
+	origin       transport
 }
 
-func newSocket(id string, server *Server, transport Transport, req *http.Request) (*conn, error) {
+func newSocket(id string, server *Server, transport transport, req *http.Request) (*conn, error) {
 	ret := &conn{
 		id:           id,
 		server:       server,
@@ -89,7 +89,7 @@ func (s *conn) Request() *http.Request {
 
 func (s *conn) Close() error {
 	s.writerLocker.Lock()
-	w, err := s.t.NextWriter(MessageText, CLOSE)
+	w, err := s.t.NextWriter(MessageText, _CLOSE)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *conn) NextReader() (MessageType, io.ReadCloser, error) {
 
 func (s *conn) NextWriter(messageType MessageType) (io.WriteCloser, error) {
 	s.writerLocker.Lock()
-	ret, err := s.t.NextWriter(messageType, MESSAGE)
+	ret, err := s.t.NextWriter(messageType, _MESSAGE)
 	if err != nil {
 		s.writerLocker.Unlock()
 		return nil, err
@@ -120,7 +120,7 @@ func (s *conn) NextWriter(messageType MessageType) (io.WriteCloser, error) {
 	return newConnWriter(ret, &s.writerLocker), nil
 }
 
-func (s *conn) nextWriter(messageType MessageType, packetType PacketType) (io.WriteCloser, error) {
+func (s *conn) nextWriter(messageType MessageType, packetType packetType) (io.WriteCloser, error) {
 	s.writerLocker.Lock()
 	ret, err := s.t.NextWriter(messageType, packetType)
 	if err != nil {
@@ -176,7 +176,7 @@ func (s *conn) onOpen() error {
 		PingInterval: s.server.config.PingInterval / time.Millisecond,
 		PingTimeout:  s.server.config.PingTimeout / time.Millisecond,
 	}
-	w, err := s.t.NextWriter(MessageText, OPEN)
+	w, err := s.t.NextWriter(MessageText, _OPEN)
 	if err != nil {
 		return err
 	}
@@ -192,29 +192,29 @@ func (s *conn) onOpen() error {
 
 func (s *conn) onPacket(decoder *packetDecoder) {
 	switch decoder.Type() {
-	case PING:
+	case _PING:
 		if s.origin != nil {
-			if w, _ := s.origin.NextWriter(MessageText, NOOP); w != nil {
+			if w, _ := s.origin.NextWriter(MessageText, _NOOP); w != nil {
 				w.Close()
 			}
 		}
-		if w, _ := s.nextWriter(MessageText, PONG); w != nil {
+		if w, _ := s.nextWriter(MessageText, _PONG); w != nil {
 			io.Copy(w, decoder)
 			w.Close()
 		}
 		fallthrough
-	case PONG:
+	case _PONG:
 		s.pingChan <- true
 		return
-	case CLOSE:
+	case _CLOSE:
 		s.Close()
 		s.onClose()
 		return
-	case UPGRADE:
+	case _UPGRADE:
 		s.origin.Close()
 		s.origin = nil
 		return
-	case NOOP:
+	case _NOOP:
 		return
 	}
 
@@ -243,7 +243,7 @@ func (s *conn) pingLoop() {
 			lastPing = time.Now()
 		case <-time.After(s.pingInterval - diff):
 			s.writerLocker.Lock()
-			if w, _ := s.t.NextWriter(MessageText, PING); w != nil {
+			if w, _ := s.t.NextWriter(MessageText, _PING); w != nil {
 				w.Close()
 			}
 			s.writerLocker.Unlock()
