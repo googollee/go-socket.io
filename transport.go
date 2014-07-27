@@ -49,7 +49,7 @@ func (t *transportsType) Register(name string, handlesUpgrades bool, creater tra
 	}
 }
 
-func (t *transportsType) Names() []string {
+func (t *transportsType) Upgrades() []string {
 	t.locker.RLock()
 	defer t.locker.RUnlock()
 	var ret []string

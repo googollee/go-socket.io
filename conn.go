@@ -177,7 +177,7 @@ func (s *conn) onOpen() error {
 		PingTimeout  time.Duration `json:"pingTimeout"`
 	}{
 		Sid:          s.id,
-		Upgrades:     transports.Names(),
+		Upgrades:     transports.Upgrades(),
 		PingInterval: s.server.config.PingInterval / time.Millisecond,
 		PingTimeout:  s.server.config.PingTimeout / time.Millisecond,
 	}
