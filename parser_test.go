@@ -468,10 +468,8 @@ func TestParalletEncode(t *testing.T) {
 		encoder := newStringPayloadEncoder()
 		for i := 0; i < max; i++ {
 			go func() {
-				e, err := encoder.NextString(_MESSAGE)
-				So(err, ShouldBeNil)
-				_, err = e.Write([]byte("1234"))
-				So(err, ShouldBeNil)
+				e, _ := encoder.NextString(_MESSAGE)
+				e.Write([]byte("1234"))
 				e.Close()
 				c <- 1
 			}()

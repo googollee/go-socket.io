@@ -48,12 +48,9 @@ func TestServer(t *testing.T) {
 			check := make(chan bool)
 			id := ""
 			go func() {
-				conn, err := server.Accept()
-				So(err, ShouldBeNil)
+				conn, _ := server.Accept()
 				id = conn.Id()
-				So(conn.Id(), ShouldNotBeEmpty)
-				err = conn.Close()
-				So(err, ShouldBeNil)
+				conn.Close()
 				check <- true
 			}()
 
@@ -135,12 +132,8 @@ func TestServer(t *testing.T) {
 			check := make(chan bool)
 			var conn Conn
 			go func() {
-				var err error
-				conn, err = server.Accept()
-				So(err, ShouldBeNil)
-				So(conn.Id(), ShouldNotBeEmpty)
-				err = conn.Close()
-				So(err, ShouldBeNil)
+				conn, _ = server.Accept()
+				conn.Close()
 				check <- true
 			}()
 
