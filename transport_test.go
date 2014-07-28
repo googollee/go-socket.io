@@ -53,13 +53,31 @@ func (t *fakeTransport) NextWriter(messageType MessageType, packetType packetTyp
 }
 
 func TestTransport(t *testing.T) {
-	tt := transportsType{}
 	t1 := newFakeTransportCreater(true, "t1")
 	t2 := newFakeTransportCreater(true, "t2")
+	t3 := newFakeTransportCreater(false, "t3")
+	registerTransport("t1", true, t1)
+	registerTransport("t2", false, t2)
+	registerTransport("t3", true, t3)
+	tt, _ := newTransportsType([]string{"t1", "t2"})
 
-	Convey("Test register", t, func() {
-		tt.Register("t1", true, t1)
-		tt.Register("t2", false, t2)
+	Convey("Create transports type", t, func() {
+		t, err := newTransportsType(nil)
+		So(err, ShouldBeNil)
+		So(len(t), ShouldEqual, 5)
+		var names []string
+		for n := range t {
+			names = append(names, n)
+		}
+		So(names, ShouldContain, "t1")
+		So(names, ShouldContain, "t2")
+		So(names, ShouldContain, "t3")
+		So(names, ShouldContain, "polling")
+		So(names, ShouldContain, "websocket")
+		_, err = newTransportsType([]string{"t1", "t2"})
+		So(err, ShouldBeNil)
+		_, err = newTransportsType([]string{"t1", "nonexist"})
+		So(err.Error(), ShouldEqual, "invalid transport name nonexist")
 	})
 
 	Convey("Test upgrades", t, func() {

@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	transports.Register("polling", false, newPollingTransport)
+	registerTransport("polling", false, newPollingTransport)
 }
 
 type polling struct {

@@ -147,7 +147,7 @@ func (s *conn) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		creater := transports.GetUpgrade(transportName)
+		creater := s.server.transports.GetUpgrade(transportName)
 		if creater == nil {
 			http.Error(w, "invalid transport", http.StatusBadRequest)
 			return
@@ -177,7 +177,7 @@ func (s *conn) onOpen() error {
 		PingTimeout  time.Duration `json:"pingTimeout"`
 	}{
 		Sid:          s.id,
-		Upgrades:     transports.Upgrades(),
+		Upgrades:     s.server.transports.Upgrades(),
 		PingInterval: s.server.config.PingInterval / time.Millisecond,
 		PingTimeout:  s.server.config.PingTimeout / time.Millisecond,
 	}

@@ -1,9 +1,9 @@
 package engineio
 
 import (
+	"fmt"
 	"io"
 	"net/http"
-	"sync"
 )
 
 // TransportCreateFunc is a function to create transport.
@@ -29,31 +29,39 @@ type transportMeta struct {
 	handlesUpgrades bool
 }
 
-type transportsType struct {
-	transports map[string]transportMeta
-	locker     sync.RWMutex
-}
+type transportsType map[string]transportMeta
 
-var transports transportsType
+var allTransports transportsType
 
-func (t *transportsType) Register(name string, handlesUpgrades bool, creater transportCreateFunc) {
-	t.locker.Lock()
-	defer t.locker.Unlock()
-	if t.transports == nil {
-		t.transports = make(map[string]transportMeta)
+func registerTransport(name string, handlesUpgrades bool, creater transportCreateFunc) {
+	if allTransports == nil {
+		allTransports = make(transportsType)
 	}
-	t.transports[name] = transportMeta{
+	allTransports[name] = transportMeta{
 		creater:         creater,
 		name:            name,
 		handlesUpgrades: handlesUpgrades,
 	}
 }
 
-func (t *transportsType) Upgrades() []string {
-	t.locker.RLock()
-	defer t.locker.RUnlock()
+func newTransportsType(names []string) (transportsType, error) {
+	ret := make(transportsType)
+	if names == nil {
+		return allTransports, nil
+	}
+	for _, name := range names {
+		t, ok := allTransports[name]
+		if !ok {
+			return nil, fmt.Errorf("invalid transport name %s", name)
+		}
+		ret[name] = t
+	}
+	return ret, nil
+}
+
+func (t transportsType) Upgrades() []string {
 	var ret []string
-	for name, transport := range t.transports {
+	for name, transport := range t {
 		if transport.handlesUpgrades {
 			ret = append(ret, name)
 		}
@@ -61,20 +69,16 @@ func (t *transportsType) Upgrades() []string {
 	return ret
 }
 
-func (t *transportsType) GetCreater(name string) transportCreateFunc {
-	t.locker.RLock()
-	defer t.locker.RUnlock()
-	ret, ok := t.transports[name]
+func (t transportsType) GetCreater(name string) transportCreateFunc {
+	ret, ok := t[name]
 	if !ok {
 		return nil
 	}
 	return ret.creater
 }
 
-func (t *transportsType) GetUpgrade(name string) transportCreateFunc {
-	t.locker.RLock()
-	defer t.locker.RUnlock()
-	ret, ok := t.transports[name]
+func (t transportsType) GetUpgrade(name string) transportCreateFunc {
+	ret, ok := t[name]
 	if !ok {
 		return nil
 	}

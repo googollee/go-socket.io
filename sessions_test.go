@@ -13,12 +13,12 @@ func TestSessions(t *testing.T) {
 	Convey("Normal test", t, func() {
 		ses := newSessions()
 		t1 := newFakeTransportCreater(true, "t1")
-		transports.Register("t1", true, t1)
+		registerTransport("t1", true, t1)
 		req, err := http.NewRequest("GET", "/", nil)
 		tt, err := t1(req)
 		So(err, ShouldBeNil)
 		id := "abc"
-		server := NewServer(DefaultConfig)
+		server, err := NewServer([]string{"t1"})
 		conn, err := newSocket(id, server, tt, req)
 		So(err, ShouldBeNil)
 
@@ -42,11 +42,11 @@ func TestSessions(t *testing.T) {
 		for i := 0; i < n; i++ {
 			go func(i int) {
 				t1 := newFakeTransportCreater(true, "t1")
-				transports.Register("t1", true, t1)
+				registerTransport("t1", true, t1)
 				req, _ := http.NewRequest("GET", "/", nil)
 				tt, _ := t1(req)
 				id := fmt.Sprintf("abc%d", i)
-				server := NewServer(DefaultConfig)
+				server, _ := NewServer(nil)
 				conn, _ := newSocket(id, server, tt, req)
 
 				pause <- true

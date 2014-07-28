@@ -9,52 +9,65 @@ import (
 	"time"
 )
 
-// Config is the configuration of engine.io server.
-type Config struct {
-
-	// PingTimeout is the timeout of ping. When time out, server will close connection.
-	PingTimeout time.Duration
-
-	// PingInterval is the interval of ping.
-	PingInterval time.Duration
-
-	// AllowRequest is middleware when establish connection. If it return non-nil, connection won't be established.
-	AllowRequest func(*http.Request) error
-
-	// Transports are the list of supported transport.
-	Transports []string
-
-	// AllowUpgrades specify whether server allows transport upgrade.
+type config struct {
+	PingTimeout   time.Duration
+	PingInterval  time.Duration
+	AllowRequest  func(*http.Request) error
 	AllowUpgrades bool
-
-	// Cookie is the name of cookie which used by engine.io.
-	Cookie string
-}
-
-// DefaultConfig is the default configuration.
-var DefaultConfig = Config{
-	PingTimeout:   60000 * time.Millisecond,
-	PingInterval:  25000 * time.Millisecond,
-	AllowRequest:  func(*http.Request) error { return nil },
-	Transports:    []string{"polling", "websocket"},
-	AllowUpgrades: true,
-	Cookie:        "io",
+	Cookie        string
 }
 
 // Server is the server of engine.io.
 type Server struct {
-	config     Config
+	config     config
 	socketChan chan Conn
 	sessions   *sessions
+	transports transportsType
 }
 
-// NewServer returns the server.
-func NewServer(conf Config) *Server {
+// NewServer returns the server suppported given transports. If transports is nil, server will support all kinds of transports.
+func NewServer(transports []string) (*Server, error) {
+	t, err := newTransportsType(transports)
+	if err != nil {
+		return nil, err
+	}
 	return &Server{
-		config:     conf,
+		config: config{
+			PingTimeout:   60000 * time.Millisecond,
+			PingInterval:  25000 * time.Millisecond,
+			AllowRequest:  func(*http.Request) error { return nil },
+			AllowUpgrades: true,
+			Cookie:        "io",
+		},
 		socketChan: make(chan Conn),
 		sessions:   newSessions(),
-	}
+		transports: t,
+	}, nil
+}
+
+// SetPingTimeout sets the timeout of ping. When time out, server will close connection. Default is 60s.
+func (s *Server) SetPingTimeout(t time.Duration) {
+	s.config.PingInterval = t
+}
+
+// SetPingInterval sets the interval of ping. Default is 25s.
+func (s *Server) SetPingInterval(t time.Duration) {
+	s.config.PingInterval = t
+}
+
+// SetAllowRequest sets the middleware function when establish connection. If it return non-nil, connection won't be established. Default will allow all request.
+func (s *Server) SetAllowRequest(f func(*http.Request) error) {
+	s.config.AllowRequest = f
+}
+
+// SetAllowUpgrades sets whether server allows transport upgrade. Default is true.
+func (s *Server) SetAllowUpgrades(allow bool) {
+	s.config.AllowUpgrades = allow
+}
+
+// SetCookie sets the name of cookie which used by engine.io. Default is "io".
+func (s *Server) SetCookie(prefix string) {
+	s.config.Cookie = prefix
 }
 
 // ServeHTTP handles http request.
@@ -69,7 +82,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		transportName := r.URL.Query().Get("transport")
-		transportCreater := transports.GetCreater(transportName)
+		transportCreater := s.transports.GetCreater(transportName)
 		if transportCreater == nil {
 			http.Error(w, "invalid transport", http.StatusBadRequest)
 			return

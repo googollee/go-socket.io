@@ -10,7 +10,10 @@ import (
 )
 
 func main() {
-	server := engineio.NewServer(engineio.DefaultConfig)
+	server, err := engineio.NewServer(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	go func() {
 		for {

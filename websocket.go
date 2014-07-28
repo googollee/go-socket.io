@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	transports.Register("websocket", true, newWebsocketTransport)
+	registerTransport("websocket", true, newWebsocketTransport)
 }
 
 type websocket struct {
