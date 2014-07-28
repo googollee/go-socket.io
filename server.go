@@ -6,46 +6,53 @@ import (
 	"time"
 )
 
-type Config struct {
-	PingTimeout   time.Duration
-	PingInterval  time.Duration
-	AllowRequest  func(*http.Request) error
-	Transports    []string
-	AllowUpgrades bool
-	Cookie        string
-	Adaptor       BroadcastAdaptor
-}
-
-var DefaultConfig = Config{
-	PingTimeout:   60000 * time.Millisecond,
-	PingInterval:  25000 * time.Millisecond,
-	AllowRequest:  func(*http.Request) error { return nil },
-	Transports:    []string{"polling", "websocket"},
-	AllowUpgrades: true,
-	Cookie:        "io",
-	Adaptor:       newBroadcastDefault(),
-}
-
 type Server struct {
 	*namespace
-	eio *engineio.Server
+	broadcast BroadcastAdaptor
+	eio       *engineio.Server
 }
 
-func NewServer(conf Config) *Server {
-	econf := engineio.Config{
-		PingTimeout:   conf.PingTimeout,
-		PingInterval:  conf.PingInterval,
-		AllowRequest:  conf.AllowRequest,
-		Transports:    conf.Transports,
-		AllowUpgrades: conf.AllowUpgrades,
-		Cookie:        conf.Cookie,
+func NewServer(transportNames []string) (*Server, error) {
+	eio, err := engineio.NewServer(transportNames)
+	if err != nil {
+		return nil, err
 	}
 	ret := &Server{
-		namespace: newNamespace(conf.Adaptor),
-		eio:       engineio.NewServer(econf),
+		namespace: newNamespace(newBroadcastDefault()),
+		eio:       eio,
 	}
 	go ret.loop()
-	return ret
+	return ret, nil
+}
+
+// SetPingTimeout sets the timeout of ping. When time out, server will close connection. Default is 60s.
+func (s *Server) SetPingTimeout(t time.Duration) {
+	s.eio.SetPingTimeout(t)
+}
+
+// SetPingInterval sets the interval of ping. Default is 25s.
+func (s *Server) SetPingInterval(t time.Duration) {
+	s.eio.SetPingInterval(t)
+}
+
+// SetAllowRequest sets the middleware function when establish connection. If it return non-nil, connection won't be established. Default will allow all request.
+func (s *Server) SetAllowRequest(f func(*http.Request) error) {
+	s.eio.SetAllowRequest(f)
+}
+
+// SetAllowUpgrades sets whether server allows transport upgrade. Default is true.
+func (s *Server) SetAllowUpgrades(allow bool) {
+	s.eio.SetAllowUpgrades(allow)
+}
+
+// SetCookie sets the name of cookie which used by engine.io. Default is "io".
+func (s *Server) SetCookie(prefix string) {
+	s.eio.SetCookie(prefix)
+}
+
+// SetAdaptor sets the adaptor of broadcast. Default is in-process broadcast implement.
+func (s *Server) SetAdaptor(adaptor BroadcastAdaptor) {
+	s.namespace = newNamespace(adaptor)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,8 @@ go-socket.io is the implement of [socket.io](http://socket.io) in golang, which 
 
 It compatible with latest implement of socket.io in node.js, and support room and namespace.
 
+* for compatible with socket.io 0.9.x, please use branch 0.9.x *
+
 ## Install
 
 Install the package with:
@@ -37,7 +39,10 @@ import (
 )
 
 func main() {
-	server := socketio.NewServer(socketio.DefaultConfig)
+	server, err := socketio.NewServer(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	server.On("connection", func(so socketio.Socket) {
 		log.Println("on connection")
 		so.Join("chat")

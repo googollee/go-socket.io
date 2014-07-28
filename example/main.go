@@ -8,7 +8,10 @@ import (
 )
 
 func main() {
-	server := socketio.NewServer(socketio.DefaultConfig)
+	server, err := socketio.NewServer(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	server.On("connection", func(so socketio.Socket) {
 		log.Println("on connection")
 		so.Join("chat")
