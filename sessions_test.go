@@ -34,6 +34,9 @@ func TestSessions(t *testing.T) {
 		proc := runtime.GOMAXPROCS(10)
 		defer runtime.GOMAXPROCS(proc)
 
+		t1 := newFakeTransportCreater(true, "t1")
+		registerTransport("t1", true, t1)
+
 		ses := newSessions()
 		pause := make(chan bool)
 		cont := make(chan bool)
@@ -41,8 +44,6 @@ func TestSessions(t *testing.T) {
 
 		for i := 0; i < n; i++ {
 			go func(i int) {
-				t1 := newFakeTransportCreater(true, "t1")
-				registerTransport("t1", true, t1)
 				req, _ := http.NewRequest("GET", "/", nil)
 				tt, _ := t1(req)
 				id := fmt.Sprintf("abc%d", i)
