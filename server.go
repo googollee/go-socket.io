@@ -47,7 +47,7 @@ func NewServer(transports []string) (*Server, error) {
 
 // SetPingTimeout sets the timeout of ping. When time out, server will close connection. Default is 60s.
 func (s *Server) SetPingTimeout(t time.Duration) {
-	s.config.PingInterval = t
+	s.config.PingTimeout = t
 }
 
 // SetPingInterval sets the interval of ping. Default is 25s.

@@ -21,6 +21,22 @@ func TestServer(t *testing.T) {
 	registerTransport("t2", false, t2)
 	registerTransport("t3", true, t3)
 
+	Convey("Setup server", t, func() {
+		server, err := NewServer(nil)
+		So(err, ShouldBeNil)
+		server.SetPingInterval(time.Second)
+		So(server.config.PingInterval, ShouldEqual, time.Second)
+		server.SetPingTimeout(10 * time.Second)
+		So(server.config.PingTimeout, ShouldEqual, 10*time.Second)
+		f := func(*http.Request) error { return nil }
+		server.SetAllowRequest(f)
+		So(server.config.AllowRequest, ShouldEqual, f)
+		server.SetAllowUpgrades(false)
+		So(server.config.AllowUpgrades, ShouldBeFalse)
+		server.SetCookie("prefix")
+		So(server.config.Cookie, ShouldEqual, "prefix")
+	})
+
 	Convey("Create server", t, func() {
 		server, err := NewServer([]string{"t1", "t2", "t3"})
 		So(err, ShouldBeNil)
