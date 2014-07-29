@@ -123,14 +123,14 @@ func (h *socketHandler) broadcastName(room string) string {
 func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{}, error) {
 	var message string
 	switch packet.Type {
-	case CONNECT:
+	case _CONNECT:
 		message = "connection"
-	case DISCONNECT:
+	case _DISCONNECT:
 		message = "disconnection"
-	case ERROR:
+	case _ERROR:
 		message = "error"
-	case ACK:
-	case BINARY_ACK:
+	case _ACK:
+	case _BINARY_ACK:
 		return nil, h.onAck(packet.Id, decoder, packet)
 	default:
 		message = decoder.Message()

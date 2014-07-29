@@ -9,7 +9,7 @@ type writerHelper struct {
 	err    error
 }
 
-func NewWriterHelper(w io.Writer) *writerHelper {
+func newWriterHelper(w io.Writer) *writerHelper {
 	return &writerHelper{
 		writer: w,
 	}

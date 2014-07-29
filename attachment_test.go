@@ -27,8 +27,8 @@ func TestEncodeAttachments(t *testing.T) {
 	attachment2 := &Attachment{Data: buf2}
 
 	test := func() {
-		attachment1.Num = -1
-		attachment2.Num = -1
+		attachment1.num = -1
+		attachment2.num = -1
 		attachments := encodeAttachments(input)
 		if len(attachments)+len(target) > 0 {
 			So(attachments, ShouldResemble, target)
@@ -48,7 +48,7 @@ func TestEncodeAttachments(t *testing.T) {
 
 		test()
 
-		So(attachment1.Num, ShouldEqual, 0)
+		So(attachment1.num, ShouldEqual, 0)
 	})
 
 	Convey("Array of attachments", t, func() {
@@ -57,8 +57,8 @@ func TestEncodeAttachments(t *testing.T) {
 
 		test()
 
-		So(attachment1.Num, ShouldEqual, 0)
-		So(attachment2.Num, ShouldEqual, 1)
+		So(attachment1.num, ShouldEqual, 0)
+		So(attachment2.num, ShouldEqual, 1)
 	})
 
 	Convey("Slice of attachments", t, func() {
@@ -67,25 +67,25 @@ func TestEncodeAttachments(t *testing.T) {
 
 		test()
 
-		So(attachment1.Num, ShouldEqual, 0)
-		So(attachment2.Num, ShouldEqual, 1)
+		So(attachment1.num, ShouldEqual, 0)
+		So(attachment2.num, ShouldEqual, 1)
 	})
 
 	Convey("Map of attachments", t, func() {
 		input = map[string]interface{}{"test": HaveAttachment{A: attachment1}, "testp": &HaveAttachment{A: attachment2}}
 
-		attachment1.Num = -1
-		attachment2.Num = -1
+		attachment1.num = -1
+		attachment2.num = -1
 		attachments := encodeAttachments(input)
 
-		So(attachment1.Num, ShouldBeIn, []int{0, 1})
-		switch attachment1.Num {
+		So(attachment1.num, ShouldBeIn, []int{0, 1})
+		switch attachment1.num {
 		case 0:
-			So(attachment2.Num, ShouldEqual, 1)
+			So(attachment2.num, ShouldEqual, 1)
 			target = []io.Reader{buf1, buf2}
 			So(attachments, ShouldResemble, target)
 		case 1:
-			So(attachment2.Num, ShouldEqual, 0)
+			So(attachment2.num, ShouldEqual, 0)
 			target = []io.Reader{buf2, buf1}
 			So(attachments, ShouldResemble, target)
 		}
@@ -94,7 +94,7 @@ func TestEncodeAttachments(t *testing.T) {
 	Convey("Encode attachment", t, func() {
 		input = map[string]interface{}{"test": HaveAttachment{A: attachment1}}
 
-		attachment1.Num = -1
+		attachment1.num = -1
 		encodeAttachments(input)
 
 		b, err := json.Marshal(input)
@@ -135,7 +135,7 @@ func TestDecodeAttachments(t *testing.T) {
 	Convey("Many attachment", t, func() {
 		input = [][]byte{[]byte("data1")}
 		attachment1 = &Attachment{Data: buf1}
-		attachment1.Num = 0
+		attachment1.num = 0
 		v = HaveAttachment{A: attachment1}
 
 		test()
@@ -144,9 +144,9 @@ func TestDecodeAttachments(t *testing.T) {
 	Convey("Array of attachments", t, func() {
 		input = [][]byte{[]byte("data1"), []byte("data2")}
 		attachment1 = &Attachment{Data: buf1}
-		attachment1.Num = 0
+		attachment1.num = 0
 		attachment2 = &Attachment{Data: buf2}
-		attachment2.Num = 1
+		attachment2.num = 1
 		v = [...]interface{}{HaveAttachment{A: attachment1}, &HaveAttachment{A: attachment2}}
 
 		test()
@@ -155,9 +155,9 @@ func TestDecodeAttachments(t *testing.T) {
 	Convey("Slice of attachments", t, func() {
 		input = [][]byte{[]byte("data1"), []byte("data2")}
 		attachment1 = &Attachment{Data: buf1}
-		attachment1.Num = 0
+		attachment1.num = 0
 		attachment2 = &Attachment{Data: buf2}
-		attachment2.Num = 1
+		attachment2.num = 1
 		v = []interface{}{HaveAttachment{A: attachment1}, &HaveAttachment{A: attachment2}}
 
 		test()
@@ -166,9 +166,9 @@ func TestDecodeAttachments(t *testing.T) {
 	Convey("Map of attachments", t, func() {
 		input = [][]byte{[]byte("data1"), []byte("data2")}
 		attachment1 = &Attachment{Data: buf1}
-		attachment1.Num = 0
+		attachment1.num = 0
 		attachment2 = &Attachment{Data: buf2}
-		attachment2.Num = 1
+		attachment2.num = 1
 		v = map[string]interface{}{"test": HaveAttachment{A: attachment1}, "testp": &HaveAttachment{A: attachment2}}
 
 		test()
@@ -179,6 +179,6 @@ func TestDecodeAttachments(t *testing.T) {
 		v := &HaveAttachment{}
 		err := json.Unmarshal(b, &v)
 		So(err, ShouldBeNil)
-		So(v.A.Num, ShouldEqual, 2)
+		So(v.A.num, ShouldEqual, 2)
 	})
 }

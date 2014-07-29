@@ -11,7 +11,7 @@ type trimWriter struct {
 	output    io.Writer
 }
 
-func NewTrimWriter(w io.Writer, trimChars string) *trimWriter {
+func newTrimWriter(w io.Writer, trimChars string) *trimWriter {
 	return &trimWriter{
 		trimChars: trimChars,
 		output:    w,

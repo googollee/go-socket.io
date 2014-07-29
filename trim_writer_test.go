@@ -14,7 +14,7 @@ func TestTrimWriter(t *testing.T) {
 
 	test := func() {
 		buf := bytes.NewBuffer(nil)
-		w := NewTrimWriter(buf, trim)
+		w := newTrimWriter(buf, trim)
 		for _, str := range inputs {
 			_, err := w.Write([]byte(str))
 			So(err, ShouldBeNil)

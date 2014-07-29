@@ -2,14 +2,38 @@ package socketio
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
 )
 
+// Attachment is an attachment handler used in emit args. All attachments will send as binary in transport layer. When use attachment, make sure use as pointer.
+//
+// For example:
+//
+//     type Arg struct {
+//         Title string `json:"title"`
+//         File *Attachment `json:"file"`
+//     }
+//
+//     f, _ := os.Open("./some_file")
+//     arg := Arg{
+//         Title: "some_file",
+//         File: &Attachment{
+//             Data: f,
+//         }
+//     }
+//
+//     socket.Emit("send file", arg)
+//     socket.On("get file", func(so Socket, arg Arg) {
+//         b, _ := ioutil.ReadAll(arg.File.Data)
+//     })
 type Attachment struct {
-	Num  int `json:"num"`
+
+	// Data is the ReadWriter of the attachment data.
 	Data io.ReadWriter
+	num  int
 }
 
 func encodeAttachments(v interface{}) []io.Reader {
@@ -30,7 +54,7 @@ func encodeAttachmentValue(v reflect.Value, index *int) []io.Reader {
 			if !ok {
 				panic("can't convert")
 			}
-			a.Num = *index
+			a.num = *index
 			ret = append(ret, a.Data)
 			(*index)++
 			return ret
@@ -82,13 +106,13 @@ func decodeAttachmentValue(v reflect.Value, binary [][]byte) error {
 			if !ok {
 				panic("can't convert")
 			}
-			if a.Num >= len(binary) || a.Num < 0 {
+			if a.num >= len(binary) || a.num < 0 {
 				return fmt.Errorf("out of range")
 			}
 			if a.Data == nil {
 				a.Data = bytes.NewBuffer(nil)
 			}
-			for b := binary[a.Num]; len(b) > 0; {
+			for b := binary[a.num]; len(b) > 0; {
 				n, err := a.Data.Write(b)
 				if err != nil {
 					return err
@@ -131,5 +155,16 @@ func decodeAttachmentValue(v reflect.Value, binary [][]byte) error {
 }
 
 func (a Attachment) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("{\"_placeholder\":true,\"num\":%d}", a.Num)), nil
+	return []byte(fmt.Sprintf("{\"_placeholder\":true,\"num\":%d}", a.num)), nil
+}
+
+func (a *Attachment) UnmarshalJSON(b []byte) error {
+	var v struct {
+		Num int `json:"num"`
+	}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	a.num = v.Num
+	return nil
 }
