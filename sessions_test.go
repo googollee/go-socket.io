@@ -19,7 +19,7 @@ func TestSessions(t *testing.T) {
 		So(err, ShouldBeNil)
 		id := "abc"
 		server, err := NewServer([]string{"t1"})
-		conn, err := newSocket(id, server, tt, req)
+		conn, err := newConn(id, server, tt, req)
 		So(err, ShouldBeNil)
 
 		So(len(ses.sessions), ShouldEqual, 0)
@@ -48,7 +48,7 @@ func TestSessions(t *testing.T) {
 				tt, _ := t1(req)
 				id := fmt.Sprintf("abc%d", i)
 				server, _ := NewServer(nil)
-				conn, _ := newSocket(id, server, tt, req)
+				conn, _ := newConn(id, server, tt, req)
 
 				pause <- true
 				<-cont

@@ -54,7 +54,7 @@ func TestServer(t *testing.T) {
 			t, err := t1(req)
 			So(err, ShouldBeNil)
 			id := "abc"
-			conn, err := newSocket(id, server, t, req)
+			conn, err := newConn(id, server, t, req)
 			So(err, ShouldBeNil)
 			server.sessions.Set(id, conn)
 			server.onClose(conn)

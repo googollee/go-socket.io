@@ -25,7 +25,7 @@ type Server struct {
 	transports transportsType
 }
 
-// NewServer returns the server suppported given transports. If transports is nil, server will support all kinds of transports.
+// NewServer returns the server suppported given transports. If transports is nil, server will use ["polling", "webosocket"] as default.
 func NewServer(transports []string) (*Server, error) {
 	t, err := newTransportsType(transports)
 	if err != nil {
@@ -94,7 +94,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sid = s.newId(r)
-		conn, err := newSocket(sid, s, transport, r)
+		conn, err := newConn(sid, s, transport, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

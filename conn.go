@@ -62,7 +62,7 @@ type conn struct {
 	origin       transport
 }
 
-func newSocket(id string, server *Server, transport transport, req *http.Request) (*conn, error) {
+func newConn(id string, server *Server, transport transport, req *http.Request) (*conn, error) {
 	ret := &conn{
 		id:           id,
 		server:       server,
