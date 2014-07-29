@@ -1,8 +1,15 @@
 package socketio
 
+// BroadcastAdaptor is the adaptor to handle broadcast.
 type BroadcastAdaptor interface {
+
+	// Join lets socket join the t room.
 	Join(room string, socket Socket) error
+
+	// Leave let socket leave the room.
 	Leave(room string, socket Socket) error
+
+	// Send will send the message with args to room. If ignore is not nil, it won't send to the socket ignore.
 	Send(ignore Socket, room, message string, args []interface{}) error
 }
 

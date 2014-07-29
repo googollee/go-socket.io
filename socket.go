@@ -6,14 +6,31 @@ import (
 	"github.com/googollee/go-engine.io"
 )
 
+// Socket is the socket object of socket.io.
 type Socket interface {
+
+	// Id returns the session id of socket.
 	Id() string
+
+	// Rooms returns the rooms name joined now.
 	Rooms() []string
+
+	// Request returns the first http request when established connection.
 	Request() *http.Request
+
+	// On registers the function f to handle message.
 	On(message string, f interface{}) error
+
+	// Emit emits the message with given args.
 	Emit(message string, args ...interface{}) error
+
+	// Join joins the room.
 	Join(room string) error
+
+	// Leave leaves the room.
 	Leave(room string) error
+
+	// BroadcastTo broadcasts the message to the room with given args.
 	BroadcastTo(room, message string, args ...interface{}) error
 }
 

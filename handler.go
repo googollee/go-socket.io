@@ -19,6 +19,7 @@ func newBaseHandler(name string, broadcast BroadcastAdaptor) *baseHandler {
 	}
 }
 
+// On registers the function f to handle message.
 func (h *baseHandler) On(message string, f interface{}) error {
 	c, err := newCaller(f)
 	if err != nil {

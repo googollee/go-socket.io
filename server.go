@@ -6,12 +6,14 @@ import (
 	"time"
 )
 
+// Server is the server of socket.io.
 type Server struct {
 	*namespace
 	broadcast BroadcastAdaptor
 	eio       *engineio.Server
 }
 
+// NewServer returns the server supported given transports. If transports is nil, server will use ["polling", "websocket"] as default.
 func NewServer(transportNames []string) (*Server, error) {
 	eio, err := engineio.NewServer(transportNames)
 	if err != nil {
@@ -55,6 +57,7 @@ func (s *Server) SetAdaptor(adaptor BroadcastAdaptor) {
 	s.namespace = newNamespace(adaptor)
 }
 
+// ServeHTTP handles http request.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.eio.ServeHTTP(w, r)
 }
