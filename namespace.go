@@ -1,8 +1,15 @@
 package socketio
 
+// Namespace is the name space of socket.io handler.
 type Namespace interface {
+
+	// Name returns the name of namespace.
 	Name() string
-	Of(namespace string) Namespace
+
+	// Of returns the namespace with given name.
+	Of(name string) Namespace
+
+	// On registers the function f to handle message.
 	On(message string, f interface{}) error
 }
 

@@ -13,10 +13,10 @@ import (
 
 const Protocol = 4
 
-type PacketType int
+type packetType int
 
 const (
-	CONNECT PacketType = iota
+	CONNECT packetType = iota
 	DISCONNECT
 	EVENT
 	ACK
@@ -25,7 +25,7 @@ const (
 	BINARY_ACK
 )
 
-func (t PacketType) String() string {
+func (t packetType) String() string {
 	switch t {
 	case CONNECT:
 		return "connect"
@@ -45,34 +45,34 @@ func (t PacketType) String() string {
 	return fmt.Sprintf("unknown(%d)", t)
 }
 
-type FrameReader interface {
+type frameReader interface {
 	NextReader() (engineio.MessageType, io.ReadCloser, error)
 }
 
-type FrameWriter interface {
+type frameWriter interface {
 	NextWriter(engineio.MessageType) (io.WriteCloser, error)
 }
 
-type Packet struct {
-	Type         PacketType
+type packet struct {
+	Type         packetType
 	NSP          string
 	Id           int
 	Data         interface{}
 	attachNumber int
 }
 
-type Encoder struct {
-	w   FrameWriter
+type encoder struct {
+	w   frameWriter
 	err error
 }
 
-func NewEncoder(w FrameWriter) *Encoder {
-	return &Encoder{
+func NewEncoder(w frameWriter) *encoder {
+	return &encoder{
 		w: w,
 	}
 }
 
-func (e *Encoder) Encode(v Packet) error {
+func (e *encoder) Encode(v packet) error {
 	attachments := encodeAttachments(v.Data)
 	v.attachNumber = len(attachments)
 	if v.attachNumber > 0 {
@@ -89,7 +89,7 @@ func (e *Encoder) Encode(v Packet) error {
 	return nil
 }
 
-func (e *Encoder) encodePacket(v Packet) error {
+func (e *encoder) encodePacket(v packet) error {
 	writer, err := e.w.NextWriter(engineio.MessageText)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (e *Encoder) encodePacket(v Packet) error {
 	return wh.Error()
 }
 
-func (e *Encoder) writeBinary(r io.Reader) error {
+func (e *encoder) writeBinary(r io.Reader) error {
 	writer, err := e.w.NextWriter(engineio.MessageBinary)
 	if err != nil {
 		return err
@@ -143,20 +143,20 @@ func (e *Encoder) writeBinary(r io.Reader) error {
 
 }
 
-type Decoder struct {
-	reader        FrameReader
+type decoder struct {
+	reader        frameReader
 	message       string
 	current       io.Reader
 	currentCloser io.Closer
 }
 
-func NewDecoder(r FrameReader) *Decoder {
-	return &Decoder{
+func NewDecoder(r frameReader) *decoder {
+	return &decoder{
 		reader: r,
 	}
 }
 
-func (d *Decoder) Decode(v *Packet) error {
+func (d *decoder) Decode(v *packet) error {
 	ty, r, err := d.reader.NextReader()
 	if err != nil {
 		return err
@@ -183,7 +183,7 @@ func (d *Decoder) Decode(v *Packet) error {
 	if err != nil {
 		return err
 	}
-	v.Type = PacketType(t - '0')
+	v.Type = packetType(t - '0')
 
 	if v.Type == BINARY_EVENT || v.Type == BINARY_ACK {
 		num, err := reader.ReadBytes('-')
@@ -281,11 +281,11 @@ func (d *Decoder) Decode(v *Packet) error {
 	return nil
 }
 
-func (d *Decoder) Message() string {
+func (d *decoder) Message() string {
 	return d.message
 }
 
-func (d *Decoder) DecodeData(v *Packet) error {
+func (d *decoder) DecodeData(v *packet) error {
 	if d.current == nil {
 		return nil
 	}
@@ -311,7 +311,7 @@ func (d *Decoder) DecodeData(v *Packet) error {
 	return nil
 }
 
-func (d *Decoder) decodeBinary(num int) ([][]byte, error) {
+func (d *decoder) decodeBinary(num int) ([][]byte, error) {
 	ret := make([][]byte, num)
 	for i := 0; i < num; i++ {
 		t, r, err := d.reader.NextReader()

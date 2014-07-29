@@ -30,7 +30,7 @@ func TestPacketType(t *testing.T) {
 }
 
 func TestParser(t *testing.T) {
-	p := Packet{}
+	p := packet{}
 	var decodeData interface{}
 	output := ""
 	message := ""
@@ -48,7 +48,7 @@ func TestParser(t *testing.T) {
 			So(saver.data[1].Type, ShouldEqual, engineio.MessageBinary)
 		}
 
-		d := Packet{Data: decodeData}
+		d := packet{Data: decodeData}
 		decoder := NewDecoder(saver)
 		err = decoder.Decode(&d)
 		So(err, ShouldBeNil)
@@ -65,7 +65,7 @@ func TestParser(t *testing.T) {
 	}
 
 	Convey("Only type", t, func() {
-		p = Packet{
+		p = packet{
 			Type: CONNECT,
 			Id:   -1,
 		}
@@ -77,7 +77,7 @@ func TestParser(t *testing.T) {
 	})
 
 	Convey("Type and id", t, func() {
-		p = Packet{
+		p = packet{
 			Type: EVENT,
 			Id:   1,
 		}
@@ -89,7 +89,7 @@ func TestParser(t *testing.T) {
 	})
 
 	Convey("Type and namespace", t, func() {
-		p = Packet{
+		p = packet{
 			Type: EVENT,
 			Id:   -1,
 			NSP:  "/abc",
@@ -102,7 +102,7 @@ func TestParser(t *testing.T) {
 	})
 
 	Convey("Type, id and namespace", t, func() {
-		p = Packet{
+		p = packet{
 			Type: EVENT,
 			Id:   1,
 			NSP:  "/abc",
@@ -115,7 +115,7 @@ func TestParser(t *testing.T) {
 	})
 
 	Convey("Type, namespace and data", t, func() {
-		p = Packet{
+		p = packet{
 			Type: EVENT,
 			Id:   -1,
 			NSP:  "/abc",
@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
 	})
 
 	Convey("Type, namespace, id and data", t, func() {
-		p = Packet{
+		p = packet{
 			Type: EVENT,
 			Id:   1,
 			NSP:  "/abc",
@@ -153,7 +153,7 @@ func TestParser(t *testing.T) {
 	})
 
 	Convey("Type, namespace, id and data(ack)", t, func() {
-		p = Packet{
+		p = packet{
 			Type: ACK,
 			Id:   1,
 			NSP:  "/abc",
@@ -172,7 +172,7 @@ func TestParser(t *testing.T) {
 	})
 
 	Convey("Binary type with attachment", t, func() {
-		p = Packet{
+		p = packet{
 			Type: EVENT,
 			Id:   1,
 			NSP:  "/abc",

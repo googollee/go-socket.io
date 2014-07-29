@@ -5,20 +5,20 @@ import (
 	"io"
 )
 
-type TrimWriter struct {
+type trimWriter struct {
 	trimChars string
 	trimBuf   []byte
 	output    io.Writer
 }
 
-func NewTrimWriter(w io.Writer, trimChars string) *TrimWriter {
-	return &TrimWriter{
+func NewTrimWriter(w io.Writer, trimChars string) *trimWriter {
+	return &trimWriter{
 		trimChars: trimChars,
 		output:    w,
 	}
 }
 
-func (w *TrimWriter) Write(p []byte) (int, error) {
+func (w *trimWriter) Write(p []byte) (int, error) {
 	out := bytes.TrimRight(p, w.trimChars)
 	buf := p[len(out):]
 	var written int

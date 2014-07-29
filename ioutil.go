@@ -4,18 +4,18 @@ import (
 	"io"
 )
 
-type WriterHelper struct {
+type writerHelper struct {
 	writer io.Writer
 	err    error
 }
 
-func NewWriterHelper(w io.Writer) *WriterHelper {
-	return &WriterHelper{
+func NewWriterHelper(w io.Writer) *writerHelper {
+	return &writerHelper{
 		writer: w,
 	}
 }
 
-func (h *WriterHelper) Write(p []byte) {
+func (h *writerHelper) Write(p []byte) {
 	if h.err != nil {
 		return
 	}
@@ -29,6 +29,6 @@ func (h *WriterHelper) Write(p []byte) {
 	}
 }
 
-func (h *WriterHelper) Error() error {
+func (h *writerHelper) Error() error {
 	return h.err
 }

@@ -68,7 +68,7 @@ func (s *socket) Emit(message string, args ...interface{}) error {
 }
 
 func (s *socket) send(args []interface{}) error {
-	packet := Packet{
+	packet := packet{
 		Type: EVENT,
 		Id:   -1,
 		NSP:  s.namespace,
@@ -79,7 +79,7 @@ func (s *socket) send(args []interface{}) error {
 }
 
 func (s *socket) sendId(args []interface{}) (int, error) {
-	packet := Packet{
+	packet := packet{
 		Type: EVENT,
 		Id:   s.id,
 		NSP:  s.namespace,
@@ -100,47 +100,47 @@ func (s *socket) sendId(args []interface{}) (int, error) {
 func (s *socket) loop() error {
 	defer func() {
 		s.LeaveAll()
-		packet := Packet{
+		p := packet{
 			Type: DISCONNECT,
 			Id:   -1,
 		}
-		s.socketHandler.onPacket(nil, &packet)
+		s.socketHandler.onPacket(nil, &p)
 	}()
 
-	packet := Packet{
+	p := packet{
 		Type: CONNECT,
 		Id:   -1,
 	}
 	encoder := NewEncoder(s.conn)
-	if err := encoder.Encode(packet); err != nil {
+	if err := encoder.Encode(p); err != nil {
 		return err
 	}
-	s.socketHandler.onPacket(nil, &packet)
+	s.socketHandler.onPacket(nil, &p)
 	for {
 		decoder := NewDecoder(s.conn)
-		var packet Packet
-		if err := decoder.Decode(&packet); err != nil {
+		var p packet
+		if err := decoder.Decode(&p); err != nil {
 			return err
 		}
-		ret, err := s.socketHandler.onPacket(decoder, &packet)
+		ret, err := s.socketHandler.onPacket(decoder, &p)
 		if err != nil {
 			return err
 		}
-		switch packet.Type {
+		switch p.Type {
 		case CONNECT:
-			s.namespace = packet.NSP
+			s.namespace = p.NSP
 		case BINARY_EVENT:
 			fallthrough
 		case EVENT:
-			if packet.Id >= 0 {
-				packet := Packet{
+			if p.Id >= 0 {
+				p := packet{
 					Type: ACK,
-					Id:   packet.Id,
+					Id:   p.Id,
 					NSP:  s.namespace,
 					Data: ret,
 				}
 				encoder := NewEncoder(s.conn)
-				if err := encoder.Encode(packet); err != nil {
+				if err := encoder.Encode(p); err != nil {
 					return err
 				}
 			}

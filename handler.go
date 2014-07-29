@@ -120,7 +120,7 @@ func (h *socketHandler) broadcastName(room string) string {
 	return fmt.Sprintf("%s:%s", h.baseHandler.name, room)
 }
 
-func (h *socketHandler) onPacket(decoder *Decoder, packet *Packet) ([]interface{}, error) {
+func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{}, error) {
 	var message string
 	switch packet.Type {
 	case CONNECT:
@@ -157,7 +157,7 @@ func (h *socketHandler) onPacket(decoder *Decoder, packet *Packet) ([]interface{
 	return ret, nil
 }
 
-func (h *socketHandler) onAck(id int, decoder *Decoder, packet *Packet) error {
+func (h *socketHandler) onAck(id int, decoder *decoder, packet *packet) error {
 	c, ok := h.acks[id]
 	if !ok {
 		return nil
