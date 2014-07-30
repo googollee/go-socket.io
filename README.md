@@ -13,13 +13,13 @@ It compatible with latest implement of socket.io in node.js, and support room an
 Install the package with:
 
 ```bash
-go get github.com/googollee/go-socketio
+go get github.com/googollee/go-socket.io
 ```
 
 Import it with:
 
 ```go
-import "github.com/googollee/go-socketio"
+import "github.com/googollee/go-socket.io"
 ```
 
 and use `socketio` as the package name inside the code.
