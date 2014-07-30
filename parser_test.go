@@ -456,11 +456,11 @@ func TestLimitReaderDecoder(t *testing.T) {
 	})
 }
 
-func TestParalletEncode(t *testing.T) {
+func TestParallelEncode(t *testing.T) {
 	prev := runtime.GOMAXPROCS(10)
 	defer runtime.GOMAXPROCS(prev)
 
-	Convey("Test parallet encode", t, func() {
+	Convey("Test parallel encode", t, func() {
 		c := make(chan int)
 		max := 1000
 		buf1 := bytes.NewBuffer(nil)
