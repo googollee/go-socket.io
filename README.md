@@ -11,13 +11,13 @@ It is compatible with node.js implement, and supported long-polling and websocke
 Install the package with:
 
 ```bash
-go get github.com/googollee/go-engineio
+go get github.com/googollee/go-engine.io
 ```
 
 Import it with:
 
 ```go
-import "github.com/googollee/go-engineio"
+import "github.com/googollee/go-engine.io"
 ```
 
 and use `engineio` as the package name inside the code.
