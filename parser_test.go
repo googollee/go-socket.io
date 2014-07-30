@@ -304,6 +304,7 @@ func TestStringPayload(t *testing.T) {
 
 			Convey("Create encoder", func() {
 				encoder := newStringPayloadEncoder()
+				So(encoder.IsString(), ShouldBeTrue)
 
 				Convey("Encoded", func() {
 					for _, p := range test.packets {
@@ -384,6 +385,7 @@ func TestBinaryPayload(t *testing.T) {
 
 			Convey("Create encoder", func() {
 				encoder := newBinaryPayloadEncoder()
+				So(encoder.IsString(), ShouldBeFalse)
 
 				Convey("Encoded", func() {
 					for _, p := range test.packets {

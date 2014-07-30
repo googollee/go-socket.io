@@ -300,6 +300,11 @@ func (e *payloadEncoder) EncodeTo(w io.Writer) error {
 	return nil
 }
 
+//IsString returns true if payload encode to string, otherwise returns false.
+func (e *payloadEncoder) IsString() bool {
+	return e.isString
+}
+
 // payloadDecoder is the decoder to decode payload.
 type payloadDecoder struct {
 	r *bufio.Reader

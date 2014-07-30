@@ -98,7 +98,7 @@ func (p *polling) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if p.encoder.isString {
+	if p.encoder.IsString() {
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
