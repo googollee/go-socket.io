@@ -49,6 +49,13 @@ type Conn interface {
 	serveHTTP(w http.ResponseWriter, r *http.Request)
 }
 
+type connectionInfo struct {
+	Sid          string        `json:"sid"`
+	Upgrades     []string      `json:"upgrades"`
+	PingInterval time.Duration `json:"pingInterval"`
+	PingTimeout  time.Duration `json:"pingTimeout"`
+}
+
 type conn struct {
 	id           string
 	server       *Server
@@ -170,12 +177,7 @@ func (s *conn) serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *conn) onOpen() error {
-	resp := struct {
-		Sid          string        `json:"sid"`
-		Upgrades     []string      `json:"upgrades"`
-		PingInterval time.Duration `json:"pingInterval"`
-		PingTimeout  time.Duration `json:"pingTimeout"`
-	}{
+	resp := connectionInfo{
 		Sid:          s.id,
 		Upgrades:     s.server.transports.Upgrades(),
 		PingInterval: s.server.config.PingInterval / time.Millisecond,
