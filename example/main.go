@@ -20,16 +20,25 @@ func main() {
 			conn, _ := server.Accept()
 			go func() {
 				defer conn.Close()
-				for i := 0; i < 10; i++ {
-					t, r, _ := conn.NextReader()
-					b, _ := ioutil.ReadAll(r)
+				for {
+					t, r, err := conn.NextReader()
+					if err != nil {
+						return
+					}
+					b, err := ioutil.ReadAll(r)
+					if err != nil {
+						return
+					}
 					r.Close()
 					if t == engineio.MessageText {
 						log.Println(t, string(b))
 					} else {
 						log.Println(t, hex.EncodeToString(b))
 					}
-					w, _ := conn.NextWriter(t)
+					w, err := conn.NextWriter(t)
+					if err != nil {
+						return
+					}
 					w.Write([]byte("pong"))
 					w.Close()
 				}

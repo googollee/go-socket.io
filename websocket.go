@@ -44,7 +44,6 @@ func (p *websocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	p.conn = conn
 	defer func() {
-		p.conn.Close()
 		p.socket.onClose()
 	}()
 
@@ -82,7 +81,8 @@ func (p *websocket) NextWriter(msgType MessageType, packetType packetType) (io.W
 }
 
 func (p *websocket) Close() error {
-	w, _ := p.conn.NextWriter(ws.CloseMessage)
-	w.Close()
+	if w, _ := p.conn.NextWriter(ws.CloseMessage); w != nil {
+		w.Close()
+	}
 	return p.conn.Close()
 }

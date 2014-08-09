@@ -100,6 +100,9 @@ func (s *conn) Request() *http.Request {
 }
 
 func (s *conn) Close() error {
+	if s.t == nil {
+		return nil
+	}
 	s.writerLocker.Lock()
 	w, err := s.t.NextWriter(MessageText, _CLOSE)
 	if err != nil {
@@ -109,8 +112,11 @@ func (s *conn) Close() error {
 	s.writerLocker.Unlock()
 	if s.origin != nil {
 		s.origin.Close()
+		s.origin = nil
 	}
-	return s.t.Close()
+	err = s.t.Close()
+	s.t = nil
+	return err
 }
 
 func (s *conn) NextReader() (MessageType, io.ReadCloser, error) {
@@ -235,6 +241,8 @@ func (s *conn) onClose() {
 	close(s.readerChan)
 	close(s.pingChan)
 	s.server.onClose(s)
+	s.origin = nil
+	s.t = nil
 }
 
 func (s *conn) pingLoop() {
