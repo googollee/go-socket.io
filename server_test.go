@@ -70,6 +70,7 @@ func TestServer(t *testing.T) {
 					conn, _ := server.Accept()
 					id = conn.Id()
 					check <- true
+					check <- true
 					conn.Close()
 					check <- true
 				}()
@@ -85,6 +86,8 @@ func TestServer(t *testing.T) {
 
 				server.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
+
+				<-check
 
 				p.Set("sid", id)
 				r, err = http.NewRequest("GET", "/?"+p.Encode(), bytes.NewBuffer(nil))
@@ -158,9 +161,12 @@ func TestServer(t *testing.T) {
 
 			Convey("Wrong session id", func() {
 				check := make(chan bool)
+				var id string
 				var conn Conn
 				go func() {
 					conn, _ = server.Accept()
+					id = conn.Id()
+					check <- true
 					check <- true
 					conn.Close()
 					check <- true
@@ -178,7 +184,9 @@ func TestServer(t *testing.T) {
 				server.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
 
-				p.Set("sid", conn.Id()+"abc")
+				<-check
+
+				p.Set("sid", id+"abc")
 				r, err = http.NewRequest("GET", "/?"+p.Encode(), bytes.NewBuffer(nil))
 				So(err, ShouldBeNil)
 				w = httptest.NewRecorder()
