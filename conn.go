@@ -260,12 +260,12 @@ func (s *conn) pingLoop() {
 				return
 			}
 			lastPing = time.Now()
-		case <-time.After(s.pingInterval - diff):
-			s.writerLocker.Lock()
-			if w, _ := s.t.NextWriter(MessageText, _PING); w != nil {
-				w.Close()
-			}
-			s.writerLocker.Unlock()
+		// case <-time.After(s.pingInterval - diff):
+		// 	s.writerLocker.Lock()
+		// 	if w, _ := s.t.NextWriter(MessageText, _PING); w != nil {
+		// 		w.Close()
+		// 	}
+		// 	s.writerLocker.Unlock()
 		case <-time.After(s.pingTimeout - diff):
 			s.Close()
 			s.onClose()

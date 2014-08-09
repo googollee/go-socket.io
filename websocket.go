@@ -3,6 +3,7 @@ package engineio
 import (
 	"io"
 	"net/http"
+	"sync"
 
 	ws "github.com/gorilla/websocket"
 )
@@ -12,9 +13,10 @@ func init() {
 }
 
 type websocket struct {
-	socket   Conn
-	conn     *ws.Conn
-	isClosed bool
+	socket     Conn
+	conn       *ws.Conn
+	connLocker sync.Mutex
+	isClosed   bool
 }
 
 func newWebsocketTransport(req *http.Request) (transport, error) {
@@ -42,9 +44,15 @@ func (p *websocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	p.connLocker.Lock()
 	p.conn = conn
+	p.connLocker.Unlock()
 	defer func() {
-		p.socket.onClose()
+		p.connLocker.Lock()
+		defer p.connLocker.Unlock()
+		if p.conn != nil {
+			p.socket.onClose()
+		}
 	}()
 
 	for {
@@ -84,5 +92,9 @@ func (p *websocket) Close() error {
 	if w, _ := p.conn.NextWriter(ws.CloseMessage); w != nil {
 		w.Close()
 	}
-	return p.conn.Close()
+	conn := p.conn
+	p.connLocker.Lock()
+	p.conn = nil
+	p.connLocker.Unlock()
+	return conn.Close()
 }
