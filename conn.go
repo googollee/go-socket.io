@@ -149,6 +149,10 @@ func (s *conn) nextWriter(messageType MessageType, packetType packetType) (io.Wr
 }
 
 func (s *conn) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	if s.t == nil {
+		http.Error(w, "closed", http.StatusBadRequest)
+		return
+	}
 	transportName := r.URL.Query().Get("transport")
 	if s.t.Name() != transportName {
 		if !s.server.config.AllowUpgrades {

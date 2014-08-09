@@ -69,6 +69,7 @@ func TestServer(t *testing.T) {
 				go func() {
 					conn, _ := server.Accept()
 					id = conn.Id()
+					check <- true
 					conn.Close()
 					check <- true
 				}()
@@ -85,8 +86,6 @@ func TestServer(t *testing.T) {
 				server.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
 
-				<-check
-
 				p.Set("sid", id)
 				r, err = http.NewRequest("GET", "/?"+p.Encode(), bytes.NewBuffer(nil))
 				So(err, ShouldBeNil)
@@ -94,6 +93,16 @@ func TestServer(t *testing.T) {
 
 				server.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
+
+				<-check
+				<-check
+
+				r, err = http.NewRequest("GET", "/?"+p.Encode(), bytes.NewBuffer(nil))
+				So(err, ShouldBeNil)
+				w = httptest.NewRecorder()
+
+				server.ServeHTTP(w, r)
+				So(w.Code, ShouldEqual, http.StatusBadRequest)
 			})
 
 			Convey("Not allowed", func() {
@@ -152,6 +161,7 @@ func TestServer(t *testing.T) {
 				var conn Conn
 				go func() {
 					conn, _ = server.Accept()
+					check <- true
 					conn.Close()
 					check <- true
 				}()
@@ -168,9 +178,6 @@ func TestServer(t *testing.T) {
 				server.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusOK)
 
-				<-check
-				defer conn.Close()
-
 				p.Set("sid", conn.Id()+"abc")
 				r, err = http.NewRequest("GET", "/?"+p.Encode(), bytes.NewBuffer(nil))
 				So(err, ShouldBeNil)
@@ -179,6 +186,9 @@ func TestServer(t *testing.T) {
 				server.ServeHTTP(w, r)
 				So(w.Code, ShouldEqual, http.StatusBadRequest)
 				So(w.Body.String(), ShouldEqual, "invalid sid\n")
+
+				<-check
+				<-check
 			})
 
 		})
