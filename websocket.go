@@ -15,7 +15,7 @@ func init() {
 type websocket struct {
 	socket     Conn
 	conn       *ws.Conn
-	connLocker sync.Mutex
+	connLocker sync.RWMutex
 	isClosed   bool
 }
 
@@ -77,7 +77,18 @@ func (p *websocket) NextWriter(msgType MessageType, packetType packetType) (io.W
 	if msgType == MessageBinary {
 		wsType, newEncoder = ws.BinaryMessage, newBinaryEncoder
 	}
-	w, err := p.conn.NextWriter(wsType)
+
+	w, err := func() (io.WriteCloser, error) {
+		p.connLocker.RLock()
+		defer p.connLocker.RUnlock()
+
+		if p.conn == nil {
+			return nil, io.EOF
+		}
+
+		return p.conn.NextWriter(wsType)
+	}()
+
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +100,23 @@ func (p *websocket) NextWriter(msgType MessageType, packetType packetType) (io.W
 }
 
 func (p *websocket) Close() error {
-	if w, _ := p.conn.NextWriter(ws.CloseMessage); w != nil {
-		w.Close()
+	conn := func() *ws.Conn {
+		p.connLocker.RLock()
+		defer p.connLocker.RUnlock()
+
+		if p.conn == nil {
+			return nil
+		}
+
+		if w, _ := p.conn.NextWriter(ws.CloseMessage); w != nil {
+			w.Close()
+		}
+		return p.conn
+	}()
+
+	if conn == nil {
+		return nil
 	}
-	conn := p.conn
 	p.connLocker.Lock()
 	p.conn = nil
 	p.connLocker.Unlock()
