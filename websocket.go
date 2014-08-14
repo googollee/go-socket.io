@@ -19,8 +19,14 @@ type websocket struct {
 	isClosed   bool
 }
 
-func newWebsocketTransport(req *http.Request) (transport, error) {
+func newWebsocketTransport(w http.ResponseWriter, r *http.Request) (transport, error) {
+	conn, err := ws.Upgrade(w, r, nil, 10240, 10240)
+	if err != nil {
+		return nil, err
+	}
+
 	ret := &websocket{
+		conn:     conn,
 		isClosed: false,
 	}
 	return ret, nil
@@ -39,22 +45,26 @@ func (*websocket) SupportsFraming() bool {
 }
 
 func (p *websocket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	conn, err := ws.Upgrade(w, r, nil, 10240, 10240)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	p.connLocker.Lock()
-	p.conn = conn
-	p.connLocker.Unlock()
 	defer func() {
 		p.connLocker.Lock()
 		defer p.connLocker.Unlock()
 		if p.conn != nil {
 			p.socket.onClose()
 		}
+		p.conn = nil
 	}()
 
+	conn := func() *ws.Conn {
+		p.connLocker.RLock()
+		defer p.connLocker.RUnlock()
+
+		return p.conn
+	}()
+
+	if conn == nil {
+		http.Error(w, "closed", http.StatusBadRequest)
+		return
+	}
 	for {
 		t, r, err := conn.NextReader()
 		if err != nil {

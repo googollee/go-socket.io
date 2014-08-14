@@ -3,6 +3,7 @@ package engineio
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"runtime"
 	"testing"
 
@@ -15,7 +16,8 @@ func TestSessions(t *testing.T) {
 		t1 := newFakeTransportCreater(true, "t1")
 		registerTransport("t1", true, t1)
 		req, err := http.NewRequest("GET", "/", nil)
-		tt, err := t1(req)
+		resp := httptest.NewRecorder()
+		tt, err := t1(resp, req)
 		So(err, ShouldBeNil)
 		id := "abc"
 		server, err := NewServer([]string{"t1"})
@@ -45,7 +47,8 @@ func TestSessions(t *testing.T) {
 		for i := 0; i < n; i++ {
 			go func(i int) {
 				req, _ := http.NewRequest("GET", "/", nil)
-				tt, _ := t1(req)
+				resp := httptest.NewRecorder()
+				tt, _ := t1(resp, req)
 				id := fmt.Sprintf("abc%d", i)
 				server, _ := NewServer(nil)
 				conn, _ := newConn(id, server, tt, req)

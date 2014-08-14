@@ -15,9 +15,9 @@ type polling struct {
 	conn     Conn
 }
 
-func newPollingTransport(req *http.Request) (transport, error) {
+func newPollingTransport(w http.ResponseWriter, r *http.Request) (transport, error) {
 	newEncoder := newBinaryPayloadEncoder
-	if req.URL.Query()["b64"] != nil {
+	if r.URL.Query()["b64"] != nil {
 		newEncoder = newStringPayloadEncoder
 	}
 	ret := &polling{

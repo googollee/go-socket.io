@@ -81,10 +81,6 @@ func newConn(id string, server *Server, transport transport, req *http.Request) 
 		req:          req,
 	}
 	transport.SetConn(ret)
-	err := ret.onOpen()
-	if err != nil {
-		return nil, err
-	}
 
 	go ret.pingLoop()
 
@@ -169,7 +165,7 @@ func (s *conn) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid transport", http.StatusBadRequest)
 			return
 		}
-		transport, err := creater(r)
+		transport, err := creater(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

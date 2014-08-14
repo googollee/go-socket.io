@@ -87,7 +87,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid transport", http.StatusBadRequest)
 			return
 		}
-		transport, err := transportCreater(r)
+		transport, err := transportCreater(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -105,7 +105,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Name:  s.config.Cookie,
 			Value: sid,
 		})
-		s.socketChan <- conn
+		go func() {
+			err := conn.onOpen()
+			if err != nil {
+				conn.Close()
+				defer s.onClose(conn)
+				return
+			}
+
+			s.socketChan <- conn
+		}()
 	}
 	conn := s.sessions.Get(sid)
 	if conn == nil {

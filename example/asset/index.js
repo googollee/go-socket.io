@@ -4095,7 +4095,7 @@ function render(){
 }
 
 // socket
-var socket = new eio.Socket();
+var socket = new eio.Socket({transports:["polling", "websocket"]});
 var last;
 var sendBuf = false;
 var buf = new ArrayBuffer(2);

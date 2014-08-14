@@ -51,7 +51,8 @@ func TestServer(t *testing.T) {
 
 		Convey("Test on close", func() {
 			req, err := http.NewRequest("GET", "/", nil)
-			t, err := t1(req)
+			resp := httptest.NewRecorder()
+			t, err := t1(resp, req)
 			So(err, ShouldBeNil)
 			id := "abc"
 			conn, err := newConn(id, server, t, req)

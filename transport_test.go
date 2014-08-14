@@ -17,7 +17,7 @@ type fakeTransport struct {
 }
 
 func newFakeTransportCreater(ok bool, name string) transportCreateFunc {
-	return func(*http.Request) (transport, error) {
+	return func(http.ResponseWriter, *http.Request) (transport, error) {
 		if !ok {
 			return nil, fmt.Errorf("transport %s error", name)
 		}

@@ -7,7 +7,7 @@ import (
 )
 
 // TransportCreateFunc is a function to create transport.
-type transportCreateFunc func(req *http.Request) (transport, error)
+type transportCreateFunc func(w http.ResponseWriter, r *http.Request) (transport, error)
 
 // Transport is a trasport layer to connect server and client.
 type transport interface {
