@@ -229,6 +229,8 @@ func (s *conn) onPacket(decoder *packetDecoder) {
 		return
 	case _NOOP:
 		return
+	case _OPEN:
+		return
 	}
 
 	closeChan := make(chan struct{})
@@ -238,7 +240,6 @@ func (s *conn) onPacket(decoder *packetDecoder) {
 }
 
 func (s *conn) onClose() {
-	close(s.readerChan)
 	close(s.pingChan)
 	s.server.onClose(s)
 	s.origin = nil
