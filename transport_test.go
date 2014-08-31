@@ -11,7 +11,7 @@ import (
 
 type fakeTransport struct {
 	name     string
-	callback connCallback
+	conn     Conn
 	isClosed bool
 	encoder  *payloadEncoder
 }
