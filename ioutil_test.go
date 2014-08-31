@@ -117,35 +117,3 @@ type writeCloser struct {
 func (w writeCloser) Close() error {
 	return nil
 }
-
-func TestLimitReader(t *testing.T) {
-
-	Convey("Read to limit", t, func() {
-		b := bytes.NewBufferString("1234567890")
-		r := newLimitReader(b, 5)
-		p := make([]byte, 1024)
-		n, err := r.Read(p)
-		So(err, ShouldBeNil)
-		So(string(p[:n]), ShouldEqual, "12345")
-		n, err = r.Read(p)
-		So(err, ShouldEqual, io.EOF)
-		err = r.Close()
-		So(err, ShouldBeNil)
-		So(b.String(), ShouldEqual, "67890")
-	})
-
-	Convey("Read some and close", t, func() {
-		b := bytes.NewBufferString("1234567890")
-		r := newLimitReader(b, 5)
-		p := make([]byte, 3)
-		n, err := r.Read(p)
-		So(err, ShouldBeNil)
-		So(string(p[:n]), ShouldEqual, "123")
-		err = r.Close()
-		So(err, ShouldBeNil)
-		So(b.String(), ShouldEqual, "67890")
-		err = r.Close()
-		So(err, ShouldBeNil)
-	})
-
-}
