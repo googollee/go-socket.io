@@ -3,18 +3,22 @@ package polling
 import (
 	"io"
 	"net/http"
+
+	"github.com/googollee/go-engine.io/message"
+	"github.com/googollee/go-engine.io/parser"
+	"github.com/googollee/go-engine.io/transport"
 )
 
 type polling struct {
 	sendChan chan bool
-	encoder  *payloadEncoder
-	conn     Conn
+	encoder  *parser.PayloadEncoder
+	conn     transport.Callback
 }
 
-func newPollingTransport(w http.ResponseWriter, r *http.Request) (transport, error) {
-	newEncoder := newBinaryPayloadEncoder
+func newPollingTransport(w http.ResponseWriter, r *http.Request) (transport.Server, error) {
+	newEncoder := parser.NewBinaryPayloadEncoder
 	if r.URL.Query()["b64"] != nil {
-		newEncoder = newStringPayloadEncoder
+		newEncoder = parser.NewStringPayloadEncoder
 	}
 	ret := &polling{
 		sendChan: make(chan bool, 1),
@@ -27,7 +31,7 @@ func (*polling) Name() string {
 	return "polling"
 }
 
-func (p *polling) SetConn(s Conn) {
+func (p *polling) SetConn(s transport.Callback) {
 	p.conn = s
 }
 
@@ -51,13 +55,13 @@ func (p *polling) Close() error {
 	return nil
 }
 
-func (p *polling) NextWriter(msgType MessageType, packetType packetType) (io.WriteCloser, error) {
+func (p *polling) NextWriter(msgType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error) {
 	var ret io.WriteCloser
 	var err error
 	switch msgType {
-	case MessageText:
+	case message.MessageText:
 		ret, err = p.encoder.NextString(packetType)
-	case MessageBinary:
+	case message.MessageBinary:
 		ret, err = p.encoder.NextBinary(packetType)
 	}
 
@@ -107,7 +111,7 @@ func (p *polling) post(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "closed", http.StatusBadRequest)
 		return
 	}
-	decoder := newPayloadDecoder(r.Body)
+	decoder := parser.NewPayloadDecoder(r.Body)
 	for {
 		d, err := decoder.Next()
 		if err == io.EOF {
@@ -117,7 +121,7 @@ func (p *polling) post(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		p.conn.onPacket(d)
+		p.conn.OnPacket(d)
 		d.Close()
 	}
 	w.Header().Set("Content-Type", "text/html")
