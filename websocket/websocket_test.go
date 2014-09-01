@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/hex"
+	"github.com/googollee/go-engine.io/transport"
 	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"net/http"
@@ -277,9 +278,10 @@ func TestWebsocket(t *testing.T) {
 
 	Convey("Close", t, func() {
 		f := newFakeCallback()
+		var s transport.Server
 		sync := make(chan int)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			s, _ := NewServer(w, r, f)
+			s, _ = NewServer(w, r, f)
 			s.Close()
 			s.Close()
 			s.Close()
@@ -299,6 +301,7 @@ func TestWebsocket(t *testing.T) {
 
 		<-sync
 		So(f.ClosedCount(), ShouldEqual, 1)
+		So(f.closeServer, ShouldEqual, s)
 	})
 
 	Convey("Closing by disconnected", t, func() {
@@ -336,6 +339,7 @@ type fakeCallback struct {
 	err         error
 	closedCount int
 	countLocker sync.Mutex
+	closeServer transport.Server
 }
 
 func newFakeCallback() *fakeCallback {
@@ -351,10 +355,11 @@ func (f *fakeCallback) OnPacket(r *parser.PacketDecoder) {
 	f.onPacket <- true
 }
 
-func (f *fakeCallback) OnClose() {
+func (f *fakeCallback) OnClose(s transport.Server) {
 	f.countLocker.Lock()
 	defer f.countLocker.Unlock()
 	f.closedCount++
+	f.closeServer = s
 }
 
 func (f *fakeCallback) ClosedCount() int {
@@ -362,5 +367,3 @@ func (f *fakeCallback) ClosedCount() int {
 	defer f.countLocker.Unlock()
 	return f.closedCount
 }
-
-func (f *fakeCallback) ServeHTTP(w http.ResponseWriter, r *http.Request) {}

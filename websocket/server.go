@@ -31,17 +31,17 @@ func NewServer(w http.ResponseWriter, r *http.Request, callback transport.Callba
 	return ret, nil
 }
 
-func (p *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
 
-func (p *Server) NextWriter(msgType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error) {
+func (s *Server) NextWriter(msgType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error) {
 	wsType, newEncoder := websocket.TextMessage, parser.NewStringEncoder
 	if msgType == message.MessageBinary {
 		wsType, newEncoder = websocket.BinaryMessage, parser.NewBinaryEncoder
 	}
 
-	w, err := p.conn.NextWriter(wsType)
+	w, err := s.conn.NextWriter(wsType)
 	if err != nil {
 		return nil, err
 	}
@@ -52,15 +52,15 @@ func (p *Server) NextWriter(msgType message.MessageType, packetType parser.Packe
 	return ret, nil
 }
 
-func (p *Server) Close() error {
-	return p.conn.Close()
+func (s *Server) Close() error {
+	return s.conn.Close()
 }
 
-func (p *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
-	defer p.callback.OnClose()
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	defer s.callback.OnClose(s)
 
 	for {
-		t, r, err := p.conn.NextReader()
+		t, r, err := s.conn.NextReader()
 		if err != nil {
 			return
 		}
@@ -73,7 +73,7 @@ func (p *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
-			p.callback.OnPacket(decoder)
+			s.callback.OnPacket(decoder)
 			decoder.Close()
 		}
 	}

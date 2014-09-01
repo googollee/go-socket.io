@@ -10,8 +10,7 @@ import (
 
 type Callback interface {
 	OnPacket(r *parser.PacketDecoder)
-	OnClose()
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
+	OnClose(server Server)
 }
 
 type Creater struct {
