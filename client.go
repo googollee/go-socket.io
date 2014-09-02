@@ -69,7 +69,7 @@ func Dial(origin string) (*Client, error) {
 	if endpoint != "" {
 		emitters[""] = NewEventEmitter()
 	}
-	session := NewSession(emitters, sessionId, int(timeout), false)
+	session := NewSession(emitters, sessionId, int(timeout), false, nil)
 	transport := newWebSocket(session)
 	transport.conn = ws
 	session.transport = transport
