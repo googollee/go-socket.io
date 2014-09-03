@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -30,6 +31,8 @@ type Session struct {
 	sendHeartBeat     bool
 	defaultNS         *NameSpace
 	Values            map[interface{}]interface{}
+	Request           *http.Request
+
 }
 
 func NewSessionID() string {
@@ -46,7 +49,7 @@ func NewSessionID() string {
 	return string(b)
 }
 
-func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int, sendHeartbeat bool) *Session {
+func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int, sendHeartbeat bool, r *http.Request) *Session {
 	ret := &Session{
 		emitters:          emitters,
 		SessionId:         sessionId,
@@ -55,6 +58,7 @@ func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int
 		heartbeatTimeout:  time.Duration(timeout) * time.Second * 2 / 3,
 		connectionTimeout: time.Duration(timeout) * time.Second,
 		Values:            make(map[interface{}]interface{}),
+		Request:           r,
 	}
 	ret.defaultNS = ret.Of("")
 	return ret
