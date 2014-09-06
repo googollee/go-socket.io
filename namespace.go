@@ -145,7 +145,7 @@ func (ns *NameSpace) onEventPacket(packet *eventPacket) {
 	if packet.Id() == 0 {
 		callback = nil
 	}
-	ns.emitRaw(packet.name, ns, callback, packet.args)
+	ns.emitRaw(packet.name, ns, callback, packet.args, packet.packetCommon)
 }
 
 func (ns *NameSpace) sendPacket(packet Packet) error {
