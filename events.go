@@ -117,8 +117,25 @@ func (ee *EventEmitter) emit(name string, ns *NameSpace, callback func([]interfa
 	}
 }
 
-func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]interface{}), data []byte, eventPacketCommon packetCommon) error {
+func genAckCallback(ns *NameSpace, eventPacketCommon packetCommon) reflect.Value {
+	return reflect.ValueOf(func(args ...interface{}) {
+		p := new(ackPacket)
+		p.ackId = eventPacketCommon.id
+		p.packetCommon = packetCommon{}
 
+		var err error
+		p.args, err = json.Marshal(args)
+		if err != nil {
+			fmt.Println(err)
+		}
+		err = ns.sendPacket(p)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+}
+
+func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]interface{}), data []byte, eventPacketCommon packetCommon) error {
 	handlers := ee.fetchHandlers(name)
 	var callArgs []reflect.Value
 	if len(handlers) != 0 {
@@ -146,27 +163,11 @@ func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]inte
 		}
 	}
 
-	if eventPacketCommon.ack {
-		ackCallback := reflect.ValueOf(func(args ...interface{}) {
-			p := new(ackPacket)
-			p.ackId = eventPacketCommon.id
-			p.packetCommon = packetCommon{}
-
-			var err error
-			p.args, err = json.Marshal(args)
-			if err != nil {
-				fmt.Println(err)
-			}
-			err = ns.sendPacket(p)
-			if err != nil {
-				fmt.Println(err)
-			}
-		})
-
+	if  eventPacketCommon.ack{
 		if len(data) == 0 {
-			callArgs[len(callArgs)-1] = ackCallback
+			callArgs[len(callArgs)-1] = genAckCallback(ns, eventPacketCommon)
 		} else {
-			callArgs = append(callArgs, ackCallback)
+			callArgs = append(callArgs, genAckCallback(ns, eventPacketCommon))
 		}
 	}
 
