@@ -117,7 +117,25 @@ func (ee *EventEmitter) emit(name string, ns *NameSpace, callback func([]interfa
 	}
 }
 
-func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]interface{}), data []byte) error {
+func genAckCallback(ns *NameSpace, eventPacketCommon packetCommon) reflect.Value {
+	return reflect.ValueOf(func(args ...interface{}) {
+		p := new(ackPacket)
+		p.ackId = eventPacketCommon.id
+		p.packetCommon = packetCommon{}
+
+		var err error
+		p.args, err = json.Marshal(args)
+		if err != nil {
+			fmt.Println(err)
+		}
+		err = ns.sendPacket(p)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+}
+
+func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]interface{}), data []byte, eventPacketCommon packetCommon) error {
 	handlers := ee.fetchHandlers(name)
 	var callArgs []reflect.Value
 	if len(handlers) != 0 {
@@ -144,6 +162,20 @@ func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]inte
 			}
 		}
 	}
+
+	if eventPacketCommon.ack {
+		foundCallback := false
+		for i, arg := range callArgs {
+			if arg.Kind() == reflect.Func {
+				callArgs[i] = genAckCallback(ns, eventPacketCommon)
+				foundCallback = true
+			}
+		}
+		if !foundCallback {
+			callArgs = append(callArgs, genAckCallback(ns, eventPacketCommon))
+		}
+	}
+
 	for _, handler := range handlers {
 		go safeCall(handler.fn, callArgs, callback)
 	}
