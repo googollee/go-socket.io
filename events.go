@@ -163,10 +163,15 @@ func (ee *EventEmitter) emitRaw(name string, ns *NameSpace, callback func([]inte
 		}
 	}
 
-	if  eventPacketCommon.ack{
-		if len(data) == 0 {
-			callArgs[len(callArgs)-1] = genAckCallback(ns, eventPacketCommon)
-		} else {
+	if eventPacketCommon.ack {
+		foundCallback := false
+		for i, arg := range callArgs {
+			if arg.Kind() == reflect.Func {
+				callArgs[i] = genAckCallback(ns, eventPacketCommon)
+				foundCallback = true
+			}
+		}
+		if !foundCallback {
 			callArgs = append(callArgs, genAckCallback(ns, eventPacketCommon))
 		}
 	}
