@@ -262,7 +262,7 @@ func TestWebsocket(t *testing.T) {
 		defer c.Close()
 
 		{
-			client := c.(*Client)
+			client := c.(*client)
 			t, r, err := client.conn.NextReader()
 			So(err, ShouldBeNil)
 			So(t, ShouldEqual, websocket.TextMessage)
@@ -329,6 +329,31 @@ func TestWebsocket(t *testing.T) {
 		So(f.ClosedCount(), ShouldEqual, 1)
 	})
 
+	Convey("Closing writer after closed", t, func() {
+		f := newFakeCallback()
+		sync := make(chan int)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s, err := NewServer(w, r, f)
+			So(err, ShouldBeNil)
+			writer, err := s.NextWriter(message.MessageText, parser.MESSAGE)
+			So(err, ShouldBeNil)
+			err = s.Close()
+			So(err, ShouldBeNil)
+			err = writer.Close()
+			So(err, ShouldBeNil)
+			sync <- 1
+		}))
+		defer server.Close()
+
+		u, _ := url.Parse(server.URL)
+		u.Scheme = "ws"
+		req, _ := http.NewRequest("GET", u.String(), nil)
+
+		c, _ := NewClient(req)
+		defer c.Close()
+
+		<-sync
+	})
 }
 
 type fakeCallback struct {

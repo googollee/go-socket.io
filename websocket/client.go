@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Client struct {
+type client struct {
 	conn *websocket.Conn
 	resp *http.Response
 }
@@ -23,17 +23,17 @@ func NewClient(r *http.Request) (transport.Client, error) {
 		return nil, err
 	}
 
-	return &Client{
+	return &client{
 		conn: conn,
 		resp: resp,
 	}, nil
 }
 
-func (c *Client) Response() *http.Response {
+func (c *client) Response() *http.Response {
 	return c.resp
 }
 
-func (c *Client) NextReader() (*parser.PacketDecoder, error) {
+func (c *client) NextReader() (*parser.PacketDecoder, error) {
 	var reader io.Reader
 	for {
 		t, r, err := c.conn.NextReader()
@@ -50,7 +50,7 @@ func (c *Client) NextReader() (*parser.PacketDecoder, error) {
 	}
 }
 
-func (c *Client) NextWriter(msgType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error) {
+func (c *client) NextWriter(msgType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error) {
 	wsType, newEncoder := websocket.TextMessage, parser.NewStringEncoder
 	if msgType == message.MessageBinary {
 		wsType, newEncoder = websocket.BinaryMessage, parser.NewBinaryEncoder
@@ -67,6 +67,6 @@ func (c *Client) NextWriter(msgType message.MessageType, packetType parser.Packe
 	return ret, nil
 }
 
-func (c *Client) Close() error {
+func (c *client) Close() error {
 	return c.conn.Close()
 }
