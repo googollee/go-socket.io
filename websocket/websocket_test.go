@@ -340,7 +340,7 @@ func TestWebsocket(t *testing.T) {
 			err = s.Close()
 			So(err, ShouldBeNil)
 			err = writer.Close()
-			So(err, ShouldBeNil)
+			So(err, ShouldNotBeNil)
 			sync <- 1
 		}))
 		defer server.Close()

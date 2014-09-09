@@ -8,10 +8,14 @@ import (
 )
 
 func TestWriter(t *testing.T) {
+	p := &Polling{
+		state:    stateNormal,
+		sendChan: MakeSendChan(),
+	}
+	sendChan := p.sendChan
 
 	Convey("Wait close", t, func() {
 		w := newFakeWriteCloser()
-		sendChan := MakeSendChan()
 
 		select {
 		case <-sendChan:
@@ -19,7 +23,7 @@ func TestWriter(t *testing.T) {
 		default:
 		}
 
-		writer := NewWriter(w, sendChan)
+		writer := NewWriter(w, p)
 		err := writer.Close()
 		So(err, ShouldBeNil)
 
@@ -37,11 +41,9 @@ func TestWriter(t *testing.T) {
 	})
 
 	Convey("Many writer with close", t, func() {
-		sendChan := MakeSendChan()
-
 		for i := 0; i < 10; i++ {
 			w := newFakeWriteCloser()
-			writer := NewWriter(w, sendChan)
+			writer := NewWriter(w, p)
 			err := writer.Close()
 			So(err, ShouldBeNil)
 		}
@@ -59,6 +61,17 @@ func TestWriter(t *testing.T) {
 		}
 	})
 
+	Convey("Close with not normal", t, func() {
+		p := &Polling{
+			state:    stateClosing,
+			sendChan: MakeSendChan(),
+		}
+
+		w := newFakeWriteCloser()
+		writer := NewWriter(w, p)
+		err := writer.Close()
+		So(err, ShouldNotBeNil)
+	})
 }
 
 type fakeWriteCloser struct {

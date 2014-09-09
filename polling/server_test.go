@@ -462,7 +462,7 @@ func TestPolling(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				err = writer.Close()
-				So(err, ShouldBeNil)
+				So(err, ShouldNotBeNil)
 			})
 		})
 

@@ -1,6 +1,7 @@
 package polling
 
 import (
+	"errors"
 	"io"
 )
 
@@ -10,19 +11,22 @@ func MakeSendChan() chan bool {
 
 type Writer struct {
 	io.WriteCloser
-	sendChan chan bool
+	server *Polling
 }
 
-func NewWriter(w io.WriteCloser, sendChan chan bool) *Writer {
+func NewWriter(w io.WriteCloser, server *Polling) *Writer {
 	return &Writer{
 		WriteCloser: w,
-		sendChan:    sendChan,
+		server:      server,
 	}
 }
 
 func (w *Writer) Close() error {
+	if w.server.getState() != stateNormal {
+		return errors.New("use of closed network connection")
+	}
 	select {
-	case w.sendChan <- true:
+	case w.server.sendChan <- true:
 	default:
 	}
 	return w.WriteCloser.Close()

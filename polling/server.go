@@ -88,7 +88,7 @@ func (p *Polling) NextWriter(msgType message.MessageType, packetType parser.Pack
 	if err != nil {
 		return nil, err
 	}
-	return NewWriter(ret, p.sendChan), nil
+	return NewWriter(ret, p), nil
 }
 
 func (p *Polling) get(w http.ResponseWriter, r *http.Request) {
