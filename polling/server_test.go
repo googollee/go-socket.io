@@ -445,6 +445,25 @@ func TestPolling(t *testing.T) {
 				server.Close()
 				So(f.ClosedCount(), ShouldEqual, 1)
 			})
+
+			Convey("Closed before writer closed", func() {
+				f := newFakeCallback()
+				w := httptest.NewRecorder()
+				r, err := http.NewRequest("GET", "/", nil)
+				So(err, ShouldBeNil)
+
+				server, err := NewServer(w, r, f)
+				So(err, ShouldBeNil)
+
+				writer, err := server.NextWriter(message.MessageText, parser.MESSAGE)
+				So(err, ShouldBeNil)
+
+				err = server.Close()
+				So(err, ShouldBeNil)
+
+				err = writer.Close()
+				So(err, ShouldBeNil)
+			})
 		})
 
 	})
