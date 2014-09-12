@@ -17,7 +17,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestPolling(t *testing.T) {
+func TestServer(t *testing.T) {
 	Convey("Test polling", t, func() {
 
 		Convey("Overlay get", func() {
