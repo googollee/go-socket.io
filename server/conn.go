@@ -2,11 +2,11 @@ package engineio
 
 import (
 	"fmt"
-	"github.com/googollee/go-engine.io/message"
 	"io"
 	"net/http"
 	"time"
 
+	"github.com/googollee/go-engine.io/message"
 	"github.com/googollee/go-engine.io/parser"
 	"github.com/googollee/go-engine.io/transport"
 )
@@ -24,10 +24,10 @@ type Conn interface {
 	Close() error
 
 	// NextReader returns the next message type, reader. If no message received, it will block.
-	NextReader() (MessageType, io.ReadCloser, error)
+	NextReader() (message.MessageType, io.ReadCloser, error)
 
 	// NextWriter returns the next message writer with given message type.
-	NextWriter(messageType MessageType) (io.WriteCloser, error)
+	NextWriter(messageType message.MessageType) (io.WriteCloser, error)
 }
 
 type state int
@@ -55,8 +55,8 @@ type serverConn struct {
 
 func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback serverCallback) (*serverConn, error) {
 	transportName := r.URL.Query().Get("transport")
-	creater := getCreater(transportName)
-	if creater != nil {
+	creater := callback.Transports().Get(transportName)
+	if creater.Name != "" {
 		return nil, fmt.Errorf("invalid transport %s", transportName)
 	}
 	ret := &serverConn{
@@ -71,7 +71,7 @@ func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback s
 	}
 	transport, err := creater.Server(w, r, ret)
 	if err != nil {
-		return nli, err
+		return nil, err
 	}
 	ret.current = transport
 
@@ -132,7 +132,7 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 	case parser.PING:
 		newWriter := c.current.NextWriter
 		if c.upgrading != nil {
-			if w, _ := c.current(message.MessageText, parser.NOOP); w != nil {
+			if w, _ := c.current.NextWriter(message.MessageText, parser.NOOP); w != nil {
 				w.Close()
 			}
 			newWriter = c.upgrading.NextWriter
@@ -146,7 +146,7 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 		c.pingChan <- true
 	case parser.MESSAGE:
 		closeChan := make(chan struct{})
-		s.readerChan <- newConnReader(r, closeChan)
+		c.readerChan <- newConnReader(r, closeChan)
 		<-closeChan
 		close(closeChan)
 		r.Close()
@@ -209,6 +209,6 @@ func (c *serverConn) pingLoop() {
 
 type serverCallback interface {
 	Config() config
-	Transports() transportsType
+	Transports() transportCreaters
 	OnClose(sid string)
 }
