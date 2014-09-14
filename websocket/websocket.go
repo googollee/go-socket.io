@@ -5,7 +5,8 @@ import (
 )
 
 var Creater = transport.Creater{
-	Name:   "websocket",
-	Server: NewServer,
-	Client: NewClient,
+	Name:      "websocket",
+	Upgrading: true,
+	Server:    NewServer,
+	Client:    NewClient,
 }

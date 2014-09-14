@@ -5,7 +5,8 @@ import (
 )
 
 var Creater = transport.Creater{
-	Name:   "polling",
-	Server: NewServer,
-	Client: nil,
+	Name:      "polling",
+	Upgrading: false,
+	Server:    NewServer,
+	Client:    NewClient,
 }

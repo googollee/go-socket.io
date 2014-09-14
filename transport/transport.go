@@ -14,9 +14,10 @@ type Callback interface {
 }
 
 type Creater struct {
-	Name   string
-	Server func(w http.ResponseWriter, r *http.Request, callback Callback) (Server, error)
-	Client func(r *http.Request) (Client, error)
+	Name      string
+	Upgrading bool
+	Server    func(w http.ResponseWriter, r *http.Request, callback Callback) (Server, error)
+	Client    func(r *http.Request) (Client, error)
 }
 
 // Server is a transport layer in server to connect client.
