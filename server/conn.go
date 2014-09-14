@@ -41,16 +41,17 @@ const (
 )
 
 type serverConn struct {
-	id           string
-	current      transport.Server
-	upgrading    transport.Server
-	callback     serverCallback
-	request      *http.Request
-	state        state
-	readerChan   chan io.ReadCloser
-	pingTimeout  time.Duration
-	pingInterval time.Duration
-	pingChan     chan bool
+	id            string
+	transportName string
+	current       transport.Server
+	upgrading     transport.Server
+	callback      serverCallback
+	request       *http.Request
+	state         state
+	readerChan    chan io.ReadCloser
+	pingTimeout   time.Duration
+	pingInterval  time.Duration
+	pingChan      chan bool
 }
 
 func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback serverCallback) (*serverConn, error) {
@@ -60,14 +61,15 @@ func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback s
 		return nil, fmt.Errorf("invalid transport %s", transportName)
 	}
 	ret := &serverConn{
-		id:           id,
-		callback:     callback,
-		request:      r,
-		state:        stateNormal,
-		readerChan:   make(chan io.ReadCloser),
-		pingTimeout:  callback.Config().PingTimeout,
-		pingInterval: callback.Config().PingInterval,
-		pingChan:     make(chan bool),
+		id:            id,
+		transportName: transportName,
+		callback:      callback,
+		request:       r,
+		state:         stateNormal,
+		readerChan:    make(chan io.ReadCloser),
+		pingTimeout:   callback.Config().PingTimeout,
+		pingInterval:  callback.Config().PingInterval,
+		pingChan:      make(chan bool),
 	}
 	transport, err := creater.Server(w, r, ret)
 	if err != nil {
@@ -122,6 +124,26 @@ func (c *serverConn) Close() error {
 	}
 	c.setState(stateClosing)
 	return nil
+}
+
+func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	transportName := r.URL.Query().Get("transport")
+	if c.transportName != transportName {
+		creater := c.callback.Transports().Get(transportName)
+		if creater.Name == "" {
+			http.Error(w, fmt.Sprintf("invalid transport %s", transportName), http.StatusBadRequest)
+			return
+		}
+		var err error
+		c.upgrading, err = creater.Server(w, r, c)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		c.setState(stateUpgrading)
+		return
+	}
+	c.current.ServeHTTP(w, r)
 }
 
 func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
