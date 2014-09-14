@@ -30,6 +30,12 @@ type Conn interface {
 	NextWriter(messageType message.MessageType) (io.WriteCloser, error)
 }
 
+type serverCallback interface {
+	Config() config
+	Transports() transportCreaters
+	OnClose(sid string)
+}
+
 type state int
 
 const (
@@ -42,11 +48,12 @@ const (
 
 type serverConn struct {
 	id            string
-	transportName string
-	current       transport.Server
-	upgrading     transport.Server
-	callback      serverCallback
 	request       *http.Request
+	callback      serverCallback
+	currentName   string
+	current       transport.Server
+	upgradingName string
+	upgrading     transport.Server
 	state         state
 	readerChan    chan io.ReadCloser
 	pingTimeout   time.Duration
@@ -61,15 +68,15 @@ func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback s
 		return nil, fmt.Errorf("invalid transport %s", transportName)
 	}
 	ret := &serverConn{
-		id:            id,
-		transportName: transportName,
-		callback:      callback,
-		request:       r,
-		state:         stateNormal,
-		readerChan:    make(chan io.ReadCloser),
-		pingTimeout:   callback.Config().PingTimeout,
-		pingInterval:  callback.Config().PingInterval,
-		pingChan:      make(chan bool),
+		id:           id,
+		request:      r,
+		callback:     callback,
+		currentName:  transportName,
+		state:        stateNormal,
+		readerChan:   make(chan io.ReadCloser),
+		pingTimeout:  callback.Config().PingTimeout,
+		pingInterval: callback.Config().PingInterval,
+		pingChan:     make(chan bool),
 	}
 	transport, err := creater.Server(w, r, ret)
 	if err != nil {
@@ -102,7 +109,11 @@ func (c *serverConn) NextReader() (io.ReadCloser, error) {
 }
 
 func (c *serverConn) NextWriter(t message.MessageType) (io.WriteCloser, error) {
-	if c.getState() != stateNormal {
+	switch c.getState() {
+	case stateUpgrading:
+		return nil, fmt.Errorf("upgrading")
+	case stateNormal:
+	default:
 		return nil, io.EOF
 	}
 	ret, err := c.current.NextWriter(t, parser.MESSAGE)
@@ -128,7 +139,7 @@ func (c *serverConn) Close() error {
 
 func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	transportName := r.URL.Query().Get("transport")
-	if c.transportName != transportName {
+	if c.currentName != transportName {
 		creater := c.callback.Transports().Get(transportName)
 		if creater.Name == "" {
 			http.Error(w, fmt.Sprintf("invalid transport %s", transportName), http.StatusBadRequest)
@@ -140,6 +151,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		c.upgradingName = creater.Name
 		c.setState(stateUpgrading)
 		return
 	}
@@ -175,7 +187,10 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 	case parser.UPGRADE:
 		c.current.Close()
 		c.current = c.upgrading
+		c.currentName = c.upgradingName
 		c.upgrading = nil
+		c.upgradingName = ""
+		c.setState(stateNormal)
 	case parser.NOOP:
 	}
 }
@@ -227,10 +242,4 @@ func (c *serverConn) pingLoop() {
 			return
 		}
 	}
-}
-
-type serverCallback interface {
-	Config() config
-	Transports() transportCreaters
-	OnClose(sid string)
 }
