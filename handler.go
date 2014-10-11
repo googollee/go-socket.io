@@ -112,12 +112,16 @@ func (h *socketHandler) LeaveAll() error {
 	return nil
 }
 
+func (h *baseHandler) BroadcastTo(room, message string, args ...interface{}) error {
+	return h.broadcast.Send(nil, h.broadcastName(room), message, args)
+}
+
 func (h *socketHandler) BroadcastTo(room, message string, args ...interface{}) error {
 	return h.baseHandler.broadcast.Send(h.socket, h.broadcastName(room), message, args)
 }
 
-func (h *socketHandler) broadcastName(room string) string {
-	return fmt.Sprintf("%s:%s", h.baseHandler.name, room)
+func (h *baseHandler) broadcastName(room string) string {
+	return fmt.Sprintf("%s:%s", h.name, room)
 }
 
 func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{}, error) {

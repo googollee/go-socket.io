@@ -62,6 +62,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.eio.ServeHTTP(w, r)
 }
 
+// Server level broadcasts function.
+func (s *Server) BroadcastTo(room, message string, args ...interface{}) {
+	s.namespace.BroadcastTo(room, message, args)
+}
+
 func (s *Server) loop() {
 	for {
 		conn, err := s.eio.Accept()
