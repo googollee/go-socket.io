@@ -81,7 +81,10 @@ func TestTransport(t *testing.T) {
 	})
 
 	Convey("Test upgrades", t, func() {
-		So(tt.Upgrades(), ShouldResemble, []string{"t1"})
+		t1, _ := newTransportsType([]string{"t1", "t2"})
+		So(t1.Upgrades(), ShouldResemble, []string{"t1"})
+		t2, _ := newTransportsType([]string{"t2"})
+		So(t2.Upgrades(), ShouldResemble, []string{})
 	})
 
 	Convey("Test get creater", t, func() {

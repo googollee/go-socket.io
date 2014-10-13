@@ -60,7 +60,7 @@ func newTransportsType(names []string) (transportsType, error) {
 }
 
 func (t transportsType) Upgrades() []string {
-	var ret []string
+	ret := []string{}
 	for name, transport := range t {
 		if transport.handlesUpgrades {
 			ret = append(ret, name)
