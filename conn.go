@@ -241,6 +241,7 @@ func (s *conn) onPacket(decoder *packetDecoder) {
 
 func (s *conn) onClose() {
 	close(s.pingChan)
+	close(s.readerChan)
 	s.server.onClose(s)
 	s.origin = nil
 	s.t = nil
