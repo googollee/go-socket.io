@@ -144,8 +144,8 @@ func TestConn(t *testing.T) {
 			So(decoder.MessageType(), ShouldEqual, message.MessageText)
 			So(decoder.Type(), ShouldEqual, parser.PING)
 
-			So(conn.current, ShouldNotBeNil)
-			So(conn.upgrading, ShouldBeNil)
+			So(conn.getCurrent(), ShouldNotBeNil)
+			So(conn.getUpgrade(), ShouldBeNil)
 
 			u.Scheme = "ws"
 			req, err = http.NewRequest("GET", u.String()+"/?transport=websocket", nil)
@@ -153,8 +153,8 @@ func TestConn(t *testing.T) {
 			wc, err := websocket.NewClient(req)
 			So(err, ShouldBeNil)
 
-			// So(conn.current, ShouldNotBeNil)
-			// So(conn.upgrading, ShouldNotBeNil)
+			So(conn.getCurrent(), ShouldNotBeNil)
+			So(conn.getUpgrade(), ShouldNotBeNil)
 
 			encoder, err := wc.NextWriter(message.MessageBinary, parser.PING)
 			So(err, ShouldBeNil)
@@ -181,8 +181,8 @@ func TestConn(t *testing.T) {
 			So(decoder.MessageType(), ShouldEqual, message.MessageText)
 			So(decoder.Type(), ShouldEqual, parser.PING)
 
-			So(conn.current, ShouldNotBeNil)
-			So(conn.upgrading, ShouldBeNil)
+			So(conn.getCurrent(), ShouldNotBeNil)
+			So(conn.getUpgrade(), ShouldBeNil)
 
 			wc.Close()
 
