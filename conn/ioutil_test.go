@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/googollee/go-engine.io/parser"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -56,4 +57,64 @@ func TestConnIoutil(t *testing.T) {
 		})
 	})
 
+	Convey("Wrtier", t, func() {
+
+		Convey("Normal write", func() {
+			locker := sync.Mutex{}
+			w := bytes.NewBuffer(nil)
+			locker.Lock()
+			writer := newConnWriter(writeCloser{w}, &locker)
+
+			_, err := writer.Write([]byte("abc"))
+			So(err, ShouldBeNil)
+			So(w.String(), ShouldEqual, "abc")
+			writer.Close()
+		})
+
+		Convey("Sync", func() {
+			locker := sync.Mutex{}
+			w1 := bytes.NewBuffer(nil)
+			locker.Lock()
+			writer1 := newConnWriter(writeCloser{w1}, &locker)
+			check := make(chan int)
+
+			go func() {
+				w2 := bytes.NewBuffer(nil)
+				locker.Lock()
+				writer2 := newConnWriter(writeCloser{w2}, &locker)
+				defer writer2.Close()
+				check <- 1
+			}()
+
+			time.Sleep(time.Second / 10)
+			select {
+			case <-check:
+				So("should not run here", ShouldEqual, "")
+			default:
+			}
+			err := writer1.Close()
+			So(err, ShouldBeNil)
+			time.Sleep(time.Second / 10) // wait goroutine end
+			select {
+			case <-check:
+			default:
+				So("should not run here", ShouldEqual, "")
+			}
+
+			Convey("Close again", func() {
+				err := writer1.Close()
+				So(err, ShouldBeNil)
+			})
+		})
+
+	})
+
+}
+
+type writeCloser struct {
+	io.Writer
+}
+
+func (w writeCloser) Close() error {
+	return nil
 }

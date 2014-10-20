@@ -58,6 +58,7 @@ type serverConn struct {
 	id              string
 	request         *http.Request
 	callback        serverCallback
+	writerLocker    sync.Mutex
 	transportLocker sync.RWMutex
 	currentName     string
 	current         transport.Server
@@ -139,8 +140,10 @@ func (c *serverConn) Close() error {
 	if c.upgrading != nil {
 		c.upgrading.Close()
 	}
-	if w, err := c.current.NextWriter(message.MessageText, parser.CLOSE); err == nil {
-		w.Close()
+	c.writerLocker.Lock()
+	if w, err := c.getCurrent().NextWriter(message.MessageText, parser.CLOSE); err == nil {
+		writer := newConnWriter(w, &c.writerLocker)
+		writer.Close()
 	}
 	if err := c.current.Close(); err != nil {
 		return err
@@ -287,8 +290,10 @@ func (c *serverConn) pingLoop() {
 			lastPing = time.Now()
 			lastTry = lastPing
 		case <-time.After(c.pingInterval - tryDiff):
-			if w, _ := c.current.NextWriter(message.MessageText, parser.PING); w != nil {
-				w.Close()
+			c.writerLocker.Lock()
+			if w, _ := c.getCurrent().NextWriter(message.MessageText, parser.PING); w != nil {
+				writer := newConnWriter(w, &c.writerLocker)
+				writer.Close()
 			}
 			lastTry = time.Now()
 		case <-time.After(c.pingTimeout - pingDiff):
