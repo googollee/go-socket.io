@@ -1,9 +1,11 @@
 package engineio
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/googollee/go-engine.io/message"
@@ -24,10 +26,16 @@ type Conn interface {
 	Close() error
 
 	// NextReader returns the next message type, reader. If no message received, it will block.
-	NextReader() (message.MessageType, io.ReadCloser, error)
+	NextReader() (io.ReadCloser, error)
 
 	// NextWriter returns the next message writer with given message type.
 	NextWriter(messageType message.MessageType) (io.WriteCloser, error)
+}
+
+type transportCreaters map[string]transport.Creater
+
+func (c transportCreaters) Get(name string) transport.Creater {
+	return c[name]
 }
 
 type serverCallback interface {
@@ -47,25 +55,29 @@ const (
 )
 
 type serverConn struct {
-	id            string
-	request       *http.Request
-	callback      serverCallback
-	currentName   string
-	current       transport.Server
-	upgradingName string
-	upgrading     transport.Server
-	state         state
-	readerChan    chan io.ReadCloser
-	pingTimeout   time.Duration
-	pingInterval  time.Duration
-	pingChan      chan bool
+	id              string
+	request         *http.Request
+	callback        serverCallback
+	transportLocker sync.RWMutex
+	currentName     string
+	current         transport.Server
+	upgradingName   string
+	upgrading       transport.Server
+	state           state
+	stateLocker     sync.RWMutex
+	readerChan      chan io.ReadCloser
+	pingTimeout     time.Duration
+	pingInterval    time.Duration
+	pingChan        chan bool
 }
 
-func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback serverCallback) (*serverConn, error) {
+var InvalidError = errors.New("invalid transport")
+
+func NewConn(id string, w http.ResponseWriter, r *http.Request, callback serverCallback) (*serverConn, error) {
 	transportName := r.URL.Query().Get("transport")
 	creater := callback.Transports().Get(transportName)
-	if creater.Name != "" {
-		return nil, fmt.Errorf("invalid transport %s", transportName)
+	if creater.Name == "" {
+		return nil, InvalidError
 	}
 	ret := &serverConn{
 		id:           id,
@@ -116,7 +128,7 @@ func (c *serverConn) NextWriter(t message.MessageType) (io.WriteCloser, error) {
 	default:
 		return nil, io.EOF
 	}
-	ret, err := c.current.NextWriter(t, parser.MESSAGE)
+	ret, err := c.getCurrent().NextWriter(t, parser.MESSAGE)
 	return ret, err
 }
 
@@ -145,14 +157,12 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("invalid transport %s", transportName), http.StatusBadRequest)
 			return
 		}
-		var err error
-		c.upgrading, err = creater.Server(w, r, c)
+		u, err := creater.Server(w, r, c)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		c.upgradingName = creater.Name
-		c.setState(stateUpgrading)
+		c.setUpgrading(creater.Name, u)
 		return
 	}
 	c.current.ServeHTTP(w, r)
@@ -162,14 +172,16 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 	switch r.Type() {
 	case parser.OPEN:
 	case parser.CLOSE:
-		c.current.Close()
+		c.getCurrent().Close()
 	case parser.PING:
-		newWriter := c.current.NextWriter
-		if c.upgrading != nil {
-			if w, _ := c.current.NextWriter(message.MessageText, parser.NOOP); w != nil {
+		t := c.getCurrent()
+		u := c.getUpgrade()
+		newWriter := t.NextWriter
+		if u != nil {
+			if w, _ := t.NextWriter(message.MessageText, parser.NOOP); w != nil {
 				w.Close()
 			}
-			newWriter = c.upgrading.NextWriter
+			newWriter = u.NextWriter
 		}
 		if w, _ := newWriter(message.MessageText, parser.PONG); w != nil {
 			io.Copy(w, r)
@@ -185,59 +197,101 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 		close(closeChan)
 		r.Close()
 	case parser.UPGRADE:
-		c.current.Close()
-		c.current = c.upgrading
-		c.currentName = c.upgradingName
-		c.upgrading = nil
-		c.upgradingName = ""
-		c.setState(stateNormal)
+		c.upgraded()
 	case parser.NOOP:
 	}
 }
 
 func (c *serverConn) OnClose(server transport.Server) {
-	if server == c.upgrading {
-		c.upgrading = nil
+	if server == c.getUpgrade() {
+		c.setUpgrading("", nil)
 		return
 	}
-	if server != c.current {
+	t := c.getCurrent()
+	if server != t {
 		return
 	}
-	if c.upgrading != nil {
-		c.upgrading.Close()
-		c.upgrading = nil
+	t.Close()
+	if t := c.getUpgrade(); t != nil {
+		t.Close()
+		c.setUpgrading("", nil)
 	}
+	c.setState(stateClosed)
 	close(c.readerChan)
 	close(c.pingChan)
 	c.callback.OnClose(c.id)
 }
 
+func (c *serverConn) getCurrent() transport.Server {
+	c.transportLocker.RLock()
+	defer c.transportLocker.RUnlock()
+
+	return c.current
+}
+
+func (c *serverConn) getUpgrade() transport.Server {
+	c.transportLocker.RLock()
+	defer c.transportLocker.RUnlock()
+
+	return c.upgrading
+}
+
+func (c *serverConn) setUpgrading(name string, s transport.Server) {
+	c.transportLocker.Lock()
+	defer c.transportLocker.Unlock()
+
+	c.upgradingName = name
+	c.upgrading = s
+	c.setState(stateUpgrading)
+}
+
+func (c *serverConn) upgraded() {
+	c.transportLocker.Lock()
+
+	current := c.current
+	c.current = c.upgrading
+	c.currentName = c.upgradingName
+	c.upgrading = nil
+	c.upgradingName = ""
+
+	c.transportLocker.Unlock()
+
+	current.Close()
+	c.setState(stateNormal)
+}
+
 func (c *serverConn) getState() state {
+	c.stateLocker.RLock()
+	defer c.stateLocker.RUnlock()
 	return c.state
 }
 
 func (c *serverConn) setState(state state) {
+	c.stateLocker.Lock()
+	defer c.stateLocker.Unlock()
 	c.state = state
 }
 
 func (c *serverConn) pingLoop() {
-	last := time.Now()
+	lastPing := time.Now()
+	lastTry := lastPing
 	for {
 		now := time.Now()
-		diff := now.Sub(last)
+		pingDiff := now.Sub(lastPing)
+		tryDiff := now.Sub(lastTry)
 		select {
 		case ok := <-c.pingChan:
 			if !ok {
 				return
 			}
-			last = time.Now()
-		// case <-time.After(c.pingInterval - diff):
-		// 	c.writerLocker.Lock()
-		// 	if w, _ := c.t.NextWriter(MessageText, _PING); w != nil {
-		// 		w.Close()
-		// 	}
-		// 	c.writerLocker.Unlock()
-		case <-time.After(c.pingTimeout - diff):
+			lastPing = time.Now()
+			lastTry = lastPing
+		case <-time.After(c.pingInterval - tryDiff):
+			if w, _ := c.current.NextWriter(message.MessageText, parser.PING); w != nil {
+				w.Close()
+			}
+			lastTry = time.Now()
+		case <-time.After(c.pingTimeout - pingDiff):
 			c.Close()
 			return
 		}

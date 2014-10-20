@@ -1,9 +1,6 @@
 package engineio
 
 import (
-	"io"
-	"sync"
-
 	"github.com/googollee/go-engine.io/parser"
 )
 
@@ -26,26 +23,4 @@ func (r *connReader) Close() error {
 	r.closeChan <- struct{}{}
 	r.closeChan = nil
 	return nil
-}
-
-type connWriter struct {
-	io.WriteCloser
-	locker *sync.Mutex
-}
-
-func newConnWriter(w io.WriteCloser, locker *sync.Mutex) *connWriter {
-	return &connWriter{
-		WriteCloser: w,
-		locker:      locker,
-	}
-}
-
-func (w *connWriter) Close() error {
-	defer func() {
-		if w.locker != nil {
-			w.locker.Unlock()
-			w.locker = nil
-		}
-	}()
-	return w.WriteCloser.Close()
 }

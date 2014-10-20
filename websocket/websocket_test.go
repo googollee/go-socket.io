@@ -86,7 +86,8 @@ func TestWebsocket(t *testing.T) {
 
 		u, _ := url.Parse(server.URL)
 		u.Scheme = "ws"
-		req, _ := http.NewRequest("GET", u.String(), nil)
+		req, err := http.NewRequest("GET", u.String(), nil)
+		So(err, ShouldBeNil)
 
 		c, _ := NewClient(req)
 		defer c.Close()
@@ -132,6 +133,7 @@ func TestWebsocket(t *testing.T) {
 		sync := make(chan int)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			f := newFakeCallback()
+			So(r.URL.Query().Get("key"), ShouldEqual, "value")
 			s, _ := NewServer(w, r, f)
 			defer s.Close()
 
@@ -170,7 +172,7 @@ func TestWebsocket(t *testing.T) {
 		u, err := url.Parse(server.URL)
 		So(err, ShouldBeNil)
 		u.Scheme = "ws"
-		req, err := http.NewRequest("GET", u.String(), nil)
+		req, err := http.NewRequest("GET", u.String()+"/?key=value", nil)
 		So(err, ShouldBeNil)
 
 		c, err := NewClient(req)
