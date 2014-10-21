@@ -321,12 +321,13 @@ func TestConn(t *testing.T) {
 			server := newFakeServer()
 			id := "id"
 			var conn *serverConn
+			var locker sync.Mutex
 
 			h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				locker.Lock()
+				defer locker.Unlock()
 				if conn == nil {
-					var err error
-					conn, err = NewConn(id, w, r, server)
-					So(err, ShouldBeNil)
+					conn, _ = NewConn(id, w, r, server)
 					return
 				}
 
@@ -351,7 +352,9 @@ func TestConn(t *testing.T) {
 			So(server.closed[id], ShouldEqual, 1)
 			server.closedLocker.Unlock()
 
+			locker.Lock()
 			err = conn.Close()
+			locker.Unlock()
 			So(err, ShouldBeNil)
 		})
 

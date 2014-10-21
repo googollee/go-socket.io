@@ -84,7 +84,6 @@ func NewConn(id string, w http.ResponseWriter, r *http.Request, callback serverC
 		id:           id,
 		request:      r,
 		callback:     callback,
-		currentName:  transportName,
 		state:        stateNormal,
 		readerChan:   make(chan io.ReadCloser),
 		pingTimeout:  callback.Config().PingTimeout,
@@ -95,7 +94,7 @@ func NewConn(id string, w http.ResponseWriter, r *http.Request, callback serverC
 	if err != nil {
 		return nil, err
 	}
-	ret.current = transport
+	ret.setCurrent(transportName, transport)
 
 	go ret.pingLoop()
 
@@ -239,6 +238,14 @@ func (c *serverConn) getUpgrade() transport.Server {
 	defer c.transportLocker.RUnlock()
 
 	return c.upgrading
+}
+
+func (c *serverConn) setCurrent(name string, s transport.Server) {
+	c.transportLocker.Lock()
+	defer c.transportLocker.Unlock()
+
+	c.currentName = name
+	c.current = s
 }
 
 func (c *serverConn) setUpgrading(name string, s transport.Server) {
