@@ -134,7 +134,7 @@ func (c *serverConn) NextWriter(t message.MessageType) (io.WriteCloser, error) {
 }
 
 func (c *serverConn) Close() error {
-	if c.getState() != stateNormal {
+	if c.getState() != stateNormal && c.getState() != stateUpgrading {
 		return nil
 	}
 	if c.upgrading != nil {
@@ -144,8 +144,10 @@ func (c *serverConn) Close() error {
 	if w, err := c.getCurrent().NextWriter(message.MessageText, parser.CLOSE); err == nil {
 		writer := newConnWriter(w, &c.writerLocker)
 		writer.Close()
+	} else {
+		c.writerLocker.Unlock()
 	}
-	if err := c.current.Close(); err != nil {
+	if err := c.getCurrent().Close(); err != nil {
 		return err
 	}
 	c.setState(stateClosing)
@@ -294,6 +296,8 @@ func (c *serverConn) pingLoop() {
 			if w, _ := c.getCurrent().NextWriter(message.MessageText, parser.PING); w != nil {
 				writer := newConnWriter(w, &c.writerLocker)
 				writer.Close()
+			} else {
+				c.writerLocker.Unlock()
 			}
 			lastTry = time.Now()
 		case <-time.After(c.pingTimeout - pingDiff):
