@@ -112,7 +112,7 @@ func (h *socketHandler) LeaveAll() error {
 	return nil
 }
 
-func (h *baseHandler) BroadcastTo(room, message string, args ...interface{}) error {
+func (h *baseHandler) BroadcastTo(room, message string, args []interface{}) error {
 	return h.broadcast.Send(nil, h.broadcastName(room), message, args)
 }
 
