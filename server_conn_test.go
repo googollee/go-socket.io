@@ -142,7 +142,7 @@ func TestConn(t *testing.T) {
 			So(conn, ShouldImplement, (*Conn)(nil))
 
 			So(decoder.MessageType(), ShouldEqual, message.MessageText)
-			So(decoder.Type(), ShouldEqual, parser.PING)
+			So(decoder.Type(), ShouldEqual, parser.OPEN)
 
 			So(conn.getCurrent(), ShouldNotBeNil)
 			So(conn.getUpgrade(), ShouldBeNil)
@@ -237,7 +237,7 @@ func TestConn(t *testing.T) {
 			So(conn, ShouldImplement, (*Conn)(nil))
 
 			So(decoder.MessageType(), ShouldEqual, message.MessageText)
-			So(decoder.Type(), ShouldEqual, parser.PING)
+			So(decoder.Type(), ShouldEqual, parser.OPEN)
 
 			So(conn.getCurrent(), ShouldNotBeNil)
 			So(conn.getUpgrade(), ShouldBeNil)
@@ -303,11 +303,11 @@ func TestConn(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			So(decoder.MessageType(), ShouldEqual, message.MessageText)
-			So(decoder.Type(), ShouldEqual, parser.PING)
+			So(decoder.Type(), ShouldEqual, parser.OPEN)
 
 			pc.Close()
 
-			time.Sleep(time.Second * 3 / 2)
+			time.Sleep(time.Second * 3)
 
 			server.closedLocker.Lock()
 			So(server.closed[id], ShouldEqual, 1)
