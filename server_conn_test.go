@@ -16,7 +16,7 @@ import (
 
 type FakeServer struct {
 	config       *config
-	transports   transportCreaters
+	creaters     transportCreaters
 	closed       map[string]int
 	closedLocker sync.Mutex
 }
@@ -28,7 +28,7 @@ func newFakeServer() *FakeServer {
 			PingInterval:  time.Second * 1,
 			AllowUpgrades: true,
 		},
-		transports: transportCreaters{
+		creaters: transportCreaters{
 			"polling":   polling.Creater,
 			"websocket": websocket.Creater,
 		},
@@ -36,15 +36,15 @@ func newFakeServer() *FakeServer {
 	}
 }
 
-func (f *FakeServer) Config() config {
+func (f *FakeServer) configure() config {
 	return *f.config
 }
 
-func (f *FakeServer) Transports() transportCreaters {
-	return f.transports
+func (f *FakeServer) transports() transportCreaters {
+	return f.creaters
 }
 
-func (f *FakeServer) OnClose(sid string) {
+func (f *FakeServer) onClose(sid string) {
 	f.closedLocker.Lock()
 	defer f.closedLocker.Unlock()
 	f.closed[sid] = f.closed[sid] + 1
@@ -57,7 +57,7 @@ func TestConn(t *testing.T) {
 			req, err := http.NewRequest("GET", "/", nil)
 			So(err, ShouldBeNil)
 			resp := httptest.NewRecorder()
-			_, err = NewConn("id", resp, req, server)
+			_, err = newServerConn("id", resp, req, server)
 			So(err, ShouldEqual, InvalidError)
 		})
 
@@ -66,7 +66,7 @@ func TestConn(t *testing.T) {
 			req, err := http.NewRequest("GET", "/?transport=websocket", nil)
 			So(err, ShouldBeNil)
 			resp := httptest.NewRecorder()
-			_, err = NewConn("id", resp, req, server)
+			_, err = newServerConn("id", resp, req, server)
 			So(err, ShouldNotBeNil)
 		})
 
@@ -76,7 +76,7 @@ func TestConn(t *testing.T) {
 				req, err := http.NewRequest("GET", "/?transport=polling", nil)
 				So(err, ShouldBeNil)
 				resp := httptest.NewRecorder()
-				conn, err := NewConn("id", resp, req, server)
+				conn, err := newServerConn("id", resp, req, server)
 				So(err, ShouldBeNil)
 				So(conn.Id(), ShouldEqual, "id")
 				So(conn.Request(), ShouldEqual, req)
@@ -86,7 +86,7 @@ func TestConn(t *testing.T) {
 			Convey("with websocket", func() {
 				server := newFakeServer()
 				h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					conn, err := NewConn("id", w, r, server)
+					conn, err := newServerConn("id", w, r, server)
 					So(err, ShouldBeNil)
 					defer conn.Close()
 
@@ -118,7 +118,7 @@ func TestConn(t *testing.T) {
 			h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if conn == nil {
 					var err error
-					conn, err = NewConn(id, w, r, server)
+					conn, err = newServerConn(id, w, r, server)
 					So(err, ShouldBeNil)
 				}
 
@@ -213,7 +213,7 @@ func TestConn(t *testing.T) {
 			h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if conn == nil {
 					var err error
-					conn, err = NewConn(id, w, r, server)
+					conn, err = newServerConn(id, w, r, server)
 					So(err, ShouldBeNil)
 				}
 
@@ -283,7 +283,7 @@ func TestConn(t *testing.T) {
 			h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if conn == nil {
 					var err error
-					conn, err = NewConn(id, w, r, server)
+					conn, err = newServerConn(id, w, r, server)
 					So(err, ShouldBeNil)
 				}
 
@@ -327,7 +327,7 @@ func TestConn(t *testing.T) {
 				locker.Lock()
 				defer locker.Unlock()
 				if conn == nil {
-					conn, _ = NewConn(id, w, r, server)
+					conn, _ = newServerConn(id, w, r, server)
 					return
 				}
 

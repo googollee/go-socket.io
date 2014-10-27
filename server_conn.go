@@ -13,6 +13,13 @@ import (
 	"github.com/googollee/go-engine.io/transport"
 )
 
+type MessageType message.MessageType
+
+const (
+	MessageBinary MessageType = MessageType(message.MessageBinary)
+	MessageText   MessageType = MessageType(message.MessageText)
+)
+
 // Conn is the connection object of engine.io.
 type Conn interface {
 
@@ -26,10 +33,10 @@ type Conn interface {
 	Close() error
 
 	// NextReader returns the next message type, reader. If no message received, it will block.
-	NextReader() (io.ReadCloser, error)
+	NextReader() (MessageType, io.ReadCloser, error)
 
 	// NextWriter returns the next message writer with given message type.
-	NextWriter(messageType message.MessageType) (io.WriteCloser, error)
+	NextWriter(messageType MessageType) (io.WriteCloser, error)
 }
 
 type transportCreaters map[string]transport.Creater
@@ -39,9 +46,9 @@ func (c transportCreaters) Get(name string) transport.Creater {
 }
 
 type serverCallback interface {
-	Config() config
-	Transports() transportCreaters
-	OnClose(sid string)
+	configure() config
+	transports() transportCreaters
+	onClose(sid string)
 }
 
 type state int
@@ -66,7 +73,7 @@ type serverConn struct {
 	upgrading       transport.Server
 	state           state
 	stateLocker     sync.RWMutex
-	readerChan      chan io.ReadCloser
+	readerChan      chan *connReader
 	pingTimeout     time.Duration
 	pingInterval    time.Duration
 	pingChan        chan bool
@@ -74,9 +81,9 @@ type serverConn struct {
 
 var InvalidError = errors.New("invalid transport")
 
-func NewConn(id string, w http.ResponseWriter, r *http.Request, callback serverCallback) (*serverConn, error) {
+func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback serverCallback) (*serverConn, error) {
 	transportName := r.URL.Query().Get("transport")
-	creater := callback.Transports().Get(transportName)
+	creater := callback.transports().Get(transportName)
 	if creater.Name == "" {
 		return nil, InvalidError
 	}
@@ -85,9 +92,9 @@ func NewConn(id string, w http.ResponseWriter, r *http.Request, callback serverC
 		request:      r,
 		callback:     callback,
 		state:        stateNormal,
-		readerChan:   make(chan io.ReadCloser),
-		pingTimeout:  callback.Config().PingTimeout,
-		pingInterval: callback.Config().PingInterval,
+		readerChan:   make(chan *connReader),
+		pingTimeout:  callback.configure().PingTimeout,
+		pingInterval: callback.configure().PingInterval,
 		pingChan:     make(chan bool),
 	}
 	transport, err := creater.Server(w, r, ret)
@@ -109,18 +116,18 @@ func (c *serverConn) Request() *http.Request {
 	return c.request
 }
 
-func (c *serverConn) NextReader() (io.ReadCloser, error) {
+func (c *serverConn) NextReader() (MessageType, io.ReadCloser, error) {
 	if c.getState() == stateClosed {
-		return nil, io.EOF
+		return MessageBinary, nil, io.EOF
 	}
 	ret := <-c.readerChan
 	if ret == nil {
-		return nil, io.EOF
+		return MessageBinary, nil, io.EOF
 	}
-	return ret, nil
+	return MessageType(ret.MessageType()), ret, nil
 }
 
-func (c *serverConn) NextWriter(t message.MessageType) (io.WriteCloser, error) {
+func (c *serverConn) NextWriter(t MessageType) (io.WriteCloser, error) {
 	switch c.getState() {
 	case stateUpgrading:
 		return nil, fmt.Errorf("upgrading")
@@ -128,7 +135,7 @@ func (c *serverConn) NextWriter(t message.MessageType) (io.WriteCloser, error) {
 	default:
 		return nil, io.EOF
 	}
-	ret, err := c.getCurrent().NextWriter(t, parser.MESSAGE)
+	ret, err := c.getCurrent().NextWriter(message.MessageType(t), parser.MESSAGE)
 	return ret, err
 }
 
@@ -156,7 +163,7 @@ func (c *serverConn) Close() error {
 func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	transportName := r.URL.Query().Get("transport")
 	if c.currentName != transportName {
-		creater := c.callback.Transports().Get(transportName)
+		creater := c.callback.transports().Get(transportName)
 		if creater.Name == "" {
 			http.Error(w, fmt.Sprintf("invalid transport %s", transportName), http.StatusBadRequest)
 			return
@@ -223,7 +230,7 @@ func (c *serverConn) OnClose(server transport.Server) {
 	c.setState(stateClosed)
 	close(c.readerChan)
 	close(c.pingChan)
-	c.callback.OnClose(c.id)
+	c.callback.onClose(c.id)
 }
 
 func (c *serverConn) getCurrent() transport.Server {

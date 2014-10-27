@@ -4,18 +4,18 @@ import (
 	"sync"
 )
 
-type sessions struct {
-	sessions map[string]*conn
+type serverSessions struct {
+	sessions map[string]*serverConn
 	locker   sync.RWMutex
 }
 
-func newSessions() *sessions {
-	return &sessions{
-		sessions: make(map[string]*conn),
+func newServerSessions() *serverSessions {
+	return &serverSessions{
+		sessions: make(map[string]*serverConn),
 	}
 }
 
-func (s *sessions) Get(id string) *conn {
+func (s *serverSessions) Get(id string) *serverConn {
 	s.locker.RLock()
 	defer s.locker.RUnlock()
 
@@ -26,14 +26,14 @@ func (s *sessions) Get(id string) *conn {
 	return ret
 }
 
-func (s *sessions) Set(id string, conn *conn) {
+func (s *serverSessions) Set(id string, serverConn *serverConn) {
 	s.locker.Lock()
 	defer s.locker.Unlock()
 
-	s.sessions[id] = conn
+	s.sessions[id] = serverConn
 }
 
-func (s *sessions) Remove(id string) {
+func (s *serverSessions) Remove(id string) {
 	s.locker.Lock()
 	defer s.locker.Unlock()
 
