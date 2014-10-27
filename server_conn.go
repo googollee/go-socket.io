@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -102,6 +103,9 @@ func newServerConn(id string, w http.ResponseWriter, r *http.Request, callback s
 		return nil, err
 	}
 	ret.setCurrent(transportName, transport)
+	if err := ret.onOpen(); err != nil {
+		return nil, err
+	}
 
 	go ret.pingLoop()
 
@@ -231,6 +235,41 @@ func (c *serverConn) OnClose(server transport.Server) {
 	close(c.readerChan)
 	close(c.pingChan)
 	c.callback.onClose(c.id)
+}
+
+type connectionInfo struct {
+	Sid          string        `json:"sid"`
+	Upgrades     []string      `json:"upgrades"`
+	PingInterval time.Duration `json:"pingInterval"`
+	PingTimeout  time.Duration `json:"pingTimeout"`
+}
+
+func (s *serverConn) onOpen() error {
+	var upgrades []string
+	for name := range s.callback.transports() {
+		if name == s.currentName {
+			continue
+		}
+		upgrades = append(upgrades, name)
+	}
+	resp := connectionInfo{
+		Sid:          s.Id(),
+		Upgrades:     upgrades,
+		PingInterval: s.callback.configure().PingInterval / time.Millisecond,
+		PingTimeout:  s.callback.configure().PingTimeout / time.Millisecond,
+	}
+	w, err := s.getCurrent().NextWriter(message.MessageText, parser.OPEN)
+	if err != nil {
+		return err
+	}
+	encoder := json.NewEncoder(w)
+	if err := encoder.Encode(resp); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *serverConn) getCurrent() transport.Server {
