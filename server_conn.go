@@ -237,20 +237,19 @@ func (c *serverConn) OnClose(server transport.Server) {
 	c.callback.onClose(c.id)
 }
 
-type connectionInfo struct {
-	Sid          string        `json:"sid"`
-	Upgrades     []string      `json:"upgrades"`
-	PingInterval time.Duration `json:"pingInterval"`
-	PingTimeout  time.Duration `json:"pingTimeout"`
-}
-
 func (s *serverConn) onOpen() error {
-	var upgrades []string
+	upgrades := []string{}
 	for name := range s.callback.transports() {
 		if name == s.currentName {
 			continue
 		}
 		upgrades = append(upgrades, name)
+	}
+	type connectionInfo struct {
+		Sid          string        `json:"sid"`
+		Upgrades     []string      `json:"upgrades"`
+		PingInterval time.Duration `json:"pingInterval"`
+		PingTimeout  time.Duration `json:"pingTimeout"`
 	}
 	resp := connectionInfo{
 		Sid:          s.Id(),
