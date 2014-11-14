@@ -5,6 +5,8 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
+	"github.com/googollee/go-engine.io/polling"
+	"github.com/googollee/go-engine.io/websocket"
 	"net/http"
 	"time"
 )
@@ -19,17 +21,27 @@ type config struct {
 
 // Server is the server of engine.io.
 type Server struct {
-	config     config
-	socketChan chan Conn
-	sessions   *sessions
-	transports transportsType
+	config         config
+	socketChan     chan Conn
+	serverSessions *serverSessions
+	creaters       transportCreaters
 }
 
 // NewServer returns the server suppported given transports. If transports is nil, server will use ["polling", "webosocket"] as default.
 func NewServer(transports []string) (*Server, error) {
-	t, err := newTransportsType(transports)
-	if err != nil {
-		return nil, err
+	if transports == nil {
+		transports = []string{"polling", "websocket"}
+	}
+	creaters := make(transportCreaters)
+	for _, t := range transports {
+		switch t {
+		case "polling":
+			creaters[t] = polling.Creater
+		case "websocket":
+			creaters[t] = websocket.Creater
+		default:
+			return nil, InvalidError
+		}
 	}
 	return &Server{
 		config: config{
@@ -39,9 +51,9 @@ func NewServer(transports []string) (*Server, error) {
 			AllowUpgrades: true,
 			Cookie:        "io",
 		},
-		socketChan: make(chan Conn),
-		sessions:   newSessions(),
-		transports: t,
+		socketChan:     make(chan Conn),
+		serverSessions: newServerSessions(),
+		creaters:       creaters,
 	}, nil
 }
 
@@ -76,56 +88,38 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cookies := r.Cookies()
 	sid := r.URL.Query().Get("sid")
-	if sid == "" {
+	conn := s.serverSessions.Get(sid)
+	if conn == nil {
+		if sid != "" {
+			http.Error(w, "invalid sid", http.StatusBadRequest)
+			return
+		}
+
 		if err := s.config.AllowRequest(r); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		transportName := r.URL.Query().Get("transport")
-		transportCreater := s.transports.GetCreater(transportName)
-		if transportCreater == nil {
-			http.Error(w, "invalid transport", http.StatusBadRequest)
-			return
-		}
-		transport, err := transportCreater(w, r)
-		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		sid = s.newId(r)
-		conn, err := newConn(sid, s, transport, r)
+		var err error
+		conn, err = newServerConn(sid, w, r, s)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		s.sessions.Set(sid, conn)
+		s.serverSessions.Set(sid, conn)
 		cookies = append(cookies, &http.Cookie{
 			Name:  s.config.Cookie,
 			Value: sid,
 		})
-		go func() {
-			err := conn.onOpen()
-			if err != nil {
-				conn.Close()
-				defer s.onClose(conn)
-				return
-			}
 
-			s.socketChan <- conn
-		}()
+		s.socketChan <- conn
 	}
-	conn := s.sessions.Get(sid)
-	if conn == nil {
-		http.Error(w, "invalid sid", http.StatusBadRequest)
-		return
-	}
-
 	for _, c := range cookies {
 		w.Header().Set("Set-Cookie", c.String())
 	}
-	conn.serveHTTP(w, r)
+	conn.ServeHTTP(w, r)
 }
 
 // Accept returns Conn when client connect to server.
@@ -133,8 +127,16 @@ func (s *Server) Accept() (Conn, error) {
 	return <-s.socketChan, nil
 }
 
-func (s *Server) onClose(so *conn) {
-	s.sessions.Remove(so.Id())
+func (s *Server) configure() config {
+	return s.config
+}
+
+func (s *Server) transports() transportCreaters {
+	return s.creaters
+}
+
+func (s *Server) onClose(id string) {
+	s.serverSessions.Remove(id)
 }
 
 func (s *Server) newId(r *http.Request) string {

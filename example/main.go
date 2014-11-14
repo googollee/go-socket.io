@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/googollee/go-engine.io"
 )
@@ -14,12 +15,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	server.SetPingInterval(time.Second * 2)
+	server.SetPingTimeout(time.Second * 3)
 
 	go func() {
 		for {
 			conn, _ := server.Accept()
 			go func() {
-				defer conn.Close()
+				log.Println("connected:", conn.Id())
+				defer func() {
+					conn.Close()
+					log.Println("disconnected:", conn.Id())
+				}()
 				for {
 					t, r, err := conn.NextReader()
 					if err != nil {
