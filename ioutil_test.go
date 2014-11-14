@@ -32,9 +32,12 @@ func TestConnIoutil(t *testing.T) {
 				check := make(chan int)
 				go func() {
 					err := reader.Close()
-					So(err, ShouldBeNil)
+					if err != nil {
+						t.Fatal(err)
+					}
 					check <- 1
 				}()
+
 				time.Sleep(time.Second / 10) // wait goroutine start
 				select {
 				case <-check:

@@ -29,30 +29,48 @@ func TestWebsocket(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			f := newFakeCallback()
 			s, err := NewServer(w, r, f)
-			So(err, ShouldBeNil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			defer s.Close()
 
 			{
 				req, err := http.NewRequest("GET", "/", nil)
-				So(err, ShouldBeNil)
+				if err != nil {
+					t.Fatal(err)
+				}
 				recoder := httptest.NewRecorder()
 				s.ServeHTTP(recoder, req)
-				So(recoder.Code, ShouldEqual, http.StatusBadRequest)
+				if recoder.Code != http.StatusBadRequest {
+					t.Fatal(recoder.Code, "!=", http.StatusBadRequest)
+				}
 			}
 
 			{
 				w, err := s.NextWriter(message.MessageText, parser.OPEN)
-				So(err, ShouldBeNil)
+				if err != nil {
+					t.Fatal(err)
+				}
 				err = w.Close()
-				So(err, ShouldBeNil)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			{
 				<-f.onPacket
-				So(f.messageType, ShouldEqual, message.MessageBinary)
-				So(f.packetType, ShouldEqual, parser.MESSAGE)
-				So(f.err, ShouldBeNil)
-				So(string(f.body), ShouldEqual, "测试")
+				if f.messageType != message.MessageBinary {
+					t.Fatal(f.messageType, "!=", message.MessageBinary)
+				}
+				if f.packetType != parser.MESSAGE {
+					t.Fatal(f.packetType, "!=", parser.MESSAGE)
+				}
+				if f.err != nil {
+					t.Fatal(err)
+				}
+				if body := string(f.body); body != "测试" {
+					t.Fatal(body, "!=", "测试")
+				}
 			}
 
 			<-sync
@@ -63,9 +81,13 @@ func TestWebsocket(t *testing.T) {
 
 			{
 				w, err := s.NextWriter(message.MessageBinary, parser.NOOP)
-				So(err, ShouldBeNil)
+				if err != nil {
+					t.Fatal(err)
+				}
 				err = w.Close()
-				So(err, ShouldBeNil)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			<-sync
@@ -73,10 +95,18 @@ func TestWebsocket(t *testing.T) {
 
 			{
 				<-f.onPacket
-				So(f.messageType, ShouldEqual, message.MessageText)
-				So(f.packetType, ShouldEqual, parser.MESSAGE)
-				So(f.err, ShouldBeNil)
-				So(hex.EncodeToString(f.body), ShouldEqual, "e697a5e69cace8aa9e")
+				if f.messageType != message.MessageText {
+					t.Fatal(f.messageType, "!=", message.MessageText)
+				}
+				if f.packetType != parser.MESSAGE {
+					t.Fatal(f.packetType, "!=", parser.MESSAGE)
+				}
+				if f.err != nil {
+					t.Fatal(err)
+				}
+				if body := hex.EncodeToString(f.body); body != "e697a5e69cace8aa9e" {
+					t.Fatal(body, "!=", "e697a5e69cace8aa9e")
+				}
 			}
 
 			<-sync
@@ -133,7 +163,9 @@ func TestWebsocket(t *testing.T) {
 		sync := make(chan int)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			f := newFakeCallback()
-			So(r.URL.Query().Get("key"), ShouldEqual, "value")
+			if v := r.URL.Query().Get("key"); v != "value" {
+				t.Fatal(v, "!=", "value")
+			}
 			s, _ := NewServer(w, r, f)
 			defer s.Close()
 
@@ -336,13 +368,21 @@ func TestWebsocket(t *testing.T) {
 		sync := make(chan int)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s, err := NewServer(w, r, f)
-			So(err, ShouldBeNil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			writer, err := s.NextWriter(message.MessageText, parser.MESSAGE)
-			So(err, ShouldBeNil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			err = s.Close()
-			So(err, ShouldBeNil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			err = writer.Close()
-			So(err, ShouldNotBeNil)
+			if err == nil {
+				t.Fatal("err should not be nil")
+			}
 			sync <- 1
 		}))
 		defer server.Close()

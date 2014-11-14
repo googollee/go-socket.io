@@ -87,11 +87,17 @@ func TestConn(t *testing.T) {
 				server := newFakeServer()
 				h := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					conn, err := newServerConn("id", w, r, server)
-					So(err, ShouldBeNil)
+					if err != nil {
+						t.Fatal(err)
+					}
 					defer conn.Close()
 
-					So(conn.Id(), ShouldEqual, "id")
-					So(conn.Request(), ShouldEqual, r)
+					if conn.Id() != "id" {
+						t.Fatal(err)
+					}
+					if conn.Request() != r {
+						t.Fatal(err)
+					}
 				}))
 				defer h.Close()
 
@@ -119,7 +125,9 @@ func TestConn(t *testing.T) {
 				if conn == nil {
 					var err error
 					conn, err = newServerConn(id, w, r, server)
-					So(err, ShouldBeNil)
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
 
 				conn.ServeHTTP(w, r)
@@ -214,7 +222,9 @@ func TestConn(t *testing.T) {
 				if conn == nil {
 					var err error
 					conn, err = newServerConn(id, w, r, server)
-					So(err, ShouldBeNil)
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
 
 				conn.ServeHTTP(w, r)
@@ -284,7 +294,9 @@ func TestConn(t *testing.T) {
 				if conn == nil {
 					var err error
 					conn, err = newServerConn(id, w, r, server)
-					So(err, ShouldBeNil)
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
 
 				conn.ServeHTTP(w, r)
