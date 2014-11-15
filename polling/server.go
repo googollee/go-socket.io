@@ -1,6 +1,8 @@
 package polling
 
 import (
+	"bytes"
+	"html/template"
 	"io"
 	"net/http"
 	"sync"
@@ -114,12 +116,25 @@ func (p *Polling) get(w http.ResponseWriter, r *http.Request) {
 
 	<-p.sendChan
 
-	if p.encoder.IsString() {
-		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	if j := r.URL.Query().Get("j"); j != "" {
+		// JSONP Polling
+		w.Header().Set("Content-Type", "text/javascript; charset=UTF-8")
+		tmp := bytes.Buffer{}
+		p.encoder.EncodeTo(&tmp)
+		pl := template.JSEscapeString(tmp.String())
+		w.Write([]byte("___eio[" + j + "](\""))
+		w.Write([]byte(pl))
+		w.Write([]byte("\");"))
 	} else {
-		w.Header().Set("Content-Type", "application/octet-stream")
+		// XHR Polling
+		if p.encoder.IsString() {
+			w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+		} else {
+			w.Header().Set("Content-Type", "application/octet-stream")
+		}
+		p.encoder.EncodeTo(w)
 	}
-	p.encoder.EncodeTo(w)
+
 }
 
 func (p *Polling) post(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +159,15 @@ func (p *Polling) post(w http.ResponseWriter, r *http.Request) {
 		p.postLocker.Unlock()
 	}()
 
-	decoder := parser.NewPayloadDecoder(r.Body)
+	var decoder *parser.PayloadDecoder
+	if j := r.URL.Query().Get("j"); j != "" {
+		// JSONP Polling
+		d := r.FormValue("d")
+		decoder = parser.NewPayloadDecoder(bytes.NewBufferString(d))
+	} else {
+		// XHR Polling
+		decoder = parser.NewPayloadDecoder(r.Body)
+	}
 	for {
 		d, err := decoder.Next()
 		if err == io.EOF {
