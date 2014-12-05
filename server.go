@@ -64,7 +64,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Server level broadcasts function.
 func (s *Server) BroadcastTo(room, message string, args ...interface{}) {
-	s.namespace.BroadcastTo(room, message, args)
+	s.namespace.BroadcastTo(room, message, args...)
 }
 
 func (s *Server) loop() {

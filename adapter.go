@@ -10,7 +10,7 @@ type BroadcastAdaptor interface {
 	Leave(room string, socket Socket) error
 
 	// Send will send the message with args to room. If ignore is not nil, it won't send to the socket ignore.
-	Send(ignore Socket, room, message string, args []interface{}) error
+	Send(ignore Socket, room, message string, args ...interface{}) error
 }
 
 var newBroadcast = newBroadcastDefault
@@ -45,7 +45,7 @@ func (b broadcast) Leave(room string, socket Socket) error {
 	return nil
 }
 
-func (b broadcast) Send(ignore Socket, room, message string, args []interface{}) error {
+func (b broadcast) Send(ignore Socket, room, message string, args ...interface{}) error {
 	sockets := b[room]
 	for id, s := range sockets {
 		if ignore != nil && ignore.Id() == id {
