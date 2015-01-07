@@ -32,7 +32,6 @@ type Session struct {
 	defaultNS         *NameSpace
 	Values            map[interface{}]interface{}
 	Request           *http.Request
-
 }
 
 func NewSessionID() string {
@@ -55,8 +54,8 @@ func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int
 		SessionId:         sessionId,
 		nameSpaces:        make(map[string]*NameSpace),
 		sendHeartBeat:     sendHeartbeat,
-		heartbeatTimeout:  time.Duration(timeout) * time.Second * 2 / 3,
-		connectionTimeout: time.Duration(timeout) * time.Second,
+		heartbeatTimeout:  time.Duration(timeout) * time.Second,
+		connectionTimeout: time.Duration(timeout) * time.Second * 3,
 		Values:            make(map[interface{}]interface{}),
 		Request:           r,
 	}
