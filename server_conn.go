@@ -133,8 +133,8 @@ func (c *serverConn) NextReader() (MessageType, io.ReadCloser, error) {
 
 func (c *serverConn) NextWriter(t MessageType) (io.WriteCloser, error) {
 	switch c.getState() {
-	case stateUpgrading:
-		return nil, fmt.Errorf("upgrading")
+	// case stateUpgrading:
+	// 	return nil, fmt.Errorf("upgrading")
 	case stateNormal:
 	default:
 		return nil, io.EOF
@@ -184,6 +184,9 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
+	if s := c.getState(); s != stateNormal && s != stateUpgrading {
+		return
+	}
 	switch r.Type() {
 	case parser.OPEN:
 	case parser.CLOSE:
