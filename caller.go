@@ -63,7 +63,11 @@ func (c *caller) Call(so Socket, args []interface{}) []reflect.Value {
 	for i, arg := range args {
 		v := reflect.ValueOf(arg)
 		if c.Args[i].Kind() != reflect.Ptr {
-			v = v.Elem()
+			if v.IsValid() {
+				v = v.Elem()
+			} else {
+				v = reflect.Zero(c.Args[i])
+			}
 		}
 		a[i+diff] = v
 	}
