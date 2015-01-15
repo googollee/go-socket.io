@@ -133,8 +133,8 @@ func (c *serverConn) NextReader() (MessageType, io.ReadCloser, error) {
 
 func (c *serverConn) NextWriter(t MessageType) (io.WriteCloser, error) {
 	switch c.getState() {
-	// case stateUpgrading:
-	// 	return nil, fmt.Errorf("upgrading")
+	case stateUpgrading:
+		return nil, fmt.Errorf("upgrading")
 	case stateNormal:
 	default:
 		return nil, io.EOF
