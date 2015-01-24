@@ -17,6 +17,7 @@ type config struct {
 	AllowRequest  func(*http.Request) error
 	AllowUpgrades bool
 	Cookie        string
+	NewId         func(r *http.Request) string
 }
 
 // Server is the server of engine.io.
@@ -50,6 +51,7 @@ func NewServer(transports []string) (*Server, error) {
 			AllowRequest:  func(*http.Request) error { return nil },
 			AllowUpgrades: true,
 			Cookie:        "io",
+			NewId:  nil,
 		},
 		socketChan:     make(chan Conn),
 		serverSessions: newServerSessions(),
@@ -82,6 +84,11 @@ func (s *Server) SetCookie(prefix string) {
 	s.config.Cookie = prefix
 }
 
+// SetNewId sets the callback func to generate new connection id. By default, id is generated from remote addr + current time stamp
+func (s *Server) SetNewId(f func(*http.Request) string) {
+	s.config.NewId = f
+}
+
 // ServeHTTP handles http request.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -100,7 +107,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		sid = s.newId(r)
+		if s.config.NewId != nil {
+			sid = s.config.NewId(r)
+		} else {
+			sid = s.newId(r)
+		}
 		var err error
 		conn, err = newServerConn(sid, w, r, s)
 		if err != nil {
