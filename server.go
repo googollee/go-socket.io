@@ -47,6 +47,11 @@ func (s *Server) SetAllowUpgrades(allow bool) {
 	s.eio.SetAllowUpgrades(allow)
 }
 
+// SetAccessControl sets the middleware function which controls "Access-Control-Allow-*" header beaviors. Default will publish no access control headers
+func (s *Server) SetAccessControl(f func(*http.Request) (orign string, credentials string, methods string, headers string, maxAge int)) {
+	s.eio.SetAccessControl(f)
+}
+
 // SetCookie sets the name of cookie which used by engine.io. Default is "io".
 func (s *Server) SetCookie(prefix string) {
 	s.eio.SetCookie(prefix)
