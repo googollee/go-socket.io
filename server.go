@@ -27,6 +27,7 @@ type Server struct {
 	socketChan     chan Conn
 	serverSessions *serverSessions
 	creaters       transportCreaters
+	currentConnection int32
 }
 
 // NewServer returns the server suppported given transports. If transports is nil, server will use ["polling", "webosocket"] as default.
