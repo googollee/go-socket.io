@@ -23,10 +23,10 @@ type config struct {
 
 // Server is the server of engine.io.
 type Server struct {
-	config         config
-	socketChan     chan Conn
-	serverSessions *serverSessions
-	creaters       transportCreaters
+	config            config
+	socketChan        chan Conn
+	serverSessions    *serverSessions
+	creaters          transportCreaters
 	currentConnection int32
 }
 
@@ -112,6 +112,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		n := atomic.AddInt32(&s.currentConnection, 1)
 		if int(n) > s.config.MaxConnection {
 			http.Error(w, "too many connections", http.StatusServiceUnavailable)
+			return
 		}
 
 		sid = s.newId(r)
