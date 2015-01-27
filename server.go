@@ -37,6 +37,11 @@ func (s *Server) SetPingInterval(t time.Duration) {
 	s.eio.SetPingInterval(t)
 }
 
+// SetMaxConnection sets the max connetion. Default is 1000.
+func (s *Server) SetMaxConnection(n int) {
+	s.eio.SetMaxConnection(n)
+}
+
 // SetAllowRequest sets the middleware function when establish connection. If it return non-nil, connection won't be established. Default will allow all request.
 func (s *Server) SetAllowRequest(f func(*http.Request) error) {
 	s.eio.SetAllowRequest(f)
