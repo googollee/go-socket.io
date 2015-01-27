@@ -8,12 +8,14 @@ import (
 	"github.com/googollee/go-engine.io/polling"
 	"github.com/googollee/go-engine.io/websocket"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
 type config struct {
 	PingTimeout   time.Duration
 	PingInterval  time.Duration
+	MaxConnection int
 	AllowRequest  func(*http.Request) error
 	AllowUpgrades bool
 	Cookie        string
@@ -21,10 +23,11 @@ type config struct {
 
 // Server is the server of engine.io.
 type Server struct {
-	config         config
-	socketChan     chan Conn
-	serverSessions *serverSessions
-	creaters       transportCreaters
+	config            config
+	socketChan        chan Conn
+	serverSessions    *serverSessions
+	creaters          transportCreaters
+	currentConnection int32
 }
 
 // NewServer returns the server suppported given transports. If transports is nil, server will use ["polling", "websocket"] as default.
@@ -47,6 +50,7 @@ func NewServer(transports []string) (*Server, error) {
 		config: config{
 			PingTimeout:   60000 * time.Millisecond,
 			PingInterval:  25000 * time.Millisecond,
+			MaxConnection: 1000,
 			AllowRequest:  func(*http.Request) error { return nil },
 			AllowUpgrades: true,
 			Cookie:        "io",
@@ -65,6 +69,11 @@ func (s *Server) SetPingTimeout(t time.Duration) {
 // SetPingInterval sets the interval of ping. Default is 25s.
 func (s *Server) SetPingInterval(t time.Duration) {
 	s.config.PingInterval = t
+}
+
+// SetMaxConnection sets the max connetion. Default is 1000.
+func (s *Server) SetMaxConnection(n int) {
+	s.config.MaxConnection = n
 }
 
 // SetAllowRequest sets the middleware function when establish connection. If it return non-nil, connection won't be established. Default will allow all request.
@@ -97,6 +106,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if err := s.config.AllowRequest(r); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		n := atomic.AddInt32(&s.currentConnection, 1)
+		if int(n) > s.config.MaxConnection {
+			http.Error(w, "too many connections", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -137,6 +152,7 @@ func (s *Server) transports() transportCreaters {
 
 func (s *Server) onClose(id string) {
 	s.serverSessions.Remove(id)
+	atomic.AddInt32(&s.currentConnection, -1)
 }
 
 func (s *Server) newId(r *http.Request) string {
