@@ -57,6 +57,11 @@ func (s *Server) SetCookie(prefix string) {
 	s.eio.SetCookie(prefix)
 }
 
+// SetNewId sets the callback func to generate new connection id. By default, id is generated from remote addr + current time stamp
+func (s *Server) SetNewId(f func(*http.Request) string) {
+	s.eio.SetNewId(f)
+}
+
 // SetAdaptor sets the adaptor of broadcast. Default is in-process broadcast implement.
 func (s *Server) SetAdaptor(adaptor BroadcastAdaptor) {
 	s.namespace = newNamespace(adaptor)
