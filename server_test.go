@@ -26,14 +26,12 @@ func TestServer(t *testing.T) {
 	})
 
 	Convey("Create server", t, func() {
-		server, err := NewServer(nil)
-		So(err, ShouldBeNil)
 
 		Convey("Test new id", func() {
 			req, err := http.NewRequest("GET", "/", nil)
 			So(err, ShouldBeNil)
-			id1 := server.newId(req)
-			id2 := server.newId(req)
+			id1 := newId(req)
+			id2 := newId(req)
 			So(id1, ShouldNotEqual, id2)
 		})
 
