@@ -98,8 +98,8 @@ func (s *Server) SetNewId(f func(*http.Request) string) {
 	s.config.NewId = f
 }
 
-// SetSessions sets the Sessions which controll server's session. Default sessions is single process manager. You can custom it as load balance.
-func (s *Server) SetSessions(sessions Sessions) {
+// SetSessionsManager sets the sessions as server's session manager. Default sessions is single process manager. You can custom it as load balance.
+func (s *Server) SetSessionsManager(sessions Sessions) {
 	s.serverSessions = sessions
 }
 
