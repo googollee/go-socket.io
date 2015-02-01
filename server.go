@@ -62,6 +62,11 @@ func (s *Server) SetNewId(f func(*http.Request) string) {
 	s.eio.SetNewId(f)
 }
 
+// SetSessionsManager sets the sessions as server's session manager. Default sessions is single process manager. You can custom it as load balance.
+func (s *Server) SetSessionsManager(sessions engineio.Sessions) {
+	s.eio.SetSessionsManager(sessions)
+}
+
 // SetAdaptor sets the adaptor of broadcast. Default is in-process broadcast implement.
 func (s *Server) SetAdaptor(adaptor BroadcastAdaptor) {
 	s.namespace = newNamespace(adaptor)
