@@ -26,7 +26,7 @@ type config struct {
 type Server struct {
 	config            config
 	socketChan        chan Conn
-	serverSessions    *serverSessions
+	serverSessions    Sessions
 	creaters          transportCreaters
 	currentConnection int32
 }
@@ -98,13 +98,18 @@ func (s *Server) SetNewId(f func(*http.Request) string) {
 	s.config.NewId = f
 }
 
+// SetSessions sets the Sessions which controll server's session. Default sessions is single process manager. You can custom it as load balance.
+func (s *Server) SetSessions(sessions Sessions) {
+	s.serverSessions = sessions
+}
+
 // ServeHTTP handles http request.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	cookies := r.Cookies()
 	sid := r.URL.Query().Get("sid")
-	conn := s.serverSessions.Get(sid)
+	conn := s.serverSessions.Get(sid).(*serverConn)
 	if conn == nil {
 		if sid != "" {
 			http.Error(w, "invalid sid", http.StatusBadRequest)
