@@ -107,7 +107,6 @@ func (s *Server) SetSessionManager(sessions Sessions) {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	cookies := r.Cookies()
 	sid := r.URL.Query().Get("sid")
 	conn := s.serverSessions.Get(sid)
 	if conn == nil {
@@ -137,16 +136,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.serverSessions.Set(sid, conn)
-		cookies = append(cookies, &http.Cookie{
-			Name:  s.config.Cookie,
-			Value: sid,
-		})
 
 		s.socketChan <- conn
 	}
-	for _, c := range cookies {
-		w.Header().Set("Set-Cookie", c.String())
-	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  s.config.Cookie,
+		Value: sid,
+	})
+
 	conn.(*serverConn).ServeHTTP(w, r)
 }
 
