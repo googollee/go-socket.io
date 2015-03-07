@@ -62,6 +62,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	for {
 		t, r, err := s.conn.NextReader()
 		if err != nil {
+			s.conn.Close()
 			return
 		}
 
