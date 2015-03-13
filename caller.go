@@ -1,6 +1,7 @@
 package socketio
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -70,6 +71,10 @@ func (c *caller) Call(so Socket, args []interface{}) []reflect.Value {
 			}
 		}
 		a[i+diff] = v
+	}
+
+	if len(args) != len(c.Args) {
+		return []reflect.Value{reflect.ValueOf([]interface{}{}), reflect.ValueOf(errors.New("Arguments do not match"))}
 	}
 
 	return c.Func.Call(a)
