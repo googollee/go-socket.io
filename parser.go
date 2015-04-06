@@ -314,10 +314,12 @@ func (d *decoder) DecodeData(v *packet) error {
 func (d *decoder) decodeBinary(num int) ([][]byte, error) {
 	ret := make([][]byte, num)
 	for i := 0; i < num; i++ {
+		d.currentCloser.Close()
 		t, r, err := d.reader.NextReader()
 		if err != nil {
 			return nil, err
 		}
+		d.currentCloser = r
 		if t == engineio.MessageText {
 			return nil, fmt.Errorf("need binary")
 		}
