@@ -55,7 +55,7 @@ func NewSession(emitters map[string]*EventEmitter, sessionId string, timeout int
 		nameSpaces:        make(map[string]*NameSpace),
 		sendHeartBeat:     sendHeartbeat,
 		heartbeatTimeout:  time.Duration(timeout) * time.Second,
-		connectionTimeout: time.Duration(timeout) * time.Second * 1.5,
+		connectionTimeout: time.Duration(timeout) * time.Duration(float64(time.Second)*1.5),
 		Values:            make(map[interface{}]interface{}),
 		Request:           r,
 	}
