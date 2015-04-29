@@ -141,11 +141,14 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 	}
 	c, ok := h.events[message]
 	if !ok {
+		// If the message is not recognized by the server, the decoder.currentCloser
+		// needs to be closed otherwise the server will be stuck until the e
+		decoder.Close()
 		return nil, nil
 	}
 	args := c.GetArgs()
 	olen := len(args)
-	if len(args) > 0 {
+	if olen > 0 {
 		packet.Data = &args
 		if err := decoder.DecodeData(packet); err != nil {
 			return nil, err
@@ -153,7 +156,7 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 	}
 	for i := len(args); i < olen; i++ {
 		args = append(args, nil)
-    }
+	}
 
 	retV := c.Call(h.socket, args)
 	if len(retV) == 0 {
