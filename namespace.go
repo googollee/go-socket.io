@@ -98,10 +98,15 @@ func (ns *NameSpace) Emit(name string, args ...interface{}) error {
 	pack.name = name
 
 	var err error
-	pack.args, err = json.Marshal(args)
-	if err != nil {
-		return err
+	switch len(args) {
+	case 0: // marshal as empty object
+		pack.args, err = json.Marshal(map[interface{}]interface{}{})
+	case 1: // marshal as single object
+		pack.args, err = json.Marshal(args[0])
+	default: // marshal as array of objects
+		pack.args, err = json.Marshal(args)
 	}
+
 	err = ns.sendPacket(pack)
 	if err != nil {
 		return err
