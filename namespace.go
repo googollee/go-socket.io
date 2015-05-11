@@ -100,7 +100,7 @@ func (ns *NameSpace) Emit(name string, args ...interface{}) error {
 	var err error
 	switch len(args) {
 	case 0: // marshal as empty object
-		pack.args, err = json.Marshal(map[interface{}]interface{}{})
+		pack.args, err = json.Marshal(map[string]string{})
 	case 1: // marshal as single object
 		pack.args, err = json.Marshal(args[0])
 	default: // marshal as array of objects
