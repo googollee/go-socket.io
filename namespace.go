@@ -161,7 +161,40 @@ func (ns *NameSpace) onConnect() {
 		ns.emit("connect", ns, nil)
 		ns.connected = true
 		ns.Emit("connect")
+		ns.echoConnect()
 	}
+}
+
+func (ns *NameSpace) echoConnect(args ...interface{}) error {
+	if !ns.connected {
+		return NotConnected
+	}
+
+	pack := new(connectPacket)
+	pack.endPoint = ns.endpoint
+
+	var (
+		err   error
+		query []byte
+	)
+	switch len(args) {
+	case 0: // marshal as empty object
+		query, err = json.Marshal(map[string]string{})
+	case 1: // marshal as single object
+		query, err = json.Marshal(args[0])
+	default: // marshal as array of objects
+		query, err = json.Marshal(args)
+	}
+	if err != nil {
+		return err
+	}
+	pack.query = string(query)
+
+	err = ns.sendPacket(pack)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ns *NameSpace) onDisconnect() {
