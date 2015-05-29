@@ -78,6 +78,16 @@ func (s *socket) send(args []interface{}) error {
 	return encoder.Encode(packet)
 }
 
+func (s *socket) sendConnect() error {
+	packet := packet{
+		Type: _CONNECT,
+		Id:   -1,
+		NSP:  s.namespace,
+	}
+	encoder := newEncoder(s.conn)
+	return encoder.Encode(packet)
+}
+
 func (s *socket) sendId(args []interface{}) (int, error) {
 	packet := packet{
 		Type: _EVENT,
@@ -129,6 +139,7 @@ func (s *socket) loop() error {
 		switch p.Type {
 		case _CONNECT:
 			s.namespace = p.NSP
+			s.sendConnect()
 		case _BINARY_EVENT:
 			fallthrough
 		case _EVENT:
