@@ -5,10 +5,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/googollee/go-engine.io"
 	"io"
 	"io/ioutil"
 	"strconv"
+
+	"github.com/googollee/go-engine.io"
 )
 
 const Protocol = 4
@@ -156,15 +157,19 @@ func newDecoder(r frameReader) *decoder {
 	}
 }
 
+func (d *decoder) Close() {
+	d.currentCloser.Close()
+	d.current = nil
+	d.currentCloser = nil
+}
+
 func (d *decoder) Decode(v *packet) error {
 	ty, r, err := d.reader.NextReader()
 	if err != nil {
 		return err
 	}
 	if d.current != nil {
-		d.currentCloser.Close()
-		d.current = nil
-		d.currentCloser = nil
+		d.Close()
 	}
 	defer func() {
 		if d.current == nil {
@@ -290,9 +295,7 @@ func (d *decoder) DecodeData(v *packet) error {
 		return nil
 	}
 	defer func() {
-		d.currentCloser.Close()
-		d.current = nil
-		d.currentCloser = nil
+		d.Close()
 	}()
 	decoder := json.NewDecoder(d.current)
 	if err := decoder.Decode(v.Data); err != nil {
