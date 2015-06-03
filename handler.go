@@ -159,11 +159,17 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 	if len(retV) == 0 {
 		return nil, nil
 	}
+
+	var err error
+	if last, ok := retV[len(retV)-1].Interface().(error); ok {
+		err = last
+		retV = retV[0 : len(retV)-1]
+	}
 	ret := make([]interface{}, len(retV))
 	for i, v := range retV {
 		ret[i] = v.Interface()
 	}
-	return ret, nil
+	return ret, err
 }
 
 func (h *socketHandler) onAck(id int, decoder *decoder, packet *packet) error {
