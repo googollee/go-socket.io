@@ -2,11 +2,11 @@
 
 [![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
 
-go-socket.io is the implement of [socket.io](http://socket.io) in golang, which is a realtime application framework.
+go-socket.io is an implementation of [socket.io](http://socket.io) in golang, which is a realtime application framework.
 
-It compatible with latest implement of socket.io in node.js, and support room and namespace.
+It is compatible with latest implementation of socket.io in node.js, and supports room and namespace.
 
-* for compatible with socket.io 0.9.x, please use branch 0.9.x *
+* for compatability with socket.io 0.9.x, please use branch 0.9.x *
 
 ## Install
 
@@ -26,7 +26,7 @@ and use `socketio` as the package name inside the code.
 
 ## Example
 
-Please check example folder for details.
+Please check the example folder for details.
 
 ```go
 package main
