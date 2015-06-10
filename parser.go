@@ -158,8 +158,10 @@ func newDecoder(r frameReader) *decoder {
 }
 
 func (d *decoder) Close() {
-	if d.currentCloser != nil {
-		d.currentCloser.Close()
+	if d != nil {
+		if d.currentCloser != nil {
+			d.currentCloser.Close()
+		}
 		d.current = nil
 		d.currentCloser = nil
 	}
