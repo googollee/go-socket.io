@@ -158,9 +158,11 @@ func newDecoder(r frameReader) *decoder {
 }
 
 func (d *decoder) Close() {
-	d.currentCloser.Close()
-	d.current = nil
-	d.currentCloser = nil
+	if d != nil && d.currentCloser != nil {
+		d.currentCloser.Close()
+		d.current = nil
+		d.currentCloser = nil
+	}
 }
 
 func (d *decoder) Decode(v *packet) error {
