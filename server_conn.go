@@ -229,8 +229,9 @@ func (c *serverConn) OnPacket(r *parser.PacketDecoder) {
 }
 
 func (c *serverConn) OnClose(server transport.Server) {
-	if server == c.getUpgrade() {
+	if t := c.getUpgrade(); server == t {
 		c.setUpgrading("", nil)
+		t.Close()
 		return
 	}
 	t := c.getCurrent()
