@@ -137,18 +137,22 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 	case _BINARY_ACK:
 		return nil, h.onAck(packet.Id, decoder, packet)
 	default:
-		message = decoder.Message()
+		if decoder != nil {
+			message = decoder.Message()
+		}
 	}
 	c, ok := h.events[message]
 	if !ok {
 		// If the message is not recognized by the server, the decoder.currentCloser
 		// needs to be closed otherwise the server will be stuck until the e
-		decoder.Close()
+		if decoder != nil {
+			decoder.Close()
+		}
 		return nil, nil
 	}
 	args := c.GetArgs()
 	olen := len(args)
-	if olen > 0 {
+	if olen > 0 && decoder != nil {
 		packet.Data = &args
 		if err := decoder.DecodeData(packet); err != nil {
 			return nil, err
