@@ -5,11 +5,12 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
-	"github.com/googollee/go-engine.io/polling"
-	"github.com/googollee/go-engine.io/websocket"
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"github.com/googollee/go-engine.io/polling"
+	"github.com/googollee/go-engine.io/websocket"
 )
 
 type config struct {
@@ -122,6 +123,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		n := atomic.AddInt32(&s.currentConnection, 1)
 		if int(n) > s.config.MaxConnection {
+			atomic.AddInt32(&s.currentConnection, -1)
 			http.Error(w, "too many connections", http.StatusServiceUnavailable)
 			return
 		}
