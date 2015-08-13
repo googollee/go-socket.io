@@ -23,6 +23,7 @@ func TestServer(t *testing.T) {
 		So(server.config.AllowUpgrades, ShouldBeFalse)
 		server.SetCookie("prefix")
 		So(server.config.Cookie, ShouldEqual, "prefix")
+		So(server.GetMaxConnection(), ShouldEqual, 1000)
 	})
 
 	Convey("Create server", t, func() {
