@@ -8,7 +8,6 @@ type Sessions interface {
 	Get(id string) Conn
 	Set(id string, conn Conn)
 	Remove(id string)
-	Count() int
 }
 
 type serverSessions struct {
@@ -45,11 +44,4 @@ func (s *serverSessions) Remove(id string) {
 	defer s.locker.Unlock()
 
 	delete(s.sessions, id)
-}
-
-func (s *serverSessions) Count() int {
-	s.locker.Lock()
-	defer s.locker.Unlock()
-
-	return len(s.sessions)
 }

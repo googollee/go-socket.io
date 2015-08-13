@@ -85,7 +85,7 @@ func (s *Server) GetMaxConnection() int {
 
 // Count returns a count of current number of active connections in session
 func (s *Server) Count() int {
-	return s.serverSessions.Count()
+	return int(atomic.LoadInt32(&s.currentConnection))
 }
 
 // SetAllowRequest sets the middleware function when establish connection. If it return non-nil, connection won't be established. Default will allow all request.
