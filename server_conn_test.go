@@ -339,8 +339,11 @@ func TestConn(t *testing.T) {
 				locker.Lock()
 				defer locker.Unlock()
 				if conn == nil {
-					conn, _ = newServerConn(id, w, r, server)
-					return
+					var err error
+					conn, err = newServerConn(id, w, r, server)
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
 
 				conn.ServeHTTP(w, r)
