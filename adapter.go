@@ -1,16 +1,16 @@
 package socketio
 
-// BroadcastAdaptor is the adaptor to handle broadcast.
+// BroadcastAdaptor is the adaptor to handle broadcasts.
 type BroadcastAdaptor interface {
 
-	// Join lets socket join the t room.
+	// Join lets the socket join a room.
 	Join(room string, socket Socket) error
 
-	// Leave let socket leave the room.
+	// Leave lets the socket leave a room.
 	Leave(room string, socket Socket) error
 
-	// Send will send the message with args to room. If ignore is not nil, it won't send to the socket ignore.
-	Send(ignore Socket, room, message string, args ...interface{}) error
+	// Send will send an event with args to the room. If ignore is not nil, the event will be excluded from being sent to the socket ignore.
+	Send(ignore Socket, room, event string, args ...interface{}) error
 }
 
 var newBroadcast = newBroadcastDefault
@@ -45,13 +45,13 @@ func (b broadcast) Leave(room string, socket Socket) error {
 	return nil
 }
 
-func (b broadcast) Send(ignore Socket, room, message string, args ...interface{}) error {
+func (b broadcast) Send(ignore Socket, room, event string, args ...interface{}) error {
 	sockets := b[room]
 	for id, s := range sockets {
 		if ignore != nil && ignore.Id() == id {
 			continue
 		}
-		s.Emit(message, args...)
+		s.Emit(event, args...)
 	}
 	return nil
 }

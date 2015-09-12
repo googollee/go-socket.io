@@ -18,11 +18,11 @@ type Socket interface {
 	// Request returns the first http request when established connection.
 	Request() *http.Request
 
-	// On registers the function f to handle message.
-	On(message string, f interface{}) error
+	// On registers the function f to handle an event.
+	On(event string, f interface{}) error
 
-	// Emit emits the message with given args.
-	Emit(message string, args ...interface{}) error
+	// Emit emits an event with given args.
+	Emit(event string, args ...interface{}) error
 
 	// Join joins the room.
 	Join(room string) error
@@ -30,8 +30,8 @@ type Socket interface {
 	// Leave leaves the room.
 	Leave(room string) error
 
-	// BroadcastTo broadcasts the message to the room with given args.
-	BroadcastTo(room, message string, args ...interface{}) error
+	// BroadcastTo broadcasts an event to the room with given args.
+	BroadcastTo(room, event string, args ...interface{}) error
 }
 
 type socket struct {
@@ -57,11 +57,11 @@ func (s *socket) Request() *http.Request {
 	return s.conn.Request()
 }
 
-func (s *socket) Emit(message string, args ...interface{}) error {
-	if err := s.socketHandler.Emit(message, args...); err != nil {
+func (s *socket) Emit(event string, args ...interface{}) error {
+	if err := s.socketHandler.Emit(event, args...); err != nil {
 		return err
 	}
-	if message == "disconnect" {
+	if event == "disconnect" {
 		s.conn.Close()
 	}
 	return nil

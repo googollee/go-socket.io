@@ -8,7 +8,7 @@ import (
 	"reflect"
 )
 
-// Attachment is an attachment handler used in emit args. All attachments will send as binary in transport layer. When use attachment, make sure use as pointer.
+// Attachment is an attachment handler used in emit args. All attachments will be sent as binary data in the transport layer. When using an attachment, make sure it is a pointer.
 //
 // For example:
 //
@@ -30,8 +30,6 @@ import (
 //         b, _ := ioutil.ReadAll(arg.File.Data)
 //     })
 type Attachment struct {
-
-	// Data is the ReadWriter of the attachment data.
 	Data io.ReadWriter
 	num  int
 }
