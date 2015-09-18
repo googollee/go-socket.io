@@ -61,6 +61,11 @@ func (c *caller) Call(so Socket, args []interface{}) []reflect.Value {
 	} else {
 		a = make([]reflect.Value, len(args))
 	}
+
+	if len(args) != len(c.Args) {
+		return []reflect.Value{reflect.ValueOf([]interface{}{}), reflect.ValueOf(errors.New("Arguments do not match"))}
+	}
+
 	for i, arg := range args {
 		v := reflect.ValueOf(arg)
 		if c.Args[i].Kind() != reflect.Ptr {
@@ -71,10 +76,6 @@ func (c *caller) Call(so Socket, args []interface{}) []reflect.Value {
 			}
 		}
 		a[i+diff] = v
-	}
-
-	if len(args) != len(c.Args) {
-		return []reflect.Value{reflect.ValueOf([]interface{}{}), reflect.ValueOf(errors.New("Arguments do not match"))}
 	}
 
 	return c.Func.Call(a)
