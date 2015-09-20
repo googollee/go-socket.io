@@ -78,6 +78,16 @@ func (s *Server) SetMaxConnection(n int) {
 	s.config.MaxConnection = n
 }
 
+// GetMaxConnection returns the current max connection
+func (s *Server) GetMaxConnection() int {
+	return s.config.MaxConnection
+}
+
+// Count returns a count of current number of active connections in session
+func (s *Server) Count() int {
+	return int(atomic.LoadInt32(&s.currentConnection))
+}
+
 // SetAllowRequest sets the middleware function when establish connection. If it return non-nil, connection won't be established. Default will allow all request.
 func (s *Server) SetAllowRequest(f func(*http.Request) error) {
 	s.config.AllowRequest = f
