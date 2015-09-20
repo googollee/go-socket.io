@@ -3,13 +3,13 @@ package socketio
 // BroadcastAdaptor is the adaptor to handle broadcasts.
 type BroadcastAdaptor interface {
 
-	// Join lets the socket join a room.
+	// Join causes the socket to join a room.
 	Join(room string, socket Socket) error
 
-	// Leave lets the socket leave a room.
+	// Leave causes the socket to leave a room.
 	Leave(room string, socket Socket) error
 
-	// Send will send an event with args to the room. If ignore is not nil, the event will be excluded from being sent to the socket ignore.
+	// Send will send an event with args to the room. If "ignore" is not nil, the event will be excluded from being sent to "ignore".
 	Send(ignore Socket, room, event string, args ...interface{}) error
 }
 
