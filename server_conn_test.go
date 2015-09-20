@@ -1,17 +1,18 @@
 package engineio
 
 import (
-	"github.com/googollee/go-engine.io/message"
-	"github.com/googollee/go-engine.io/parser"
-	"github.com/googollee/go-engine.io/polling"
-	"github.com/googollee/go-engine.io/websocket"
-	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/googollee/go-engine.io/message"
+	"github.com/googollee/go-engine.io/parser"
+	"github.com/googollee/go-engine.io/polling"
+	"github.com/googollee/go-engine.io/websocket"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 type FakeServer struct {
@@ -194,8 +195,7 @@ func TestConn(t *testing.T) {
 
 			wc.Close()
 
-			err = conn.Close()
-			So(err, ShouldBeNil)
+			conn.Close()
 
 			time.Sleep(time.Second)
 
