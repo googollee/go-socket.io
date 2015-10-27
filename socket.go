@@ -49,6 +49,11 @@ func newSocket(conn engineio.Conn, base *baseHandler) *socket {
 	return ret
 }
 
+func (s *socket) Close() error {
+	s.conn.Close()
+	return nil
+}
+
 func (s *socket) Id() string {
 	return s.conn.Id()
 }
