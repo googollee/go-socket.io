@@ -13,7 +13,7 @@ type Server struct {
 	eio       *engineio.Server
 }
 
-// NewServer returns the server supported given transports. If transports is nil, server will use ["polling", "websocket"] as default.
+// NewServer returns the server supported given transports. If transports is nil, the server will use ["polling", "websocket"] as default.
 func NewServer(transportNames []string) (*Server, error) {
 	eio, err := engineio.NewServer(transportNames)
 	if err != nil {
@@ -27,57 +27,57 @@ func NewServer(transportNames []string) (*Server, error) {
 	return ret, nil
 }
 
-// SetPingTimeout sets the timeout of ping. When time out, server will close connection. Default is 60s.
+// SetPingTimeout sets the timeout of a connection ping. When it times out, the server will close the connection with the client. Default is 60s.
 func (s *Server) SetPingTimeout(t time.Duration) {
 	s.eio.SetPingTimeout(t)
 }
 
-// SetPingInterval sets the interval of ping. Default is 25s.
+// SetPingInterval sets the interval of pings. Default is 25s.
 func (s *Server) SetPingInterval(t time.Duration) {
 	s.eio.SetPingInterval(t)
 }
 
-// SetMaxConnection sets the max connetion. Default is 1000.
+// SetMaxConnection sets the maximum number of connections with clients. Default is 1000.
 func (s *Server) SetMaxConnection(n int) {
 	s.eio.SetMaxConnection(n)
 }
 
-// SetAllowRequest sets the middleware function when establish connection. If it return non-nil, connection won't be established. Default will allow all request.
+// SetAllowRequest sets the middleware function when a connection is established. If a non-nil value is returned, the connection won't be established. Default will allow all connections.
 func (s *Server) SetAllowRequest(f func(*http.Request) error) {
 	s.eio.SetAllowRequest(f)
 }
 
-// SetAllowUpgrades sets whether server allows transport upgrade. Default is true.
+// SetAllowUpgrades sets whether server allows transport upgrades. Default is true.
 func (s *Server) SetAllowUpgrades(allow bool) {
 	s.eio.SetAllowUpgrades(allow)
 }
 
-// SetCookie sets the name of cookie which used by engine.io. Default is "io".
+// SetCookie sets the name of the cookie used by engine.io. Default is "io".
 func (s *Server) SetCookie(prefix string) {
 	s.eio.SetCookie(prefix)
 }
 
-// SetNewId sets the callback func to generate new connection id. By default, id is generated from remote addr + current time stamp
+// SetNewId sets the callback func to generate new connection id. By default, id is generated from remote address + current time stamp
 func (s *Server) SetNewId(f func(*http.Request) string) {
 	s.eio.SetNewId(f)
 }
 
-// SetSessionsManager sets the sessions as server's session manager. Default sessions is single process manager. You can custom it as load balance.
+// SetSessionsManager sets the sessions as server's session manager. Default sessions is a single process manager. You can customize it as a load balancer.
 func (s *Server) SetSessionManager(sessions engineio.Sessions) {
 	s.eio.SetSessionManager(sessions)
 }
 
-// SetAdaptor sets the adaptor of broadcast. Default is in-process broadcast implement.
+// SetAdaptor sets the adaptor of broadcast. Default is an in-process broadcast implementation.
 func (s *Server) SetAdaptor(adaptor BroadcastAdaptor) {
 	s.namespace = newNamespace(adaptor)
 }
 
-// ServeHTTP handles http request.
+// ServeHTTP handles http requests.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.eio.ServeHTTP(w, r)
 }
 
-// Server level broadcasts function.
+// BroadcastTo is a server level broadcast function.
 func (s *Server) BroadcastTo(room, message string, args ...interface{}) {
 	s.namespace.BroadcastTo(room, message, args...)
 }

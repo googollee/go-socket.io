@@ -19,13 +19,13 @@ func newBaseHandler(name string, broadcast BroadcastAdaptor) *baseHandler {
 	}
 }
 
-// On registers the function f to handle message.
-func (h *baseHandler) On(message string, f interface{}) error {
+// On registers the function f to handle an event.
+func (h *baseHandler) On(event string, f interface{}) error {
 	c, err := newCaller(f)
 	if err != nil {
 		return err
 	}
-	h.events[message] = c
+	h.events[event] = c
 	return nil
 }
 
@@ -52,7 +52,7 @@ func newSocketHandler(s *socket, base *baseHandler) *socketHandler {
 	}
 }
 
-func (h *socketHandler) Emit(message string, args ...interface{}) error {
+func (h *socketHandler) Emit(event string, args ...interface{}) error {
 	var c *caller
 	if l := len(args); l > 0 {
 		fv := reflect.ValueOf(args[l-1])
@@ -65,7 +65,7 @@ func (h *socketHandler) Emit(message string, args ...interface{}) error {
 			args = args[:l-1]
 		}
 	}
-	args = append([]interface{}{message}, args...)
+	args = append([]interface{}{event}, args...)
 	if c != nil {
 		id, err := h.socket.sendId(args)
 		if err != nil {
@@ -112,12 +112,12 @@ func (h *socketHandler) LeaveAll() error {
 	return nil
 }
 
-func (h *baseHandler) BroadcastTo(room, message string, args ...interface{}) error {
-	return h.broadcast.Send(nil, h.broadcastName(room), message, args...)
+func (h *baseHandler) BroadcastTo(room, event string, args ...interface{}) error {
+	return h.broadcast.Send(nil, h.broadcastName(room), event, args...)
 }
 
-func (h *socketHandler) BroadcastTo(room, message string, args ...interface{}) error {
-	return h.baseHandler.broadcast.Send(h.socket, h.broadcastName(room), message, args...)
+func (h *socketHandler) BroadcastTo(room, event string, args ...interface{}) error {
+	return h.baseHandler.broadcast.Send(h.socket, h.broadcastName(room), event, args...)
 }
 
 func (h *baseHandler) broadcastName(room string) string {
