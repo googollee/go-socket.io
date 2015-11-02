@@ -42,6 +42,16 @@ func (s *Server) SetMaxConnection(n int) {
 	s.eio.SetMaxConnection(n)
 }
 
+// GetMaxConnection returns the current max connection
+func (s *Server) GetMaxConnection() int {
+	return s.eio.GetMaxConnection()
+}
+
+// Count returns the current number of connected clients in session
+func (s *Server) Count() int {
+	return s.eio.Count()
+}
+
 // SetAllowRequest sets the middleware function when a connection is established. If a non-nil value is returned, the connection won't be established. Default will allow all connections.
 func (s *Server) SetAllowRequest(f func(*http.Request) error) {
 	s.eio.SetAllowRequest(f)
