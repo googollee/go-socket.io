@@ -32,6 +32,8 @@ type Socket interface {
 
 	// BroadcastTo broadcasts the message to the room with given args.
 	BroadcastTo(room, message string, args ...interface{}) error
+
+	Close() error
 }
 
 type socket struct {
@@ -47,6 +49,11 @@ func newSocket(conn engineio.Conn, base *baseHandler) *socket {
 	}
 	ret.socketHandler = newSocketHandler(ret, base)
 	return ret
+}
+
+func (s *socket) Close() error {
+	s.conn.Close()
+	return nil
 }
 
 func (s *socket) Id() string {
