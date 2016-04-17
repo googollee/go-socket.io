@@ -32,6 +32,12 @@ func main() {
 			log.Println("emit:", so.Emit("chat message", msg))
 			so.BroadcastTo("chat", "chat message", msg)
 		})
+		// Socket.io acknowledgement example
+		// The return type may vary depending on whether you will return
+		// For this example it is "string" type
+		so.On("chat message with ack", func(msg string) string {
+			return msg
+		})
 		so.On("disconnection", func() {
 			log.Println("on disconnect")
 		})
