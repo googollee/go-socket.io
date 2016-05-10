@@ -2,14 +2,16 @@ package websocket
 
 import (
 	"encoding/hex"
-	"github.com/googollee/go-engine.io/transport"
-	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/googollee/go-engine.io/transport"
+	"github.com/gorilla/websocket"
 
 	"github.com/googollee/go-engine.io/message"
 	"github.com/googollee/go-engine.io/parser"
@@ -334,7 +336,9 @@ func TestWebsocket(t *testing.T) {
 		defer c.Close()
 
 		<-sync
-		// So(f.ClosedCount(), ShouldEqual, 1)
+
+		waitForClose(f)
+		So(f.ClosedCount(), ShouldEqual, 1)
 		So(f.closeServer, ShouldEqual, s)
 	})
 
@@ -360,6 +364,7 @@ func TestWebsocket(t *testing.T) {
 		defer c.Close()
 
 		<-sync
+		waitForClose(f)
 		So(f.ClosedCount(), ShouldEqual, 1)
 	})
 
@@ -398,6 +403,18 @@ func TestWebsocket(t *testing.T) {
 	})
 }
 
+func waitForClose(f *fakeCallback) {
+	timeout := time.After(5 * time.Second)
+
+	var closed bool
+	select {
+	case <-f.closedChan:
+		closed = true
+	case <-timeout:
+	}
+	So(closed, ShouldBeTrue)
+}
+
 type fakeCallback struct {
 	onPacket    chan bool
 	messageType message.MessageType
@@ -407,11 +424,13 @@ type fakeCallback struct {
 	closedCount int
 	countLocker sync.Mutex
 	closeServer transport.Server
+	closedChan  chan struct{}
 }
 
 func newFakeCallback() *fakeCallback {
 	return &fakeCallback{
-		onPacket: make(chan bool),
+		onPacket:   make(chan bool),
+		closedChan: make(chan struct{}),
 	}
 }
 
@@ -427,6 +446,9 @@ func (f *fakeCallback) OnClose(s transport.Server) {
 	defer f.countLocker.Unlock()
 	f.closedCount++
 	f.closeServer = s
+	if f.closedCount == 1 {
+		close(f.closedChan)
+	}
 }
 
 func (f *fakeCallback) ClosedCount() int {
