@@ -134,6 +134,7 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 	case _ERROR:
 		message = "error"
 	case _ACK:
+		fallthrough
 	case _BINARY_ACK:
 		return nil, h.onAck(packet.Id, decoder, packet)
 	default:
