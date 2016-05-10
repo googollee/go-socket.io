@@ -65,6 +65,19 @@ func main() {
 }
 ```
 
+## Example of event handler with acknowledgement response
+
+[See documentation about acknowledgements](http://socket.io/docs/#sending-and-getting-data-(acknowledgements))
+
+```go
+// The return type may vary depending on whether you will return
+// In golang implementation of socket.io don't used callbacks for acknowledgement,
+// but used return value, which wrapped into ack package and returned to the client's callback in JavaScript
+so.On("chat message withack", func(msg string) string {
+	return msg
+})
+```
+
 ## License
 
 The 3-clause BSD License  - see LICENSE for more details
