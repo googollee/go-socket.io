@@ -91,7 +91,7 @@ so.On("some:event", func(msg string) string {
 })
 ```
 
-##### Sending ACK with data from from CLIENT to SERVER
+##### Sending ACK with data from CLIENT to SERVER
 
 * Client-side
 
