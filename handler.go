@@ -3,6 +3,7 @@ package socketio
 import (
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 type baseHandler struct {
@@ -31,6 +32,7 @@ func (h *baseHandler) On(event string, f interface{}) error {
 
 type socketHandler struct {
 	*baseHandler
+	acksmu sync.Mutex
 	acks   map[int]*caller
 	socket *socket
 	rooms  map[string]struct{}
@@ -71,7 +73,9 @@ func (h *socketHandler) Emit(event string, args ...interface{}) error {
 		if err != nil {
 			return err
 		}
+		h.acksmu.Lock()
 		h.acks[id] = c
+		h.acksmu.Unlock()
 		return nil
 	}
 	return h.socket.send(args)
@@ -181,11 +185,14 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 }
 
 func (h *socketHandler) onAck(id int, decoder *decoder, packet *packet) error {
+	h.acksmu.Lock()
 	c, ok := h.acks[id]
 	if !ok {
+		h.acksmu.Unlock()
 		return nil
 	}
 	delete(h.acks, id)
+	h.acksmu.Unlock()
 
 	args := c.GetArgs()
 	packet.Data = &args
