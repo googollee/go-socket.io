@@ -2,6 +2,7 @@ package socketio
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/googollee/go-engine.io"
 )
@@ -39,6 +40,7 @@ type socket struct {
 	conn      engineio.Conn
 	namespace string
 	id        int
+	mu        sync.Mutex
 }
 
 func newSocket(conn engineio.Conn, base *baseHandler) *socket {
@@ -89,6 +91,7 @@ func (s *socket) sendConnect() error {
 }
 
 func (s *socket) sendId(args []interface{}) (int, error) {
+	s.mu.Lock()
 	packet := packet{
 		Type: _EVENT,
 		Id:   s.id,
@@ -99,6 +102,8 @@ func (s *socket) sendId(args []interface{}) (int, error) {
 	if s.id < 0 {
 		s.id = 0
 	}
+	s.mu.Unlock()
+
 	encoder := newEncoder(s.conn)
 	err := encoder.Encode(packet)
 	if err != nil {
