@@ -1,0 +1,53 @@
+package payload
+
+import (
+	"bufio"
+	"io"
+	"net/http"
+	"sync"
+	"time"
+
+	eio "github.com/googollee/go-engine.io"
+)
+
+type Server struct {
+	encoder      Encoder
+	decoder      Decoder
+	encodeLocker sync.Mutex
+	decodeLocker sync.Mutex
+	decodeBegin  chan *http.Request
+	decodeEnd    chan struct{}
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		s.decoding(w, r)
+	case "POST":
+		s.encoding(w, r)
+	}
+}
+
+func (s *Server) NextReader() (eio.FrameType, eio.PacketType, io.ReadCloser, error) {
+	return s.decoder.NextReader()
+}
+
+func (s *Server) NextWriter(ft eio.FrameType, pt eio.PacketType) (io.WriteCloser, error) {
+	return s.encoder.NextWriter(ft, pt)
+}
+
+func (s *Server) decoding(w http.ResponseWriter, r *http.Request) {
+	s.decodeLocker.Lock()
+	defer s.decodeLocker.Unlock()
+
+	s.decoder.FeedIn(bufio.NewReader(r.Body))
+}
+
+func (s *Server) encoding(w http.ResponseWriter, r *http.Request) {
+	s.encodeLocker.Lock()
+	defer s.encodeLocker.Unlock()
+
+	bufw := bufio.NewWriter(w)
+	s.encoder.FlushTo(bufw, time.Second*10)
+	bufw.Flush()
+}
