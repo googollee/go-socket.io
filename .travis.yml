@@ -10,6 +10,8 @@ install:
   - go get github.com/bradfitz/goimports
   - go get github.com/golang/lint
   - go get github.com/gordonklaus/ineffassign
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
 script:
   - make test
   - ./gosweep.sh
