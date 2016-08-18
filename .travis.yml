@@ -1,8 +1,15 @@
+sudo: false
 language: go
+env:
+  CI_SERVICE: travis-ci
 go:
   - 1.6
   - tip
 install:
   - make getdev
+  - go get github.com/bradfitz/goimports
+  - go get github.com/golang/lint
+  - go get github.com/gordonklaus/ineffassign
 script:
   - make test
+  - ./gosweep.sh
