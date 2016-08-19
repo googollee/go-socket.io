@@ -10,7 +10,6 @@ import (
 )
 
 type conn struct {
-	sid       string
 	ws        wrapper
 	closed    chan struct{}
 	closeOnce sync.Once
@@ -18,19 +17,14 @@ type conn struct {
 	base.FrameReader
 }
 
-func newConn(sid string, ws *websocket.Conn, closed chan struct{}) base.Conn {
+func newConn(ws *websocket.Conn, closed chan struct{}) base.Conn {
 	w := newWrapper(ws)
 	return &conn{
-		sid:         sid,
 		ws:          w,
 		closed:      closed,
 		FrameReader: packet.NewDecoder(w),
 		FrameWriter: packet.NewEncoder(w),
 	}
-}
-
-func (c *conn) SessionID() string {
-	return c.sid
 }
 
 func (c *conn) LocalAddr() net.Addr {

@@ -46,7 +46,6 @@ type Conn interface {
 	FrameReader
 	FrameWriter
 	io.Closer
-	SessionID() string
 	LocalAddr() net.Addr
 	RemoteAddr() net.Addr
 }

@@ -6,16 +6,10 @@ import (
 	"github.com/googollee/go-engine.io/base"
 )
 
-// ConnArg is the argument when transport creates base.Conn.
-type ConnArg struct {
-	Conn  base.Conn
-	Close chan struct{}
-}
-
 // Transport is a transport which can creates base.Conn
 type Transport interface {
-	ServeHTTP(sid string, header http.Header, w http.ResponseWriter, r *http.Request)
-	ConnChan() <-chan ConnArg
+	ServeHTTP(header http.Header, w http.ResponseWriter, r *http.Request)
+	ConnChan() <-chan base.Conn
 }
 
 // Manager is a manager of transports.

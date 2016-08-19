@@ -9,7 +9,7 @@
 # 7. test coverage (http://blog.golang.org/cover)
 
 go get github.com/bradfitz/goimports
-go get github.com/golang/lint
+go get github.com/golang/lint/golint
 go get github.com/gordonklaus/ineffassign
 
 set -e
@@ -22,9 +22,7 @@ test -z "$(ineffassign .     | tee /dev/stderr)"
 
 DIR_SOURCE="$(find . -maxdepth 10 -type f -not -path '*/vendor*' -name '*.go' | xargs -I {} dirname {} | sort | uniq)"
 
-if [ -n "${CI_SERVICE+1}" ]; then
-    go vet ${DIR_SOURCE}
-fi
+go vet ${DIR_SOURCE}
 env GORACE="halt_on_error=1" go test -short -race ${DIR_SOURCE}
 
 
