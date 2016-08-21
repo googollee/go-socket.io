@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"net"
+	"net/http"
 	"sync"
 
 	"github.com/googollee/go-engine.io/base"
@@ -10,21 +11,31 @@ import (
 )
 
 type conn struct {
-	ws        wrapper
-	closed    chan struct{}
-	closeOnce sync.Once
+	remoteHeader http.Header
+	ws           wrapper
+	closed       chan struct{}
+	closeOnce    sync.Once
 	base.FrameWriter
 	base.FrameReader
 }
 
-func newConn(ws *websocket.Conn, closed chan struct{}) base.Conn {
+func newConn(ws *websocket.Conn, remote http.Header, closed chan struct{}) base.Conn {
 	w := newWrapper(ws)
 	return &conn{
-		ws:          w,
-		closed:      closed,
-		FrameReader: packet.NewDecoder(w),
-		FrameWriter: packet.NewEncoder(w),
+		remoteHeader: remote,
+		ws:           w,
+		closed:       closed,
+		FrameReader:  packet.NewDecoder(w),
+		FrameWriter:  packet.NewEncoder(w),
 	}
+}
+
+func (c *conn) RemoteHeader() http.Header {
+	return c.remoteHeader
+}
+
+func (c *conn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "invalid websocket request", http.StatusInternalServerError)
 }
 
 func (c *conn) LocalAddr() net.Addr {

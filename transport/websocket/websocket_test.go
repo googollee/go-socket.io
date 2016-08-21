@@ -27,7 +27,9 @@ func TestWebsocket(t *testing.T) {
 
 	svr := NewServer(nil)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		svr.ServeHTTP(nil, nil, w, r)
+		header := make(http.Header)
+		header.Set("X-Eio-Test", "server")
+		svr.ServeHTTP(header, w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
@@ -37,7 +39,9 @@ func TestWebsocket(t *testing.T) {
 	u.Scheme = "ws"
 
 	dialer := Dialer{}
-	cc, err := dialer.Dial(u.String(), nil)
+	header := make(http.Header)
+	header.Set("X-Eio-Test", "client")
+	cc, err := dialer.Dial(u.String(), header)
 	at.Nil(err)
 	defer cc.Close()
 
@@ -46,6 +50,16 @@ func TestWebsocket(t *testing.T) {
 
 	at.Equal(sc.LocalAddr().String(), cc.RemoteAddr().String())
 	at.Equal(cc.LocalAddr().String(), sc.RemoteAddr().String())
+	at.Equal("server", cc.RemoteHeader().Get("X-Eio-Test"))
+	at.Equal("client", sc.RemoteHeader().Get("X-Eio-Test"))
+
+	recorder := httptest.NewRecorder()
+	recorder.Code = 0
+	sc.ServeHTTP(recorder, nil)
+	at.Equal(http.StatusInternalServerError, recorder.Code)
+	recorder.Code = 0
+	cc.ServeHTTP(recorder, nil)
+	at.Equal(http.StatusInternalServerError, recorder.Code)
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)

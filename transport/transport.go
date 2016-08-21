@@ -8,7 +8,7 @@ import (
 
 // Transport is a transport which can creates base.Conn
 type Transport interface {
-	ServeHTTP(conn base.Conn, header http.Header, w http.ResponseWriter, r *http.Request)
+	ServeHTTP(header http.Header, w http.ResponseWriter, r *http.Request)
 	ConnChan() <-chan base.Conn
 }
 

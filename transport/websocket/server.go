@@ -43,10 +43,7 @@ func (s *server) ConnChan() <-chan base.Conn {
 	return s.connChan
 }
 
-func (s *server) ServeHTTP(conn base.Conn, header http.Header, w http.ResponseWriter, r *http.Request) {
-	if conn != nil {
-		http.Error(w, "invalid websocket request", http.StatusInternalServerError)
-	}
+func (s *server) ServeHTTP(header http.Header, w http.ResponseWriter, r *http.Request) {
 	c, err := s.upgrader.Upgrade(w, r, header)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -55,6 +52,6 @@ func (s *server) ServeHTTP(conn base.Conn, header http.Header, w http.ResponseWr
 	defer c.Close()
 
 	closed := make(chan struct{})
-	s.connChan <- newConn(c, closed)
+	s.connChan <- newConn(c, r.Header, closed)
 	<-closed
 }

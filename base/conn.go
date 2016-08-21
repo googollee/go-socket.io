@@ -3,6 +3,7 @@ package base
 import (
 	"io"
 	"net"
+	"net/http"
 )
 
 // FrameType is the type of frames.
@@ -48,4 +49,7 @@ type Conn interface {
 	io.Closer
 	LocalAddr() net.Addr
 	RemoteAddr() net.Addr
+
+	RemoteHeader() http.Header
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
