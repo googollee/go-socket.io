@@ -27,7 +27,7 @@ func TestWebsocket(t *testing.T) {
 
 	svr := NewServer(nil)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		svr.ServeHTTP(nil, w, r)
+		svr.ServeHTTP(nil, nil, w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()

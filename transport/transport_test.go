@@ -10,7 +10,7 @@ import (
 
 type fakeTransport struct{}
 
-func (f fakeTransport) ServeHTTP(http.Header, http.ResponseWriter, *http.Request) {}
+func (f fakeTransport) ServeHTTP(base.Conn, http.Header, http.ResponseWriter, *http.Request) {}
 
 func (f fakeTransport) ConnChan() <-chan base.Conn {
 	return nil
