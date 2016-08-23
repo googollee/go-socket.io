@@ -54,11 +54,7 @@ func writeStringLen(l int, w byteWriter) error {
 	return w.WriteByte(':')
 }
 
-type byteReader interface {
-	ReadByte() (byte, error)
-}
-
-func readBinaryLen(r byteReader) (int, error) {
+func readBinaryLen(r ByteReader) (int, error) {
 	ret := 0
 	for {
 		b, err := r.ReadByte()
@@ -76,7 +72,7 @@ func readBinaryLen(r byteReader) (int, error) {
 	return ret, nil
 }
 
-func readStringLen(r byteReader) (int, error) {
+func readStringLen(r ByteReader) (int, error) {
 	ret := 0
 	for {
 		b, err := r.ReadByte()

@@ -1,86 +1,142 @@
 package payload
 
 import (
+	"bufio"
 	"io"
+	"sync/atomic"
 
 	"github.com/googollee/go-engine.io/base"
 )
 
-type decoder struct {
-	conn ConnReader
-	lr   *limitReader
-	read func() (base.FrameType, base.PacketType, io.Reader, error)
+type readerArg struct {
+	r   io.Reader
+	typ base.FrameType
 }
 
-func newDecoder(conn ConnReader) *decoder {
+type decoder struct {
+	errorChan  chan error
+	readerChan chan readerArg
+	lr         *limitReader
+	closed     chan struct{}
+	err        *atomic.Value
+}
+
+func newDecoder(closed chan struct{}, err *atomic.Value) *decoder {
 	ret := &decoder{
-		conn: conn,
-		lr:   newLimitReader(conn),
+		errorChan:  make(chan error),
+		readerChan: make(chan readerArg),
+		closed:     closed,
+		err:        err,
 	}
-	if conn.SupportBinary() {
-		ret.read = ret.binaryRead
-	} else {
-		ret.read = ret.stringRead
-	}
+	ret.lr = newLimitReader(ret)
 	return ret
 }
 
-func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
-	if err := r.lr.Close(); err != nil {
-		return base.FrameInvalid, base.UNKNOWN, nil, err
+func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
+	arg, err := r.waitReader()
+	if err != nil {
+		return 0, 0, nil, err
 	}
-	return r.read()
+
+	br, ok := arg.r.(ByteReader)
+	if !ok {
+		br = bufio.NewReader(br)
+	}
+	var read func(br ByteReader) (base.FrameType, base.PacketType, io.ReadCloser, error)
+	switch arg.typ {
+	case base.FrameBinary:
+		read = r.binaryRead
+	case base.FrameString:
+		read = r.stringRead
+	default:
+		return 0, 0, nil, ErrInvalidPayload
+	}
+
+	return read(br)
 }
 
-func (r *decoder) stringRead() (base.FrameType, base.PacketType, io.Reader, error) {
-	l, err := readStringLen(r.conn)
+func (r *decoder) FeedIn(typ base.FrameType, rd io.Reader) error {
+	select {
+	case r.readerChan <- readerArg{
+		r:   rd,
+		typ: typ,
+	}:
+	case <-r.closed:
+		return r.err.Load().(error)
+	}
+	select {
+	case err := <-r.errorChan:
+		return err
+	case <-r.closed:
+		return r.err.Load().(error)
+	}
+}
+
+func (r *decoder) waitReader() (readerArg, error) {
+	select {
+	case ret := <-r.readerChan:
+		return ret, nil
+	case <-r.closed:
+		return readerArg{}, r.err.Load().(error)
+	}
+}
+
+func (r *decoder) closeFrame(err error) {
+	select {
+	case r.errorChan <- err:
+	case <-r.closed:
+	}
+}
+
+func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io.ReadCloser, error) {
+	l, err := readStringLen(br)
 	if err != nil {
-		return base.FrameInvalid, base.UNKNOWN, nil, err
+		return 0, 0, nil, err
 	}
 
 	ft := base.FrameString
-	b, err := r.conn.ReadByte()
+	b, err := br.ReadByte()
 	if err != nil {
-		return base.FrameInvalid, base.UNKNOWN, nil, err
+		return 0, 0, nil, err
 	}
 	l--
 
 	if b == 'b' {
 		ft = base.FrameBinary
-		b, err = r.conn.ReadByte()
+		b, err = br.ReadByte()
 		if err != nil {
-			return base.FrameInvalid, base.UNKNOWN, nil, err
+			return 0, 0, nil, err
 		}
 		l--
 	}
 
 	pt := base.ByteToPacketType(b, base.FrameString)
-	r.lr.Limit(l, ft == base.FrameBinary)
+	r.lr.SetReader(br, l, ft == base.FrameBinary)
 	return ft, pt, r.lr, nil
 }
 
-func (r *decoder) binaryRead() (base.FrameType, base.PacketType, io.Reader, error) {
-	b, err := r.conn.ReadByte()
+func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io.ReadCloser, error) {
+	b, err := br.ReadByte()
 	if err != nil {
-		return base.FrameInvalid, base.UNKNOWN, nil, err
+		return 0, 0, nil, err
 	}
 	if b > 1 {
-		return base.FrameInvalid, base.UNKNOWN, nil, ErrInvalidPayload
+		return 0, 0, nil, ErrInvalidPayload
 	}
 	ft := base.ByteToFrameType(b)
 
-	l, err := readBinaryLen(r.conn)
+	l, err := readBinaryLen(br)
 	if err != nil {
-		return base.FrameInvalid, base.UNKNOWN, nil, err
+		return 0, 0, nil, err
 	}
 
-	b, err = r.conn.ReadByte()
+	b, err = br.ReadByte()
 	if err != nil {
-		return base.FrameInvalid, base.UNKNOWN, nil, err
+		return 0, 0, nil, err
 	}
 	pt := base.ByteToPacketType(b, ft)
 	l--
 
-	r.lr.Limit(l, false)
+	r.lr.SetReader(br, l, false)
 	return ft, pt, r.lr, nil
 }

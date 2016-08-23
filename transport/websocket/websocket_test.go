@@ -48,8 +48,8 @@ func TestWebsocket(t *testing.T) {
 	sc := <-svr.ConnChan()
 	defer sc.Close()
 
-	at.Equal(sc.LocalAddr().String(), cc.RemoteAddr().String())
-	at.Equal(cc.LocalAddr().String(), sc.RemoteAddr().String())
+	at.Equal(sc.LocalAddr(), cc.RemoteAddr())
+	at.Equal(cc.LocalAddr(), sc.RemoteAddr())
 	at.Equal("server", cc.RemoteHeader().Get("X-Eio-Test"))
 	at.Equal("client", sc.RemoteHeader().Get("X-Eio-Test"))
 
@@ -57,6 +57,7 @@ func TestWebsocket(t *testing.T) {
 	recorder.Code = 0
 	sc.ServeHTTP(recorder, nil)
 	at.Equal(http.StatusInternalServerError, recorder.Code)
+	recorder = httptest.NewRecorder()
 	recorder.Code = 0
 	cc.ServeHTTP(recorder, nil)
 	at.Equal(http.StatusInternalServerError, recorder.Code)

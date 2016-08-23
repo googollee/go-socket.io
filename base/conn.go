@@ -2,7 +2,6 @@ package base
 
 import (
 	"io"
-	"net"
 	"net/http"
 )
 
@@ -14,17 +13,11 @@ const (
 	FrameString FrameType = iota
 	// FrameBinary identifies a binary frame.
 	FrameBinary
-	// FrameInvalid identifies a invalid frame.
-	FrameInvalid
 )
 
 // ByteToFrameType converts a byte to FrameType.
 func ByteToFrameType(b byte) FrameType {
-	ret := FrameType(b)
-	if ret > FrameInvalid {
-		return FrameInvalid
-	}
-	return ret
+	return FrameType(b)
 }
 
 // Byte returns type in byte.
@@ -34,7 +27,7 @@ func (t FrameType) Byte() byte {
 
 // FrameReader reads a frame. It need be closed before next reading.
 type FrameReader interface {
-	NextReader() (FrameType, PacketType, io.Reader, error)
+	NextReader() (FrameType, PacketType, io.ReadCloser, error)
 }
 
 // FrameWriter writes a frame. It need be closed before next writing.
@@ -47,8 +40,8 @@ type Conn interface {
 	FrameReader
 	FrameWriter
 	io.Closer
-	LocalAddr() net.Addr
-	RemoteAddr() net.Addr
+	LocalAddr() string
+	RemoteAddr() string
 
 	RemoteHeader() http.Header
 	ServeHTTP(w http.ResponseWriter, r *http.Request)

@@ -23,9 +23,6 @@ func TestPacketType(t *testing.T) {
 		{4, FrameBinary, MESSAGE, '4', 4, "message"},
 		{5, FrameBinary, UPGRADE, '5', 5, "upgrade"},
 		{6, FrameBinary, NOOP, '6', 6, "noop"},
-		{7, FrameBinary, UNKNOWN, '7', 7, "unknown"},
-		{8, FrameBinary, UNKNOWN, '7', 7, "unknown"},
-		{255, FrameBinary, UNKNOWN, '7', 7, "unknown"},
 
 		{'0', FrameString, OPEN, '0', 0, "open"},
 		{'1', FrameString, CLOSE, '1', 1, "close"},
@@ -34,9 +31,6 @@ func TestPacketType(t *testing.T) {
 		{'4', FrameString, MESSAGE, '4', 4, "message"},
 		{'5', FrameString, UPGRADE, '5', 5, "upgrade"},
 		{'6', FrameString, NOOP, '6', 6, "noop"},
-		{'7', FrameString, UNKNOWN, '7', 7, "unknown"},
-		{'8', FrameString, UNKNOWN, '7', 7, "unknown"},
-		{'Z', FrameBinary, UNKNOWN, '7', 7, "unknown"},
 	}
 
 	for _, test := range tests {

@@ -3,6 +3,7 @@ package packet
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 
 	"github.com/googollee/go-engine.io/base"
 )
@@ -17,13 +18,13 @@ func newFakeConnReader(frames []Frame) *fakeConnReader {
 	}
 }
 
-func (r *fakeConnReader) NextReader() (base.FrameType, io.Reader, error) {
+func (r *fakeConnReader) NextReader() (base.FrameType, io.ReadCloser, error) {
 	if len(r.frames) == 0 {
 		return base.FrameString, nil, io.EOF
 	}
 	f := r.frames[0]
 	r.frames = r.frames[1:]
-	return f.typ, bytes.NewReader(f.data), nil
+	return f.typ, ioutil.NopCloser(bytes.NewReader(f.data)), nil
 }
 
 type fakeFrame struct {
@@ -80,6 +81,10 @@ func (c *fakeOneFrameConst) Read(p []byte) (int, error) {
 	return 1, nil
 }
 
+func (c *fakeOneFrameConst) Close() error {
+	return nil
+}
+
 type fakeConstReader struct {
 	ft base.FrameType
 	r  *fakeOneFrameConst
@@ -94,7 +99,7 @@ func newFakeConstReader() *fakeConstReader {
 	}
 }
 
-func (r *fakeConstReader) NextReader() (base.FrameType, io.Reader, error) {
+func (r *fakeConstReader) NextReader() (base.FrameType, io.ReadCloser, error) {
 	ft := r.ft
 	switch ft {
 	case base.FrameBinary:

@@ -25,8 +25,6 @@ const (
 	// NOOP is a noop packet. Used primarily to force a poll cycle when an
 	// incoming websocket connection is received.
 	NOOP
-	// UNKNOWN is invalid packet type.
-	UNKNOWN
 )
 
 func (id PacketType) String() string {
@@ -63,9 +61,6 @@ func (id PacketType) BinaryByte() byte {
 func ByteToPacketType(b byte, typ FrameType) PacketType {
 	if typ == FrameString {
 		b -= '0'
-	}
-	if b > byte(UNKNOWN) {
-		return UNKNOWN
 	}
 	return PacketType(b)
 }

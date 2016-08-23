@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"net"
 	"net/http"
 	"sync"
 
@@ -38,12 +37,12 @@ func (c *conn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "invalid websocket request", http.StatusInternalServerError)
 }
 
-func (c *conn) LocalAddr() net.Addr {
-	return c.ws.LocalAddr()
+func (c *conn) LocalAddr() string {
+	return c.ws.LocalAddr().String()
 }
 
-func (c *conn) RemoteAddr() net.Addr {
-	return c.ws.RemoteAddr()
+func (c *conn) RemoteAddr() string {
+	return c.ws.RemoteAddr().String()
 }
 
 func (c *conn) Close() error {

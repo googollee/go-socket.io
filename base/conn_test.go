@@ -15,9 +15,6 @@ func TestFrameType(t *testing.T) {
 	}{
 		{0, FrameString, 0},
 		{1, FrameBinary, 1},
-		{2, FrameInvalid, 2},
-		{3, FrameInvalid, 2},
-		{255, FrameInvalid, 2},
 	}
 
 	for _, test := range tests {

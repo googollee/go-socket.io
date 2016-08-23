@@ -7,19 +7,20 @@ import (
 )
 
 type limitReader struct {
-	limit *io.LimitedReader
-	b64   io.Reader
+	decoder *decoder
+	limit   *io.LimitedReader
+	b64     io.Reader
 }
 
-func newLimitReader(r io.Reader) *limitReader {
+func newLimitReader(d *decoder) *limitReader {
 	return &limitReader{
-		limit: &io.LimitedReader{
-			R: r,
-		},
+		decoder: d,
+		limit:   &io.LimitedReader{},
 	}
 }
 
-func (r *limitReader) Limit(n int, b64 bool) {
+func (r *limitReader) SetReader(rd io.Reader, n int, b64 bool) {
+	r.limit.R = rd
 	r.limit.N = int64(n)
 	if b64 {
 		r.b64 = base64.NewDecoder(base64.StdEncoding, r.limit)
@@ -29,18 +30,27 @@ func (r *limitReader) Limit(n int, b64 bool) {
 }
 
 func (r *limitReader) Read(p []byte) (int, error) {
+	var read func([]byte) (int, error)
 	if r.b64 != nil {
-		return r.b64.Read(p)
+		read = r.b64.Read
+	} else {
+		read = r.limit.Read
 	}
-	return r.limit.Read(p)
+	n, err := read(p)
+	if err != nil && err != io.EOF {
+		r.decoder.closeFrame(err)
+	}
+	return n, err
 }
 
 func (r *limitReader) Close() error {
 	if r.limit.N == 0 {
 		r.b64 = nil
+		r.decoder.closeFrame(nil)
 		return nil
 	}
 	_, err := io.Copy(ioutil.Discard, r)
 	r.b64 = nil
+	r.decoder.closeFrame(err)
 	return err
 }

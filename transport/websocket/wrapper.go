@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"io"
+	"io/ioutil"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/googollee/go-engine.io/transport"
@@ -18,17 +19,21 @@ func newWrapper(conn *websocket.Conn) wrapper {
 	}
 }
 
-func (w wrapper) NextReader() (base.FrameType, io.Reader, error) {
+func (w wrapper) NextReader() (base.FrameType, io.ReadCloser, error) {
 	for {
 		typ, r, err := w.Conn.NextReader()
 		if err != nil {
-			return base.FrameInvalid, nil, err
+			return 0, nil, err
+		}
+		ret, ok := r.(io.ReadCloser)
+		if !ok {
+			ret = ioutil.NopCloser(r)
 		}
 		switch typ {
 		case websocket.TextMessage:
-			return base.FrameString, r, nil
+			return base.FrameString, ret, nil
 		case websocket.BinaryMessage:
-			return base.FrameBinary, r, nil
+			return base.FrameBinary, ret, nil
 		}
 	}
 }

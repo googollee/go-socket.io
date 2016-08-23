@@ -4,23 +4,19 @@ package payload
 import (
 	"errors"
 	"io"
+	"sync/atomic"
 
 	"github.com/googollee/go-engine.io/base"
 )
 
-// ConnReader is a reader of one connection. It should have buffer internal,
-// which can read byte by byte.
-type ConnReader interface {
-	SupportBinary() bool
-	io.Reader
+type ByteReader interface {
 	ReadByte() (byte, error)
+	io.Reader
 }
 
-// ConnWriter is a writer of one connection. WriteFrame called means writing
-// one frame into that connection.
-type ConnWriter interface {
-	SupportBinary() bool
-	WriteFrame(head, data []byte) error
+type ByteWriter interface {
+	WriteByte(b byte) error
+	io.Writer
 }
 
 // Encoder encodes packet frames into a payload. It need be closed before
@@ -30,13 +26,14 @@ type ConnWriter interface {
 // must close frame and Flushed before SetWriter.
 type Encoder interface {
 	base.FrameWriter
+	FlushOut(w io.Writer) error
 }
 
 // NewEncoder creates a new encoder, output to w. The maximum size of one frame
 // is limited with maxFrameSize. If w supports binary, set supportBinary true,
 // otherwise set it to false.
-func NewEncoder(w ConnWriter) Encoder {
-	return newEncoder(w)
+func NewEncoder(supportBinary bool, closed chan struct{}, err *atomic.Value) Encoder {
+	return newEncoder(supportBinary, closed, err)
 }
 
 // ErrInvalidPayload is error of invalid payload while decoding.
@@ -48,10 +45,11 @@ var ErrInvalidPayload = errors.New("invalid payload")
 // It must close frame before SetReader.
 type Decoder interface {
 	base.FrameReader
+	FeedIn(typ base.FrameType, r io.Reader) error
 }
 
 // NewDecoder creates a new decoder, input from r. If r supports binary, set
 // supportBinary true, otherwise set it to false.
-func NewDecoder(r ConnReader) Decoder {
-	return newDecoder(r)
+func NewDecoder(closed chan struct{}, err *atomic.Value) Decoder {
+	return newDecoder(closed, err)
 }
