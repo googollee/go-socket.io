@@ -14,11 +14,13 @@ type readerArg struct {
 }
 
 type decoder struct {
-	errorChan  chan error
-	readerChan chan readerArg
-	lr         *limitReader
-	closed     chan struct{}
-	err        *atomic.Value
+	errorChan   chan error
+	readerChan  chan readerArg
+	lastType    base.FrameType
+	lastReader  ByteReader
+	limitReader *limitReader
+	closed      chan struct{}
+	err         *atomic.Value
 }
 
 func newDecoder(closed chan struct{}, err *atomic.Value) *decoder {
@@ -28,31 +30,59 @@ func newDecoder(closed chan struct{}, err *atomic.Value) *decoder {
 		closed:     closed,
 		err:        err,
 	}
-	ret.lr = newLimitReader(ret)
+	ret.limitReader = newLimitReader(ret)
 	return ret
 }
 
-func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
-	arg, err := r.waitReader()
-	if err != nil {
-		return 0, 0, nil, err
+func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
+	if r.lastReader == nil {
+		arg, err := r.waitReader()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+
+		br, ok := arg.r.(ByteReader)
+		if !ok {
+			br = bufio.NewReader(arg.r)
+		}
+		r.lastReader = br
+		r.lastType = arg.typ
+	} else {
+		r.limitReader.Close()
 	}
 
-	br, ok := arg.r.(ByteReader)
-	if !ok {
-		br = bufio.NewReader(br)
-	}
-	var read func(br ByteReader) (base.FrameType, base.PacketType, io.ReadCloser, error)
-	switch arg.typ {
-	case base.FrameBinary:
-		read = r.binaryRead
-	case base.FrameString:
-		read = r.stringRead
-	default:
-		return 0, 0, nil, ErrInvalidPayload
-	}
+	for {
+		var read func(br ByteReader) (base.FrameType, base.PacketType, io.Reader, error)
+		switch r.lastType {
+		case base.FrameBinary:
+			read = r.binaryRead
+		case base.FrameString:
+			read = r.stringRead
+		default:
+			return 0, 0, nil, ErrInvalidPayload
+		}
 
-	return read(br)
+		ft, pt, ret, err := read(r.lastReader)
+		if err != io.EOF {
+			if err != nil {
+				r.closeFrame(err)
+			}
+			return ft, pt, ret, err
+		}
+		r.closeFrame(nil)
+
+		arg, err := r.waitReader()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+
+		br, ok := arg.r.(ByteReader)
+		if !ok {
+			br = bufio.NewReader(arg.r)
+		}
+		r.lastReader = br
+		r.lastType = arg.typ
+	}
 }
 
 func (r *decoder) FeedIn(typ base.FrameType, rd io.Reader) error {
@@ -88,7 +118,7 @@ func (r *decoder) closeFrame(err error) {
 	}
 }
 
-func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io.ReadCloser, error) {
+func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io.Reader, error) {
 	l, err := readStringLen(br)
 	if err != nil {
 		return 0, 0, nil, err
@@ -111,11 +141,11 @@ func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io
 	}
 
 	pt := base.ByteToPacketType(b, base.FrameString)
-	r.lr.SetReader(br, l, ft == base.FrameBinary)
-	return ft, pt, r.lr, nil
+	r.limitReader.SetReader(br, l, ft == base.FrameBinary)
+	return ft, pt, r.limitReader, nil
 }
 
-func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io.ReadCloser, error) {
+func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io.Reader, error) {
 	b, err := br.ReadByte()
 	if err != nil {
 		return 0, 0, nil, err
@@ -137,6 +167,6 @@ func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io
 	pt := base.ByteToPacketType(b, ft)
 	l--
 
-	r.lr.SetReader(br, l, false)
-	return ft, pt, r.lr, nil
+	r.limitReader.SetReader(br, l, false)
+	return ft, pt, r.limitReader, nil
 }

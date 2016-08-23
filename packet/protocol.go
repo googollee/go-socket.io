@@ -9,7 +9,7 @@ import (
 
 // FrameReader is the reader which supports framing.
 type FrameReader interface {
-	NextReader() (base.FrameType, io.ReadCloser, error)
+	NextReader() (base.FrameType, io.Reader, error)
 }
 
 // FrameWriter is the writer which supports framing.

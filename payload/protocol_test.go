@@ -113,8 +113,6 @@ func TestDecoder(t *testing.T) {
 				}
 				data, err := ioutil.ReadAll(fr)
 				at.Nil(err)
-				err = fr.Close()
-				at.Nil(err)
 				packet := Packet{
 					ft:   ft,
 					pt:   pt,
@@ -298,11 +296,9 @@ func BenchmarkStringDecoder(b *testing.B) {
 	go func() {
 		defer wg.Done()
 
-		for {
-			err := decoder.FeedIn(base.FrameString, reader)
-			if err != nil {
-				return
-			}
+		err := decoder.FeedIn(base.FrameString, reader)
+		if err != nil {
+			return
 		}
 	}()
 
@@ -312,7 +308,6 @@ func BenchmarkStringDecoder(b *testing.B) {
 		for j := 0; j < 3; j++ {
 			_, _, r, _ := decoder.NextReader()
 			r.Read(buf)
-			r.Close()
 		}
 	}
 
@@ -349,7 +344,6 @@ func BenchmarkB64Decoder(b *testing.B) {
 		for j := 0; j < 3; j++ {
 			_, _, r, _ := decoder.NextReader()
 			r.Read(buf)
-			r.Close()
 		}
 	}
 
@@ -391,7 +385,6 @@ func BenchmarkBinaryDecoder(b *testing.B) {
 		for j := 0; j < 4; j++ {
 			_, _, r, _ := decoder.NextReader()
 			r.Read(buf)
-			r.Close()
 		}
 	}
 

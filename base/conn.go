@@ -27,7 +27,7 @@ func (t FrameType) Byte() byte {
 
 // FrameReader reads a frame. It need be closed before next reading.
 type FrameReader interface {
-	NextReader() (FrameType, PacketType, io.ReadCloser, error)
+	NextReader() (FrameType, PacketType, io.Reader, error)
 }
 
 // FrameWriter writes a frame. It need be closed before next writing.

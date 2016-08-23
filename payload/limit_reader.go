@@ -46,11 +46,9 @@ func (r *limitReader) Read(p []byte) (int, error) {
 func (r *limitReader) Close() error {
 	if r.limit.N == 0 {
 		r.b64 = nil
-		r.decoder.closeFrame(nil)
 		return nil
 	}
 	_, err := io.Copy(ioutil.Discard, r)
 	r.b64 = nil
-	r.decoder.closeFrame(err)
 	return err
 }
