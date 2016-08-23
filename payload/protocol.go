@@ -9,11 +9,13 @@ import (
 	"github.com/googollee/go-engine.io/base"
 )
 
+// ByteReader can read byte by byte
 type ByteReader interface {
 	ReadByte() (byte, error)
 	io.Reader
 }
 
+// ByteWriter can write byte by byte
 type ByteWriter interface {
 	WriteByte(b byte) error
 	io.Writer
