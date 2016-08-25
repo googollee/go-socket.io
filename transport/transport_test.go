@@ -10,9 +10,9 @@ import (
 
 type fakeTransport struct{}
 
-func (f fakeTransport) ServeHTTP(http.Header, http.ResponseWriter, *http.Request) {}
+func (f fakeTransport) ServeHTTP(http.ResponseWriter, *http.Request) {}
 
-func (f fakeTransport) ConnChan() <-chan base.Conn {
+func (f fakeTransport) ConnChan() <-chan base.ServerConn {
 	return nil
 }
 

@@ -27,9 +27,8 @@ func TestWebsocket(t *testing.T) {
 
 	svr := NewServer(nil)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		header := make(http.Header)
-		header.Set("X-Eio-Test", "server")
-		svr.ServeHTTP(header, w, r)
+		w.Header().Set("X-Eio-Test", "server")
+		svr.ServeHTTP(w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
@@ -56,10 +55,6 @@ func TestWebsocket(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	recorder.Code = 0
 	sc.ServeHTTP(recorder, nil)
-	at.Equal(http.StatusInternalServerError, recorder.Code)
-	recorder = httptest.NewRecorder()
-	recorder.Code = 0
-	cc.ServeHTTP(recorder, nil)
 	at.Equal(http.StatusInternalServerError, recorder.Code)
 
 	wg := sync.WaitGroup{}
