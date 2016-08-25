@@ -25,7 +25,7 @@ var tests = []struct {
 func TestWebsocket(t *testing.T) {
 	at := assert.New(t)
 
-	svr := NewServer(nil)
+	svr := New(nil)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		svr.ServeHTTP(w, r)

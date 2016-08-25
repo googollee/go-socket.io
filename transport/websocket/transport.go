@@ -20,17 +20,17 @@ var DefaultConfigure = &Configure{
 	WriteBufferSize: 1024,
 }
 
-type server struct {
+type wsTransport struct {
 	upgrader websocket.Upgrader
 	connChan chan base.ServerConn
 }
 
-// NewServer creates new websocket transport server.
-func NewServer(c *Configure) transport.Transport {
+// New creates new websocket transport.
+func New(c *Configure) transport.Transport {
 	if c == nil {
 		c = DefaultConfigure
 	}
-	return &server{
+	return &wsTransport{
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  c.ReadBufferSize,
 			WriteBufferSize: c.WriteBufferSize,
@@ -39,11 +39,11 @@ func NewServer(c *Configure) transport.Transport {
 	}
 }
 
-func (s *server) ConnChan() <-chan base.ServerConn {
+func (s *wsTransport) ConnChan() <-chan base.ServerConn {
 	return s.connChan
 }
 
-func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *wsTransport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c, err := s.upgrader.Upgrade(w, r, w.Header())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
