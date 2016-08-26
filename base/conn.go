@@ -2,8 +2,11 @@ package base
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -114,4 +117,32 @@ func (w *writer) Write(p []byte) (int, error) {
 	n, err := w.w.Write(p)
 	w.i += int64(n)
 	return n, err
+}
+
+// OpError is the error type usually returned by functions in the transport
+// package.
+type OpError struct {
+	URL url.URL
+	Op  string
+	Err error
+}
+
+func (e *OpError) Error() string {
+	return fmt.Sprintf("%s %s: %s", e.Op, e.URL.String(), e.Err.Error())
+}
+
+// Timeout returns true if the error is a timeout.
+func (e *OpError) Timeout() bool {
+	if r, ok := e.Err.(net.Error); ok {
+		return r.Timeout()
+	}
+	return false
+}
+
+// Temporary returns true if the error is temporary.
+func (e *OpError) Temporary() bool {
+	if r, ok := e.Err.(net.Error); ok {
+		return r.Temporary()
+	}
+	return false
 }

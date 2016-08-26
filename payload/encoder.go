@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"sync/atomic"
+	"time"
 
 	"github.com/googollee/go-engine.io/base"
 )
@@ -20,6 +21,7 @@ type encoder struct {
 	closed        chan struct{}
 	err           *atomic.Value
 	cache         *frameCache
+	deadline      time.Time
 }
 
 func newEncoder(supportBinary bool, closed chan struct{}, err *atomic.Value) *encoder {
@@ -32,6 +34,11 @@ func newEncoder(supportBinary bool, closed chan struct{}, err *atomic.Value) *en
 	}
 	ret.cache = newFrameCache(ret)
 	return ret
+}
+
+func (w *encoder) SetDeadline(t time.Time) error {
+	w.deadline = t
+	return nil
 }
 
 func (w *encoder) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
@@ -58,7 +65,19 @@ func (w *encoder) FlushOut(wr io.Writer) error {
 }
 
 func (w *encoder) waitWriter() (io.Writer, error) {
+	if w.deadline.IsZero() {
+		select {
+		case arg := <-w.writerChan:
+			return arg, nil
+		case <-w.closed:
+			return nil, w.err.Load().(error)
+		}
+	}
 	select {
+	case <-time.After(w.deadline.Sub(time.Now())):
+		err := ErrTimeout
+		w.err.Store(err)
+		return nil, err
 	case arg := <-w.writerChan:
 		return arg, nil
 	case <-w.closed:
@@ -96,12 +115,15 @@ func (w *encoder) closeFrame() error {
 	if err == nil && flusher != nil {
 		err = flusher.Flush()
 	}
+	if err != nil {
+		w.err.Store(err)
+	}
 	select {
 	case w.errorChan <- err:
 	case <-w.closed:
 		return w.err.Load().(error)
 	}
-	return nil
+	return err
 }
 
 func (w *encoder) writeStringHeader(bw ByteWriter) error {

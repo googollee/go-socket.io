@@ -5,9 +5,13 @@ import (
 	"errors"
 	"io"
 	"sync/atomic"
+	"time"
 
 	"github.com/googollee/go-engine.io/base"
 )
+
+// ErrTimeout is timeout error.
+var ErrTimeout = errors.New("i/o timeout")
 
 // ByteReader can read byte by byte
 type ByteReader interface {
@@ -29,6 +33,7 @@ type ByteWriter interface {
 type Encoder interface {
 	base.FrameWriter
 	FlushOut(w io.Writer) error
+	SetDeadline(t time.Time) error
 }
 
 // NewEncoder creates a new encoder, output to w. The maximum size of one frame
@@ -48,6 +53,7 @@ var ErrInvalidPayload = errors.New("invalid payload")
 type Decoder interface {
 	base.FrameReader
 	FeedIn(typ base.FrameType, r io.Reader) error
+	SetDeadline(t time.Time) error
 }
 
 // NewDecoder creates a new decoder, input from r. If r supports binary, set

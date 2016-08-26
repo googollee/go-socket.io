@@ -2,12 +2,60 @@ package base
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type fakeOpError struct {
+	timeout   bool
+	temporary bool
+}
+
+func (f fakeOpError) Error() string {
+	return "fake error"
+}
+
+func (f fakeOpError) Timeout() bool {
+	return f.timeout
+}
+
+func (f fakeOpError) Temporary() bool {
+	return f.temporary
+}
+
+func TestOpError(t *testing.T) {
+	at := assert.New(t)
+	tests := []struct {
+		url       string
+		op        string
+		err       error
+		timeout   bool
+		temporary bool
+		errString string
+	}{
+		{"http://domain/abc", "post(write) to", io.EOF, false, false, "post(write) to http://domain/abc: EOF"},
+		{"http://domain/abc", "get(read) from", io.EOF, false, false, "get(read) from http://domain/abc: EOF"},
+		{"http://domain/abc", "post(write) to", fakeOpError{true, false}, true, false, "post(write) to http://domain/abc: fake error"},
+		{"http://domain/abc", "get(read) from", fakeOpError{false, true}, false, true, "get(read) from http://domain/abc: fake error"},
+	}
+	for _, test := range tests {
+		u, err := url.Parse(test.url)
+		at.Nil(err)
+		e := &OpError{
+			URL: *u,
+			Op:  test.op,
+			Err: test.err,
+		}
+		at.Equal(test.timeout, e.Timeout())
+		at.Equal(test.temporary, e.Temporary())
+		at.Equal(test.errString, e.Error())
+	}
+}
 
 func TestFrameType(t *testing.T) {
 	at := assert.New(t)

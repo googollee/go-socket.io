@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
@@ -377,13 +378,14 @@ func TestDecoderNonByteReader(t *testing.T) {
 type readCloser struct {
 	once   sync.Once
 	closed chan struct{}
+	err    error
 }
 
 func (r *readCloser) Read(p []byte) (int, error) {
 	r.once.Do(func() {
 		close(r.closed)
 	})
-	return 0, errors.New("error")
+	return 0, r.err
 }
 
 func TestDecoderCloseWhenRead(t *testing.T) {
@@ -402,11 +404,32 @@ func TestDecoderCloseWhenRead(t *testing.T) {
 		at.NotNil(err)
 	}()
 
+	targetErr := errors.New("error")
 	reader := readCloser{
 		closed: closed,
+		err:    targetErr,
 	}
 	e := r.FeedIn(base.FrameBinary, &reader)
-	at.Equal(io.EOF, e)
+	at.Equal(targetErr, e)
 
 	wg.Wait()
+}
+
+func TestDecoderTimeout(t *testing.T) {
+	at := assert.New(t)
+	closed := make(chan struct{})
+	var err atomic.Value
+	err.Store(io.EOF)
+	r := NewDecoder(closed, &err)
+	e := r.SetDeadline(time.Now().Add(time.Second))
+	at.Nil(e)
+
+	begin := time.Now()
+	_, _, _, e = r.NextReader()
+	at.Equal(ErrTimeout, e)
+	end := time.Now()
+	duration := end.Sub(begin)
+	at.True(duration > time.Second)
+
+	at.Equal(ErrTimeout, err.Load().(error))
 }

@@ -1,10 +1,12 @@
 package payload
 
 import (
+	"errors"
 	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
@@ -25,13 +27,17 @@ func TestEncoderCloseWhileFraming(t *testing.T) {
 	at.Equal(io.EOF, e)
 }
 
-type longWriter struct {
+type errWriter struct {
+	err    error
 	closed chan struct{}
 }
 
-func (w *longWriter) Write(p []byte) (int, error) {
-	close(w.closed)
-	return len(p), nil
+func (w *errWriter) Write(p []byte) (int, error) {
+	if w.err == nil {
+		close(w.closed)
+		return len(p), nil
+	}
+	return 0, w.err
 }
 
 func TestEncoderCloseWhenWriting(t *testing.T) {
@@ -52,11 +58,62 @@ func TestEncoderCloseWhenWriting(t *testing.T) {
 		at.Equal(io.EOF, e)
 	}()
 
-	writer := longWriter{
+	writer := errWriter{
 		closed: closed,
 	}
 	e := w.FlushOut(&writer)
 	at.Equal(io.EOF, e)
 
 	wg.Wait()
+}
+
+func TestEncoderErrorWhenWriting(t *testing.T) {
+	at := assert.New(t)
+	closed := make(chan struct{})
+	var err atomic.Value
+	var wg sync.WaitGroup
+
+	err.Store(io.EOF)
+	w := NewEncoder(true, closed, &err)
+
+	writer := errWriter{
+		closed: closed,
+		err:    errors.New("error"),
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		wr, e := w.NextWriter(base.FrameString, base.OPEN)
+		at.Nil(e)
+		e = wr.Close()
+		at.Equal(writer.err, e)
+	}()
+
+	e := w.FlushOut(&writer)
+	at.Equal(writer.err, e)
+
+	wg.Wait()
+}
+
+func TestEncoderTimeout(t *testing.T) {
+	at := assert.New(t)
+	closed := make(chan struct{})
+	var err atomic.Value
+
+	err.Store(io.EOF)
+	w := NewEncoder(true, closed, &err)
+
+	e := w.SetDeadline(time.Now().Add(time.Second))
+	at.Nil(e)
+
+	begin := time.Now()
+	wr, e := w.NextWriter(base.FrameString, base.OPEN)
+	at.Nil(e)
+	e = wr.Close()
+	at.Equal(ErrTimeout, e)
+	end := time.Now()
+	at.True(end.Sub(begin) > time.Second)
+
+	at.Equal(ErrTimeout, err.Load().(error))
 }
