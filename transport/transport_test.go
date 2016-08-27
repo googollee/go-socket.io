@@ -12,7 +12,7 @@ type fakeTransport struct{}
 
 func (f fakeTransport) ServeHTTP(http.ResponseWriter, *http.Request) {}
 
-func (f fakeTransport) ConnChan() <-chan base.ServerConn {
+func (f fakeTransport) ConnChan() <-chan base.Conn {
 	return nil
 }
 

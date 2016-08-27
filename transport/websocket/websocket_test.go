@@ -52,11 +52,6 @@ func TestWebsocket(t *testing.T) {
 	at.Equal("server", cc.RemoteHeader().Get("X-Eio-Test"))
 	at.Equal("client", sc.RemoteHeader().Get("X-Eio-Test"))
 
-	recorder := httptest.NewRecorder()
-	recorder.Code = 0
-	sc.ServeHTTP(recorder, nil)
-	at.Equal(http.StatusInternalServerError, recorder.Code)
-
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {

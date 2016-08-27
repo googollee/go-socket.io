@@ -22,7 +22,7 @@ var DefaultConfigure = &Configure{
 
 type wsTransport struct {
 	upgrader websocket.Upgrader
-	connChan chan base.ServerConn
+	connChan chan base.Conn
 }
 
 // New creates new websocket transport.
@@ -35,11 +35,11 @@ func New(c *Configure) transport.Transport {
 			ReadBufferSize:  c.ReadBufferSize,
 			WriteBufferSize: c.WriteBufferSize,
 		},
-		connChan: make(chan base.ServerConn),
+		connChan: make(chan base.Conn),
 	}
 }
 
-func (s *wsTransport) ConnChan() <-chan base.ServerConn {
+func (s *wsTransport) ConnChan() <-chan base.Conn {
 	return s.connChan
 }
 

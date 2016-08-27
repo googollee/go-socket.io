@@ -9,7 +9,7 @@ import (
 // Transport is a transport which can creates base.Conn
 type Transport interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
-	ConnChan() <-chan base.ServerConn
+	ConnChan() <-chan base.Conn
 }
 
 // Manager is a manager of transports.

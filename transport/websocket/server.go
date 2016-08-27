@@ -19,7 +19,7 @@ type conn struct {
 	base.FrameReader
 }
 
-func newConn(ws *websocket.Conn, remote http.Header, closed chan struct{}) base.ServerConn {
+func newConn(ws *websocket.Conn, remote http.Header, closed chan struct{}) base.Conn {
 	w := newWrapper(ws)
 	return &conn{
 		remoteHeader: remote,
@@ -32,10 +32,6 @@ func newConn(ws *websocket.Conn, remote http.Header, closed chan struct{}) base.
 
 func (c *conn) RemoteHeader() http.Header {
 	return c.remoteHeader
-}
-
-func (c *conn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "invalid websocket request", http.StatusInternalServerError)
 }
 
 func (c *conn) LocalAddr() string {

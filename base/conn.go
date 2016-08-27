@@ -6,9 +6,45 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 )
+
+// OpError is the error type usually returned by functions in the transport
+// package.
+type OpError struct {
+	URL string
+	Op  string
+	Err error
+}
+
+// OpErr makes an *OpError
+func OpErr(url, op string, err error) *OpError {
+	return &OpError{
+		URL: url,
+		Op:  op,
+		Err: err,
+	}
+}
+
+func (e *OpError) Error() string {
+	return fmt.Sprintf("%s %s: %s", e.Op, e.URL, e.Err.Error())
+}
+
+// Timeout returns true if the error is a timeout.
+func (e *OpError) Timeout() bool {
+	if r, ok := e.Err.(net.Error); ok {
+		return r.Timeout()
+	}
+	return false
+}
+
+// Temporary returns true if the error is temporary.
+func (e *OpError) Temporary() bool {
+	if r, ok := e.Err.(net.Error); ok {
+		return r.Temporary()
+	}
+	return false
+}
 
 // FrameType is the type of frames.
 type FrameType byte
@@ -50,18 +86,6 @@ type Conn interface {
 	RemoteHeader() http.Header
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
-}
-
-// ServerConn is a connection in server side.
-type ServerConn interface {
-	Conn
-	http.Handler
-}
-
-// ClientConn is a connection in client side.
-type ClientConn interface {
-	Conn
-	Init() error
 }
 
 // ConnParameters is connection parameter of server.
@@ -117,32 +141,4 @@ func (w *writer) Write(p []byte) (int, error) {
 	n, err := w.w.Write(p)
 	w.i += int64(n)
 	return n, err
-}
-
-// OpError is the error type usually returned by functions in the transport
-// package.
-type OpError struct {
-	URL url.URL
-	Op  string
-	Err error
-}
-
-func (e *OpError) Error() string {
-	return fmt.Sprintf("%s %s: %s", e.Op, e.URL.String(), e.Err.Error())
-}
-
-// Timeout returns true if the error is a timeout.
-func (e *OpError) Timeout() bool {
-	if r, ok := e.Err.(net.Error); ok {
-		return r.Timeout()
-	}
-	return false
-}
-
-// Temporary returns true if the error is temporary.
-func (e *OpError) Temporary() bool {
-	if r, ok := e.Err.(net.Error); ok {
-		return r.Temporary()
-	}
-	return false
 }

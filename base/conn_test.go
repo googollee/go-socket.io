@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"testing"
 	"time"
 
@@ -44,13 +43,7 @@ func TestOpError(t *testing.T) {
 		{"http://domain/abc", "get(read) from", fakeOpError{false, true}, false, true, "get(read) from http://domain/abc: fake error"},
 	}
 	for _, test := range tests {
-		u, err := url.Parse(test.url)
-		at.Nil(err)
-		e := &OpError{
-			URL: *u,
-			Op:  test.op,
-			Err: test.err,
-		}
+		e := OpErr(test.url, test.op, test.err)
 		at.Equal(test.timeout, e.Timeout())
 		at.Equal(test.temporary, e.Temporary())
 		at.Equal(test.errString, e.Error())
