@@ -1,7 +1,6 @@
 package polling
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +30,6 @@ func TestPollingBinary(t *testing.T) {
 
 	transport := New()
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("handler:", r.Method, r.URL.String())
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
@@ -48,7 +47,9 @@ func TestPollingBinary(t *testing.T) {
 	dialer := Dialer{}
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := dialer.Dial(u.String(), header)
+	cc, err := dialer.Dial(u.String(), header, base.ConnParameters{
+		PingTimeout: time.Second,
+	})
 	at.Nil(err)
 	defer cc.Close()
 
@@ -66,10 +67,8 @@ func TestPollingBinary(t *testing.T) {
 		defer wg.Done()
 
 		for _, test := range tests {
-			fmt.Println("client next reader begin")
 			ft, pt, r, err := cc.NextReader()
 			at.Nil(err)
-			fmt.Println("client next reader end:", ft, pt)
 
 			at.Equal(test.ft, ft)
 			at.Equal(test.pt, pt)
@@ -77,10 +76,8 @@ func TestPollingBinary(t *testing.T) {
 			at.Nil(err)
 			at.Equal(test.data, b)
 
-			fmt.Println("client next writer begin")
 			w, err := cc.NextWriter(ft, pt)
 			at.Nil(err)
-			fmt.Println("client next writer end")
 			_, err = w.Write(b)
 			at.Nil(err)
 			err = w.Close()
@@ -89,19 +86,15 @@ func TestPollingBinary(t *testing.T) {
 	}()
 
 	for _, test := range tests {
-		fmt.Println("server next writer begin")
 		w, err := sc.NextWriter(test.ft, test.pt)
-		fmt.Println("server next writer end")
 		at.Nil(err)
 		_, err = w.Write(test.data)
 		at.Nil(err)
 		err = w.Close()
 		at.Nil(err)
 
-		fmt.Println("server next reader begin")
 		ft, pt, r, err := sc.NextReader()
 		at.Nil(err)
-		fmt.Println("server next reader end: ft, pt")
 		at.Equal(test.ft, ft)
 		at.Equal(test.pt, pt)
 		b, err := ioutil.ReadAll(r)
@@ -121,7 +114,6 @@ func TestPollingString(t *testing.T) {
 
 	transport := New()
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("handler:", r.Method, r.URL.String())
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
@@ -143,7 +135,9 @@ func TestPollingString(t *testing.T) {
 	dialer := Dialer{}
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := dialer.Dial(u.String(), header)
+	cc, err := dialer.Dial(u.String(), header, base.ConnParameters{
+		PingTimeout: time.Second,
+	})
 	at.Nil(err)
 	defer cc.Close()
 
@@ -161,10 +155,8 @@ func TestPollingString(t *testing.T) {
 		defer wg.Done()
 
 		for _, test := range tests {
-			fmt.Println("client next reader begin")
 			ft, pt, r, err := cc.NextReader()
 			at.Nil(err)
-			fmt.Println("client next reader end:", ft, pt)
 
 			at.Equal(test.ft, ft)
 			at.Equal(test.pt, pt)
@@ -172,10 +164,8 @@ func TestPollingString(t *testing.T) {
 			at.Nil(err)
 			at.Equal(test.data, b)
 
-			fmt.Println("client next writer begin")
 			w, err := cc.NextWriter(ft, pt)
 			at.Nil(err)
-			fmt.Println("client next writer end")
 			_, err = w.Write(b)
 			at.Nil(err)
 			err = w.Close()
@@ -184,19 +174,15 @@ func TestPollingString(t *testing.T) {
 	}()
 
 	for _, test := range tests {
-		fmt.Println("server next writer begin")
 		w, err := sc.NextWriter(test.ft, test.pt)
-		fmt.Println("server next writer end")
 		at.Nil(err)
 		_, err = w.Write(test.data)
 		at.Nil(err)
 		err = w.Close()
 		at.Nil(err)
 
-		fmt.Println("server next reader begin")
 		ft, pt, r, err := sc.NextReader()
 		at.Nil(err)
-		fmt.Println("server next reader end: ft, pt")
 		at.Equal(test.ft, ft)
 		at.Equal(test.pt, pt)
 		b, err := ioutil.ReadAll(r)

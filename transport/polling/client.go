@@ -15,17 +15,20 @@ import (
 	"github.com/googollee/go-engine.io/payload"
 )
 
+// DefaultDialer is default dialer.
 var DefaultDialer = &Dialer{
 	Retry: 3,
 }
 
+// Dialer is polling dialer.
 type Dialer struct {
 	Client *http.Client
 	Retry  int
 }
 
-func (d *Dialer) Dial(url string, requestHeader http.Header) (base.Conn, error) {
-	ret, err := d.dial(url, requestHeader)
+// Dial dials to url with requestHeader and returns connection.
+func (d *Dialer) Dial(url string, requestHeader http.Header, params base.ConnParameters) (base.Conn, error) {
+	ret, err := d.dial(url, requestHeader, params.PingTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -36,8 +39,9 @@ func (d *Dialer) Dial(url string, requestHeader http.Header) (base.Conn, error) 
 	return ret, nil
 }
 
-func (d *Dialer) Open(url string, requestHeader http.Header) (base.ConnParameters, error) {
-	c, err := d.dial(url, requestHeader)
+// Open gets connection parameters from url.
+func (d *Dialer) Open(url string, requestHeader http.Header, timeout time.Duration) (base.ConnParameters, error) {
+	c, err := d.dial(url, requestHeader, timeout)
 	if err != nil {
 		return base.ConnParameters{}, base.OpErr(url, "dial", err)
 	}
@@ -55,9 +59,11 @@ func (d *Dialer) Open(url string, requestHeader http.Header) (base.ConnParameter
 	return base.ReadConnParameters(r)
 }
 
-func (d *Dialer) dial(url string, requestHeader http.Header) (*clientConn, error) {
+func (d *Dialer) dial(url string, requestHeader http.Header, timeout time.Duration) (*clientConn, error) {
 	if d.Client == nil {
-		d.Client = &http.Client{}
+		d.Client = &http.Client{
+			Timeout: timeout,
+		}
 	}
 	if d.Retry == 0 {
 		d.Retry = 3
@@ -85,8 +91,8 @@ func (d *Dialer) dial(url string, requestHeader http.Header) (*clientConn, error
 		closed:        closed,
 	}
 	ret.err.Store(base.OpErr(url, "i/o", io.EOF))
-	ret.Encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
-	ret.Decoder = payload.NewDecoder(closed, &ret.err)
+	ret.encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
+	ret.decoder = payload.NewDecoder(closed, &ret.err)
 
 	return ret, nil
 }
@@ -99,25 +105,41 @@ type clientConn struct {
 	httpClient    *http.Client
 	closed        chan struct{}
 	closeOnce     sync.Once
-	err           atomic.Value
-	payload.Encoder
-	payload.Decoder
+	err           payload.AtomicError
+	encoder       payload.Encoder
+	decoder       payload.Decoder
 }
 
 func (c *clientConn) SetReadDeadline(t time.Time) error {
-	err := c.Decoder.SetDeadline(t)
+	err := c.decoder.SetDeadline(t)
 	if err == nil {
 		return nil
 	}
 	return base.OpErr(c.request.URL.String(), "set read deadline", err)
 }
 
-func (c *clientConn) SetWriteDeadline(t time.Time) error {
-	err := c.Encoder.SetDeadline(t)
+func (c *clientConn) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
+	ft, pt, r, err := c.decoder.NextReader()
 	if err != nil {
+		c.Close()
+	}
+	return ft, pt, r, retError(c.request.URL.String(), "read", err)
+}
+
+func (c *clientConn) SetWriteDeadline(t time.Time) error {
+	err := c.encoder.SetDeadline(t)
+	if err == nil {
 		return nil
 	}
 	return base.OpErr(c.request.URL.String(), "set write deadline", err)
+}
+
+func (c *clientConn) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
+	w, err := c.encoder.NextWriter(ft, pt)
+	if err != nil {
+		c.Close()
+	}
+	return w, retError(c.request.URL.String(), "write", err)
 }
 
 func (c *clientConn) LocalAddr() string {
@@ -153,7 +175,7 @@ func (c *clientConn) doPost() {
 	req.Body = rc
 	for {
 		buf.Reset()
-		if err := c.Encoder.FlushOut(buf); err != nil {
+		if err := c.encoder.FlushOut(buf); err != nil {
 			c.err.Store(base.OpErr(c.request.URL.String(), "flush out", err))
 			return
 		}
@@ -228,7 +250,7 @@ func (c *clientConn) doGet(init bool) {
 				run = false
 				return
 			}
-			if err := c.Decoder.FeedIn(typ, resp.Body); err != nil {
+			if err := c.decoder.FeedIn(typ, resp.Body); err != nil {
 				c.err.Store(base.OpErr(c.request.URL.String(), "feed in", err))
 				run = false
 				return

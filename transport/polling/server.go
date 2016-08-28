@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
@@ -13,9 +12,9 @@ import (
 )
 
 type serverConn struct {
-	payload.Encoder
-	payload.Decoder
-	err atomic.Value
+	encoder payload.Encoder
+	decoder payload.Decoder
+	err     payload.AtomicError
 
 	readDeadline  time.Time
 	writeDeadline time.Time
@@ -38,26 +37,35 @@ func newServerConn(r *http.Request, closed chan struct{}) base.Conn {
 		remoteAddr:   r.RemoteAddr,
 		url:          *r.URL,
 	}
-	ret.err.Store(base.OpErr(r.URL.String(), "i/o", io.EOF))
-	ret.Encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
-	ret.Decoder = payload.NewDecoder(closed, &ret.err)
+	ret.encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
+	ret.decoder = payload.NewDecoder(closed, &ret.err)
 	return ret
 }
 
 func (c *serverConn) SetReadDeadline(t time.Time) error {
-	err := c.Decoder.SetDeadline(t)
+	err := c.decoder.SetDeadline(t)
 	if err == nil {
 		return nil
 	}
 	return base.OpErr(c.url.String(), "SetReadDeadline", err)
 }
 
+func (c *serverConn) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
+	ft, pt, r, err := c.decoder.NextReader()
+	return ft, pt, r, retError(c.url.String(), "read", err)
+}
+
 func (c *serverConn) SetWriteDeadline(t time.Time) error {
-	err := c.Encoder.SetDeadline(t)
+	err := c.encoder.SetDeadline(t)
 	if err != nil {
 		return nil
 	}
 	return base.OpErr(c.url.String(), "SetWriteDeadline", err)
+}
+
+func (c *serverConn) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
+	w, err := c.encoder.NextWriter(ft, pt)
+	return w, retError(c.url.String(), "write", err)
 }
 
 func (c *serverConn) LocalAddr() string {
@@ -82,7 +90,7 @@ func (c *serverConn) Close() error {
 func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		if err := c.Encoder.FlushOut(w); err != nil {
+		if err := c.encoder.FlushOut(w); err != nil {
 			c.err.Store(base.OpErr(c.url.String(), "flush out", err))
 			c.Close()
 		}
@@ -99,7 +107,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid content-type", http.StatusBadRequest)
 			return
 		}
-		if err := c.Decoder.FeedIn(typ, r.Body); err != nil {
+		if err := c.decoder.FeedIn(typ, r.Body); err != nil {
 			c.err.Store(base.OpErr(c.url.String(), "feed in", err))
 			c.Close()
 			http.Error(w, err.Error(), http.StatusBadRequest)

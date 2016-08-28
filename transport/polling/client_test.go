@@ -63,14 +63,16 @@ func TestDialOpen(t *testing.T) {
 	at.Nil(err)
 
 	dialer := Dialer{}
-	connP, err := dialer.Open(u.String(), nil)
+	connP, err := dialer.Open(u.String(), nil, time.Second)
 	at.Nil(err)
 	at.Equal(cp, connP)
 
 	query := u.Query()
 	query.Set("sid", connP.SID)
 	u.RawQuery = query.Encode()
-	cc, err := dialer.Dial(u.String(), nil)
+	cc, err := dialer.Dial(u.String(), nil, base.ConnParameters{
+		PingTimeout: time.Second,
+	})
 	at.Nil(err)
 	defer cc.Close()
 
@@ -82,4 +84,65 @@ func TestDialOpen(t *testing.T) {
 	at.Nil(err)
 
 	wg.Wait()
+}
+
+func TestClientSetReadDeadline(t *testing.T) {
+	cp := base.ConnParameters{
+		PingInterval: time.Second,
+		PingTimeout:  time.Second / 10,
+		SID:          "abcdefg",
+		Upgrades:     []string{"polling"},
+	}
+	at := assert.New(t)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Second)
+	}
+	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
+	defer httpSvr.Close()
+
+	dialer := Dialer{}
+	c, err := dialer.Dial(httpSvr.URL, nil, cp)
+	at.Nil(err)
+
+	err = c.SetReadDeadline(time.Now().Add(time.Second / 10))
+	at.Nil(err)
+	_, _, _, err = c.NextReader()
+	e, ok := err.(*base.OpError)
+	at.True(ok)
+	at.NotNil(e.Err)
+}
+
+func TestClientSetWriteDeadline(t *testing.T) {
+	cp := base.ConnParameters{
+		PingInterval: time.Second,
+		PingTimeout:  time.Second / 10,
+		SID:          "abcdefg",
+		Upgrades:     []string{"polling"},
+	}
+	at := assert.New(t)
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Second)
+	}
+	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
+	defer httpSvr.Close()
+
+	dialer := Dialer{}
+	c, err := dialer.Dial(httpSvr.URL, nil, cp)
+	at.Nil(err)
+
+	err = c.SetWriteDeadline(time.Now().Add(time.Second / 10))
+	at.Nil(err)
+
+	w, err := c.NextWriter(base.FrameBinary, base.OPEN)
+	at.Nil(err)
+	err = w.Close()
+	at.Nil(err)
+
+	w, err = c.NextWriter(base.FrameBinary, base.OPEN)
+	at.Nil(err)
+	err = w.Close()
+
+	at.NotNil(err)
 }
