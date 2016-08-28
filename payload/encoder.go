@@ -54,13 +54,13 @@ func (w *encoder) FlushOut(wr io.Writer) error {
 	select {
 	case w.writerChan <- wr:
 	case <-w.closed:
-		return w.err.Load().(error)
+		return w.retError()
 	}
 	select {
 	case err := <-w.errorChan:
 		return err
 	case <-w.closed:
-		return w.err.Load().(error)
+		return w.retError()
 	}
 }
 
@@ -70,7 +70,7 @@ func (w *encoder) waitWriter() (io.Writer, error) {
 		case arg := <-w.writerChan:
 			return arg, nil
 		case <-w.closed:
-			return nil, w.err.Load().(error)
+			return nil, w.retError()
 		}
 	}
 	select {
@@ -81,7 +81,7 @@ func (w *encoder) waitWriter() (io.Writer, error) {
 	case arg := <-w.writerChan:
 		return arg, nil
 	case <-w.closed:
-		return nil, w.err.Load().(error)
+		return nil, w.retError()
 	}
 }
 
@@ -121,7 +121,7 @@ func (w *encoder) closeFrame() error {
 	select {
 	case w.errorChan <- err:
 	case <-w.closed:
-		return w.err.Load().(error)
+		return w.retError()
 	}
 	return err
 }
@@ -161,4 +161,12 @@ func (w *encoder) writeBinaryHeader(bw ByteWriter) error {
 		err = bw.WriteByte(b)
 	}
 	return err
+}
+
+func (w *encoder) retError() error {
+	ret := w.err.Load()
+	if ret == nil {
+		return io.EOF
+	}
+	return ret.(error)
 }

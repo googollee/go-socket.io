@@ -43,7 +43,9 @@ func TestOpError(t *testing.T) {
 		{"http://domain/abc", "get(read) from", fakeOpError{false, true}, false, true, "get(read) from http://domain/abc: fake error"},
 	}
 	for _, test := range tests {
-		e := OpErr(test.url, test.op, test.err)
+		err := OpErr(test.url, test.op, test.err)
+		e, ok := err.(*OpError)
+		at.True(ok)
 		at.Equal(test.timeout, e.Timeout())
 		at.Equal(test.temporary, e.Temporary())
 		at.Equal(test.errString, e.Error())

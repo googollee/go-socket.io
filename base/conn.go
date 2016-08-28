@@ -18,7 +18,7 @@ type OpError struct {
 }
 
 // OpErr makes an *OpError
-func OpErr(url, op string, err error) *OpError {
+func OpErr(url, op string, err error) error {
 	return &OpError{
 		URL: url,
 		Op:  op,

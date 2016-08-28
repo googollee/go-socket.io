@@ -45,7 +45,7 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 	if r.lastReader == nil {
 		arg, err := r.waitReader()
 		if err != nil {
-			return r.returnError(err)
+			return r.saveError(err)
 		}
 
 		br, ok := arg.r.(ByteReader)
@@ -66,14 +66,14 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 		case base.FrameString:
 			read = r.stringRead
 		default:
-			return r.returnError(ErrInvalidPayload)
+			return r.saveError(ErrInvalidPayload)
 		}
 
 		ft, pt, ret, err := read(r.lastReader)
 		if err != io.EOF {
 			if err != nil {
 				r.closeFrame(err)
-				return r.returnError(err)
+				return r.saveError(err)
 			}
 			return ft, pt, ret, nil
 		}
@@ -81,7 +81,7 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 
 		arg, err := r.waitReader()
 		if err != nil {
-			return r.returnError(err)
+			return r.saveError(err)
 		}
 
 		br, ok := arg.r.(ByteReader)
@@ -100,13 +100,13 @@ func (r *decoder) FeedIn(typ base.FrameType, rd io.Reader) error {
 		typ: typ,
 	}:
 	case <-r.closed:
-		return r.err.Load().(error)
+		return r.retError()
 	}
 	select {
 	case err := <-r.errorChan:
 		return err
 	case <-r.closed:
-		return r.err.Load().(error)
+		return r.retError()
 	}
 }
 
@@ -116,7 +116,7 @@ func (r *decoder) waitReader() (readerArg, error) {
 		case ret := <-r.readerChan:
 			return ret, nil
 		case <-r.closed:
-			return readerArg{}, r.err.Load().(error)
+			return readerArg{}, r.retError()
 		}
 	}
 
@@ -127,7 +127,7 @@ func (r *decoder) waitReader() (readerArg, error) {
 	case ret := <-r.readerChan:
 		return ret, nil
 	case <-r.closed:
-		return readerArg{}, r.err.Load().(error)
+		return readerArg{}, r.retError()
 	}
 }
 
@@ -147,7 +147,7 @@ func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io
 	ft := base.FrameString
 	b, err := br.ReadByte()
 	if err != nil {
-		return r.returnError(err)
+		return r.saveError(err)
 	}
 	l--
 
@@ -155,7 +155,7 @@ func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io
 		ft = base.FrameBinary
 		b, err = br.ReadByte()
 		if err != nil {
-			return r.returnError(err)
+			return r.saveError(err)
 		}
 		l--
 	}
@@ -171,18 +171,18 @@ func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io
 		return 0, 0, nil, err
 	}
 	if b > 1 {
-		return r.returnError(err)
+		return r.saveError(err)
 	}
 	ft := base.ByteToFrameType(b)
 
 	l, err := readBinaryLen(br)
 	if err != nil {
-		return r.returnError(err)
+		return r.saveError(err)
 	}
 
 	b, err = br.ReadByte()
 	if err != nil {
-		return r.returnError(err)
+		return r.saveError(err)
 	}
 	pt := base.ByteToPacketType(b, ft)
 	l--
@@ -191,7 +191,15 @@ func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io
 	return ft, pt, r.limitReader, nil
 }
 
-func (r *decoder) returnError(err error) (base.FrameType, base.PacketType, io.Reader, error) {
+func (r *decoder) saveError(err error) (base.FrameType, base.PacketType, io.Reader, error) {
 	r.err.Store(err)
 	return 0, 0, nil, err
+}
+
+func (r *decoder) retError() error {
+	ret := r.err.Load()
+	if ret == nil {
+		return io.EOF
+	}
+	return ret.(error)
 }
