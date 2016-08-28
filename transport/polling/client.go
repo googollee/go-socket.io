@@ -232,15 +232,9 @@ func (c *clientConn) doGet(init bool) {
 				c.remoteHeader.Store(resp.Header)
 			}
 			mime := resp.Header.Get("Content-Type")
-			var typ base.FrameType
-			switch mime {
-			case "text/plain;charset=UTF-8":
-				typ = base.FrameString
-			case "application/octet-stream":
-				typ = base.FrameBinary
-			default:
-				c.storeErr("get(read) from",
-					errors.New("invalid content-type"))
+			typ, err := normalizeMime(mime)
+			if err != nil {
+				c.storeErr("get(read) from", err)
 				run = false
 				return
 			}

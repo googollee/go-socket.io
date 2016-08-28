@@ -1,7 +1,6 @@
 package polling
 
 import (
-	"io"
 	"net/http"
 
 	"github.com/googollee/go-engine.io/base"
@@ -29,14 +28,4 @@ func (s *pTransport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.connChan <- conn
 	handler := conn.(http.Handler)
 	handler.ServeHTTP(w, r)
-}
-
-func retError(url, op string, err error) error {
-	if err == nil || err == io.EOF {
-		return err
-	}
-	if opErr, ok := err.(*base.OpError); ok {
-		return opErr
-	}
-	return base.OpErr(url, op, err)
 }

@@ -119,7 +119,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if c.supportBinary {
 			w.Header().Set("Content-Type", "application/octet-stream")
 		} else {
-			w.Header().Set("Content-Type", "text/plain;charset=UTF-8")
+			w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		}
 		if err := c.encoder.FlushOut(w); err != nil {
 			c.storeErr("flush out", err)
@@ -130,14 +130,9 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case "POST":
 		mime := r.Header.Get("Content-Type")
-		var typ base.FrameType
-		switch mime {
-		case "text/plain;charset=UTF-8":
-			typ = base.FrameString
-		case "application/octet-stream":
-			typ = base.FrameBinary
-		default:
-			http.Error(w, "invalid content-type", http.StatusBadRequest)
+		typ, err := normalizeMime(mime)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		if err := c.decoder.FeedIn(typ, r.Body); err != nil {
