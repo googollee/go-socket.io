@@ -176,7 +176,7 @@ func (c *clientConn) doPost() {
 	for {
 		buf.Reset()
 		if err := c.encoder.FlushOut(buf); err != nil {
-			c.err.Store(base.OpErr(c.request.URL.String(), "flush out", err))
+			c.storeErr("flush out", err)
 			return
 		}
 
@@ -189,15 +189,13 @@ func (c *clientConn) doPost() {
 			}
 		}
 		if err != nil {
-			c.err.Store(base.OpErr(c.request.URL.String(), "post(write) to", err))
+			c.storeErr("post(write) to", err)
 			return
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			c.err.Store(base.OpErr(
-				c.request.URL.String(),
-				"post(write) to ",
-				fmt.Errorf("invalid response(%d): %s", resp.StatusCode, resp.Status)))
+			c.storeErr("post(write) to ",
+				fmt.Errorf("invalid response(%d): %s", resp.StatusCode, resp.Status))
 			return
 		}
 	}
@@ -218,17 +216,15 @@ func (c *clientConn) doGet(init bool) {
 			}
 		}
 		if err != nil {
-			c.err.Store(base.OpErr(c.request.URL.String(), "get(read) from", err))
+			c.storeErr("get(read) from", err)
 			return
 		}
 
 		func() {
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
-				c.err.Store(base.OpErr(
-					c.request.URL.String(),
-					"get(read) from",
-					fmt.Errorf("invalid response(%d): %s", resp.StatusCode, resp.Status)))
+				c.storeErr("get(read) from",
+					fmt.Errorf("invalid response(%d): %s", resp.StatusCode, resp.Status))
 				run = false
 				return
 			}
@@ -243,15 +239,13 @@ func (c *clientConn) doGet(init bool) {
 			case "application/octet-stream":
 				typ = base.FrameBinary
 			default:
-				c.err.Store(base.OpErr(
-					c.request.URL.String(),
-					"get(read) from",
-					errors.New("invalid content-type")))
+				c.storeErr("get(read) from",
+					errors.New("invalid content-type"))
 				run = false
 				return
 			}
 			if err := c.decoder.FeedIn(typ, resp.Body); err != nil {
-				c.err.Store(base.OpErr(c.request.URL.String(), "feed in", err))
+				c.storeErr("feed in", err)
 				run = false
 				return
 			}
@@ -261,4 +255,14 @@ func (c *clientConn) doGet(init bool) {
 			break
 		}
 	}
+}
+
+func (c *clientConn) storeErr(op string, err error) error {
+	if err == nil {
+		return err
+	}
+	if _, ok := err.(*base.OpError); ok || err == io.EOF {
+		return err
+	}
+	return c.err.Store(base.OpErr(c.request.URL.String(), op, err))
 }

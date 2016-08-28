@@ -1,6 +1,8 @@
 package polling
 
 import (
+	"bytes"
+	"html/template"
 	"io"
 	"net/http"
 	"net/url"
@@ -19,23 +21,32 @@ type serverConn struct {
 	readDeadline  time.Time
 	writeDeadline time.Time
 
-	query        url.Values
-	closed       chan struct{}
-	closeOnce    sync.Once
-	remoteHeader http.Header
-	localAddr    string
-	remoteAddr   string
-	url          url.URL
+	query         url.Values
+	closed        chan struct{}
+	closeOnce     sync.Once
+	remoteHeader  http.Header
+	localAddr     string
+	remoteAddr    string
+	url           url.URL
+	supportBinary bool
+	jsonp         string
 }
 
 func newServerConn(r *http.Request, closed chan struct{}) base.Conn {
-	supportBinary := r.Header.Get("b64") == ""
+	query := r.URL.Query()
+	supportBinary := query.Get("b64") == ""
+	jsonp := query.Get("j")
+	if jsonp != "" {
+		supportBinary = false
+	}
 	ret := &serverConn{
-		closed:       closed,
-		remoteHeader: r.Header,
-		localAddr:    r.Host,
-		remoteAddr:   r.RemoteAddr,
-		url:          *r.URL,
+		closed:        closed,
+		remoteHeader:  r.Header,
+		localAddr:     r.Host,
+		remoteAddr:    r.RemoteAddr,
+		url:           *r.URL,
+		supportBinary: supportBinary,
+		jsonp:         jsonp,
 	}
 	ret.encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
 	ret.decoder = payload.NewDecoder(closed, &ret.err)
@@ -90,9 +101,31 @@ func (c *serverConn) Close() error {
 func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
+		if jsonp := r.URL.Query().Get("j"); jsonp != "" {
+			buf := bytes.NewBuffer(nil)
+			if err := c.encoder.FlushOut(buf); err != nil {
+				c.storeErr("flush out", err)
+				c.Close()
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/javascript; charset=UTF-8")
+			pl := template.JSEscapeString(buf.String())
+			w.Write([]byte("___eio[" + jsonp + "](\""))
+			w.Write([]byte(pl))
+			w.Write([]byte("\");"))
+			return
+		}
+		if c.supportBinary {
+			w.Header().Set("Content-Type", "application/octet-stream")
+		} else {
+			w.Header().Set("Content-Type", "text/plain;charset=UTF-8")
+		}
 		if err := c.encoder.FlushOut(w); err != nil {
-			c.err.Store(base.OpErr(c.url.String(), "flush out", err))
+			c.storeErr("flush out", err)
 			c.Close()
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		return
 	case "POST":
@@ -108,7 +141,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := c.decoder.FeedIn(typ, r.Body); err != nil {
-			c.err.Store(base.OpErr(c.url.String(), "feed in", err))
+			c.storeErr("feed in", err)
 			c.Close()
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -118,4 +151,14 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "invalid method", http.StatusBadRequest)
 	}
+}
+
+func (c *serverConn) storeErr(op string, err error) error {
+	if err == nil {
+		return err
+	}
+	if _, ok := err.(*base.OpError); ok || err == io.EOF {
+		return err
+	}
+	return c.err.Store(base.OpErr(c.url.String(), op, err))
 }

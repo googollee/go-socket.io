@@ -1,6 +1,7 @@
 package polling
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -160,6 +161,7 @@ func TestPollingString(t *testing.T) {
 
 			at.Equal(test.ft, ft)
 			at.Equal(test.pt, pt)
+			fmt.Println("read r:", ft, pt, r, err)
 			b, err := ioutil.ReadAll(r)
 			at.Nil(err)
 			at.Equal(test.data, b)
