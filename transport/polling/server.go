@@ -68,7 +68,7 @@ func (c *serverConn) NextReader() (base.FrameType, base.PacketType, io.Reader, e
 
 func (c *serverConn) SetWriteDeadline(t time.Time) error {
 	err := c.encoder.SetDeadline(t)
-	if err != nil {
+	if err == nil {
 		return nil
 	}
 	return base.OpErr(c.url.String(), "SetWriteDeadline", err)
