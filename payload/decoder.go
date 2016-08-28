@@ -3,7 +3,6 @@ package payload
 import (
 	"bufio"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
@@ -21,11 +20,11 @@ type decoder struct {
 	lastReader  ByteReader
 	limitReader *limitReader
 	closed      chan struct{}
-	err         *atomic.Value
+	err         *AtomicError
 	deadline    time.Time
 }
 
-func newDecoder(closed chan struct{}, err *atomic.Value) *decoder {
+func newDecoder(closed chan struct{}, err *AtomicError) *decoder {
 	ret := &decoder{
 		errorChan:  make(chan error),
 		readerChan: make(chan readerArg),
@@ -45,7 +44,7 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 	if r.lastReader == nil {
 		arg, err := r.waitReader()
 		if err != nil {
-			return r.saveError(err)
+			return 0, 0, nil, err
 		}
 
 		br, ok := arg.r.(ByteReader)
@@ -66,14 +65,14 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 		case base.FrameString:
 			read = r.stringRead
 		default:
-			return r.saveError(ErrInvalidPayload)
+			return 0, 0, nil, r.err.Store(ErrInvalidPayload)
 		}
 
 		ft, pt, ret, err := read(r.lastReader)
 		if err != io.EOF {
 			if err != nil {
 				r.closeFrame(err)
-				return r.saveError(err)
+				return 0, 0, nil, r.err.Store(err)
 			}
 			return ft, pt, ret, nil
 		}
@@ -81,7 +80,7 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 
 		arg, err := r.waitReader()
 		if err != nil {
-			return r.saveError(err)
+			return 0, 0, nil, err
 		}
 
 		br, ok := arg.r.(ByteReader)
@@ -100,13 +99,13 @@ func (r *decoder) FeedIn(typ base.FrameType, rd io.Reader) error {
 		typ: typ,
 	}:
 	case <-r.closed:
-		return r.retError()
+		return r.err.Load()
 	}
 	select {
 	case err := <-r.errorChan:
 		return err
 	case <-r.closed:
-		return r.retError()
+		return r.err.Load()
 	}
 }
 
@@ -116,18 +115,18 @@ func (r *decoder) waitReader() (readerArg, error) {
 		case ret := <-r.readerChan:
 			return ret, nil
 		case <-r.closed:
-			return readerArg{}, r.retError()
+			return readerArg{}, r.err.Load()
 		}
 	}
 
 	waiting := r.deadline.Sub(time.Now())
 	select {
 	case <-time.After(waiting):
-		return readerArg{}, ErrTimeout
+		return readerArg{}, r.err.Store(ErrTimeout)
 	case ret := <-r.readerChan:
 		return ret, nil
 	case <-r.closed:
-		return readerArg{}, r.retError()
+		return readerArg{}, r.err.Load()
 	}
 }
 
@@ -147,7 +146,7 @@ func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io
 	ft := base.FrameString
 	b, err := br.ReadByte()
 	if err != nil {
-		return r.saveError(err)
+		return 0, 0, nil, err
 	}
 	l--
 
@@ -155,7 +154,7 @@ func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io
 		ft = base.FrameBinary
 		b, err = br.ReadByte()
 		if err != nil {
-			return r.saveError(err)
+			return 0, 0, nil, err
 		}
 		l--
 	}
@@ -171,35 +170,22 @@ func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io
 		return 0, 0, nil, err
 	}
 	if b > 1 {
-		return r.saveError(err)
+		return 0, 0, nil, err
 	}
 	ft := base.ByteToFrameType(b)
 
 	l, err := readBinaryLen(br)
 	if err != nil {
-		return r.saveError(err)
+		return 0, 0, nil, err
 	}
 
 	b, err = br.ReadByte()
 	if err != nil {
-		return r.saveError(err)
+		return 0, 0, nil, err
 	}
 	pt := base.ByteToPacketType(b, ft)
 	l--
 
 	r.limitReader.SetReader(br, l, false)
 	return ft, pt, r.limitReader, nil
-}
-
-func (r *decoder) saveError(err error) (base.FrameType, base.PacketType, io.Reader, error) {
-	r.err.Store(err)
-	return 0, 0, nil, err
-}
-
-func (r *decoder) retError() error {
-	ret := r.err.Load()
-	if ret == nil {
-		return io.EOF
-	}
-	return ret.(error)
 }

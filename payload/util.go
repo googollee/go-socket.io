@@ -1,5 +1,10 @@
 package payload
 
+import (
+	"io"
+	"sync"
+)
+
 type byteWriter interface {
 	WriteByte(byte) error
 }
@@ -88,4 +93,28 @@ func readStringLen(r ByteReader) (int, error) {
 		ret = ret*10 + int(b-'0')
 	}
 	return ret, nil
+}
+
+// AtomicError is a error storage.
+type AtomicError struct {
+	locker sync.RWMutex
+	error
+}
+
+// Store saves error.
+func (e *AtomicError) Store(err error) error {
+	e.locker.Lock()
+	defer e.locker.Unlock()
+	e.error = err
+	return err
+}
+
+// Load loads error.
+func (e *AtomicError) Load() error {
+	e.locker.RLock()
+	defer e.locker.RUnlock()
+	if e.error == nil {
+		return io.EOF
+	}
+	return e.error
 }

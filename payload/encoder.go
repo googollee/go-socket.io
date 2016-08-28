@@ -3,7 +3,6 @@ package payload
 import (
 	"bufio"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
@@ -19,12 +18,12 @@ type encoder struct {
 	errorChan     chan error
 	supportBinary bool
 	closed        chan struct{}
-	err           *atomic.Value
+	err           *AtomicError
 	cache         *frameCache
 	deadline      time.Time
 }
 
-func newEncoder(supportBinary bool, closed chan struct{}, err *atomic.Value) *encoder {
+func newEncoder(supportBinary bool, closed chan struct{}, err *AtomicError) *encoder {
 	ret := &encoder{
 		writerChan:    make(chan io.Writer),
 		errorChan:     make(chan error),
@@ -54,13 +53,13 @@ func (w *encoder) FlushOut(wr io.Writer) error {
 	select {
 	case w.writerChan <- wr:
 	case <-w.closed:
-		return w.retError()
+		return w.err.Load()
 	}
 	select {
 	case err := <-w.errorChan:
 		return err
 	case <-w.closed:
-		return w.retError()
+		return w.err.Load()
 	}
 }
 
@@ -70,18 +69,16 @@ func (w *encoder) waitWriter() (io.Writer, error) {
 		case arg := <-w.writerChan:
 			return arg, nil
 		case <-w.closed:
-			return nil, w.retError()
+			return nil, w.err.Load()
 		}
 	}
 	select {
 	case <-time.After(w.deadline.Sub(time.Now())):
-		err := ErrTimeout
-		w.err.Store(err)
-		return nil, err
+		return nil, w.err.Store(ErrTimeout)
 	case arg := <-w.writerChan:
 		return arg, nil
 	case <-w.closed:
-		return nil, w.retError()
+		return nil, w.err.Load()
 	}
 }
 
@@ -121,7 +118,7 @@ func (w *encoder) closeFrame() error {
 	select {
 	case w.errorChan <- err:
 	case <-w.closed:
-		return w.retError()
+		return w.err.Load()
 	}
 	return err
 }
@@ -161,12 +158,4 @@ func (w *encoder) writeBinaryHeader(bw ByteWriter) error {
 		err = bw.WriteByte(b)
 	}
 	return err
-}
-
-func (w *encoder) retError() error {
-	ret := w.err.Load()
-	if ret == nil {
-		return io.EOF
-	}
-	return ret.(error)
 }

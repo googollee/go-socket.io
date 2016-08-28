@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,9 +14,8 @@ import (
 func TestEncoderCloseWhileFraming(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 
-	err.Store(io.EOF)
 	w := NewEncoder(true, closed, &err)
 
 	wr, e := w.NextWriter(base.FrameString, base.OPEN)
@@ -43,10 +41,9 @@ func (w *errWriter) Write(p []byte) (int, error) {
 func TestEncoderCloseWhenWriting(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
 
-	err.Store(io.EOF)
 	w := NewEncoder(true, closed, &err)
 
 	wg.Add(1)
@@ -70,10 +67,9 @@ func TestEncoderCloseWhenWriting(t *testing.T) {
 func TestEncoderErrorWhenWriting(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
 
-	err.Store(io.EOF)
 	w := NewEncoder(true, closed, &err)
 
 	writer := errWriter{
@@ -99,9 +95,8 @@ func TestEncoderErrorWhenWriting(t *testing.T) {
 func TestEncoderTimeout(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 
-	err.Store(io.EOF)
 	w := NewEncoder(true, closed, &err)
 
 	e := w.SetDeadline(time.Now().Add(time.Second))

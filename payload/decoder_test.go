@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -49,9 +48,8 @@ func TestDecoderPartRead(t *testing.T) {
 
 	for _, test := range tests {
 		closed := make(chan struct{})
-		var err atomic.Value
+		var err AtomicError
 		var wg sync.WaitGroup
-		err.Store(io.EOF)
 		r := NewDecoder(closed, &err)
 
 		wg.Add(1)
@@ -135,9 +133,8 @@ func TestDecoderMultiPacket(t *testing.T) {
 
 	for _, test := range tests {
 		closed := make(chan struct{})
-		var err atomic.Value
+		var err AtomicError
 		var wg sync.WaitGroup
-		err.Store(io.EOF)
 		r := NewDecoder(closed, &err)
 
 		wg.Add(1)
@@ -213,9 +210,8 @@ func TestDecoderSwitchFrameType(t *testing.T) {
 
 	for _, test := range tests {
 		closed := make(chan struct{})
-		var err atomic.Value
+		var err AtomicError
 		var wg sync.WaitGroup
-		err.Store(io.EOF)
 		r := NewDecoder(closed, &err)
 
 		wg.Add(1)
@@ -261,9 +257,8 @@ func TestDecoderSwitchFrameType(t *testing.T) {
 func TestDecoderCloseWhenFeedIn(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	r := NewDecoder(closed, &err)
 
 	wg.Add(1)
@@ -282,9 +277,8 @@ func TestDecoderCloseWhenFeedIn(t *testing.T) {
 func TestDecoderCloseWhenFraming(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	r := NewDecoder(closed, &err)
 
 	wg.Add(1)
@@ -309,9 +303,8 @@ func TestDecoderCloseWhenFraming(t *testing.T) {
 func TestDecoderCloseWhenNextRead(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	r := NewDecoder(closed, &err)
 
 	wg.Add(1)
@@ -338,9 +331,8 @@ func (r *fakeNonByteReader) Read(p []byte) (int, error) {
 func TestDecoderNonByteReader(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	r := NewDecoder(closed, &err)
 	max := 10
 
@@ -391,9 +383,8 @@ func (r *readCloser) Read(p []byte) (int, error) {
 func TestDecoderCloseWhenRead(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	r := NewDecoder(closed, &err)
 
 	wg.Add(1)
@@ -418,8 +409,7 @@ func TestDecoderCloseWhenRead(t *testing.T) {
 func TestDecoderTimeout(t *testing.T) {
 	at := assert.New(t)
 	closed := make(chan struct{})
-	var err atomic.Value
-	err.Store(io.EOF)
+	var err AtomicError
 	r := NewDecoder(closed, &err)
 	e := r.SetDeadline(time.Now().Add(time.Second))
 	at.Nil(e)

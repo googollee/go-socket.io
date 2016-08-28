@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"sync"
-	"sync/atomic"
 	"testing"
 
 	"github.com/googollee/go-engine.io/base"
@@ -54,10 +53,9 @@ func TestEncoder(t *testing.T) {
 
 	for _, test := range tests {
 		closed := make(chan struct{})
-		var err atomic.Value
+		var err AtomicError
 		var wg sync.WaitGroup
 
-		err.Store(io.EOF)
 		w := NewEncoder(test.supportBinary, closed, &err)
 		writer := &nonByteWriter{
 			buf: bytes.NewBuffer(nil),
@@ -94,10 +92,9 @@ func TestDecoder(t *testing.T) {
 
 	for _, test := range tests {
 		closed := make(chan struct{})
-		var err atomic.Value
+		var err AtomicError
 		var wg sync.WaitGroup
 
-		err.Store(io.EOF)
 		r := NewDecoder(closed, &err)
 		var packets []Packet
 
@@ -154,9 +151,8 @@ func BenchmarkStringEncoder(b *testing.B) {
 		{base.FrameString, base.PING, []byte("probe")},
 	}
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	encoder := NewEncoder(false, closed, &err)
 	writer := discarder{}
 
@@ -199,9 +195,8 @@ func BenchmarkB64Encoder(b *testing.B) {
 		{base.FrameString, base.PING, []byte("probe")},
 	}
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	encoder := NewEncoder(false, closed, &err)
 	writer := discarder{}
 
@@ -245,9 +240,8 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 		{base.FrameString, base.PING, []byte("probe")},
 	}
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	encoder := NewEncoder(true, closed, &err)
 	writer := discarder{}
 
@@ -287,9 +281,8 @@ func BenchmarkStringDecoder(b *testing.B) {
 	data := bytes.Repeat([]byte("1:08:4你好\n6:2probe"), b.N)
 	reader := bytes.NewReader(data)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	decoder := NewDecoder(closed, &err)
 
 	wg.Add(1)
@@ -321,9 +314,8 @@ func BenchmarkB64Decoder(b *testing.B) {
 	data := bytes.Repeat([]byte("1:010:b4aGVsbG8K6:2probe"), b.N)
 	reader := bytes.NewReader(data)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	decoder := NewDecoder(closed, &err)
 
 	wg.Add(1)
@@ -362,9 +354,8 @@ func BenchmarkBinaryDecoder(b *testing.B) {
 	}, b.N)
 	reader := bytes.NewReader(data)
 	closed := make(chan struct{})
-	var err atomic.Value
+	var err AtomicError
 	var wg sync.WaitGroup
-	err.Store(io.EOF)
 	decoder := NewDecoder(closed, &err)
 
 	wg.Add(1)

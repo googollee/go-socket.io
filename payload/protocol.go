@@ -4,7 +4,6 @@ package payload
 import (
 	"errors"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
@@ -39,7 +38,7 @@ type Encoder interface {
 // NewEncoder creates a new encoder, output to w. The maximum size of one frame
 // is limited with maxFrameSize. If w supports binary, set supportBinary true,
 // otherwise set it to false.
-func NewEncoder(supportBinary bool, closed chan struct{}, err *atomic.Value) Encoder {
+func NewEncoder(supportBinary bool, closed chan struct{}, err *AtomicError) Encoder {
 	return newEncoder(supportBinary, closed, err)
 }
 
@@ -58,6 +57,6 @@ type Decoder interface {
 
 // NewDecoder creates a new decoder, input from r. If r supports binary, set
 // supportBinary true, otherwise set it to false.
-func NewDecoder(closed chan struct{}, err *atomic.Value) Decoder {
+func NewDecoder(closed chan struct{}, err *AtomicError) Decoder {
 	return newDecoder(closed, err)
 }
