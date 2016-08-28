@@ -2,6 +2,7 @@ package polling
 
 import (
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -106,8 +107,11 @@ func TestServerSetReadDeadline(t *testing.T) {
 
 		start := time.Now()
 		_, _, _, err = sc.NextReader()
-		at.NotNil(err)
 		end := time.Now()
+
+		e, ok := err.(net.Error)
+		at.True(ok)
+		at.True(e.Timeout())
 		at.True(end.Sub(start) > time.Second/10)
 	}()
 
@@ -150,8 +154,11 @@ func TestServerSetWriteDeadline(t *testing.T) {
 		w, err := sc.NextWriter(base.FrameBinary, base.MESSAGE)
 		at.Nil(err)
 		err = w.Close()
-		at.NotNil(err)
 		end := time.Now()
+
+		e, ok := err.(net.Error)
+		at.True(ok)
+		at.True(e.Timeout())
 		at.True(end.Sub(start) > time.Second/10)
 	}()
 

@@ -2,6 +2,7 @@ package polling
 
 import (
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -108,9 +109,9 @@ func TestClientSetReadDeadline(t *testing.T) {
 	err = c.SetReadDeadline(time.Now().Add(time.Second / 10))
 	at.Nil(err)
 	_, _, _, err = c.NextReader()
-	e, ok := err.(*base.OpError)
+	e, ok := err.(net.Error)
 	at.True(ok)
-	at.NotNil(e.Err)
+	at.True(e.Timeout())
 }
 
 func TestClientSetWriteDeadline(t *testing.T) {
@@ -144,5 +145,7 @@ func TestClientSetWriteDeadline(t *testing.T) {
 	at.Nil(err)
 	err = w.Close()
 
-	at.NotNil(err)
+	e, ok := err.(net.Error)
+	at.True(ok)
+	at.True(e.Timeout())
 }

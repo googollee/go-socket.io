@@ -4,13 +4,14 @@ package payload
 import (
 	"errors"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
 )
 
 // ErrTimeout is timeout error.
-var ErrTimeout = errors.New("i/o timeout")
+var ErrTimeout = timeoutError{}
 
 // ByteReader can read byte by byte
 type ByteReader interface {
@@ -59,4 +60,28 @@ type Decoder interface {
 // supportBinary true, otherwise set it to false.
 func NewDecoder(closed chan struct{}, err *AtomicError) Decoder {
 	return newDecoder(closed, err)
+}
+
+// AtomicError is a error storage.
+type AtomicError struct {
+	locker sync.RWMutex
+	error
+}
+
+// Store saves error.
+func (e *AtomicError) Store(err error) error {
+	e.locker.Lock()
+	defer e.locker.Unlock()
+	e.error = err
+	return err
+}
+
+// Load loads error.
+func (e *AtomicError) Load() error {
+	e.locker.RLock()
+	defer e.locker.RUnlock()
+	if e.error == nil {
+		return io.EOF
+	}
+	return e.error
 }

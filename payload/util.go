@@ -1,10 +1,5 @@
 package payload
 
-import (
-	"io"
-	"sync"
-)
-
 type byteWriter interface {
 	WriteByte(byte) error
 }
@@ -95,26 +90,16 @@ func readStringLen(r ByteReader) (int, error) {
 	return ret, nil
 }
 
-// AtomicError is a error storage.
-type AtomicError struct {
-	locker sync.RWMutex
-	error
+type timeoutError struct{}
+
+func (e timeoutError) Error() string {
+	return "i/o timeout"
 }
 
-// Store saves error.
-func (e *AtomicError) Store(err error) error {
-	e.locker.Lock()
-	defer e.locker.Unlock()
-	e.error = err
-	return err
+func (e timeoutError) Timeout() bool {
+	return true
 }
 
-// Load loads error.
-func (e *AtomicError) Load() error {
-	e.locker.RLock()
-	defer e.locker.RUnlock()
-	if e.error == nil {
-		return io.EOF
-	}
-	return e.error
+func (e timeoutError) Temporary() bool {
+	return false
 }

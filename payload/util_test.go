@@ -3,29 +3,22 @@ package payload
 import (
 	"bufio"
 	"bytes"
-	"io"
 	"io/ioutil"
+	"net"
 	"testing"
 	"testing/quick"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAtomicError(t *testing.T) {
+func TestTimeoutError(t *testing.T) {
 	at := assert.New(t)
-	tests := []struct {
-		storeErr error
-		loadErr  error
-	}{
-		{nil, io.EOF},
-		{ErrTimeout, ErrTimeout},
-	}
-	for _, test := range tests {
-		var err AtomicError
-		at.Equal(io.EOF, err.Load())
-		at.Equal(test.storeErr, err.Store(test.storeErr))
-		at.Equal(test.loadErr, err.Load())
-	}
+	var err error = ErrTimeout
+	netErr, ok := err.(net.Error)
+	at.True(ok)
+	at.True(netErr.Timeout())
+	at.False(netErr.Temporary())
+	at.Equal("i/o timeout", netErr.Error())
 }
 
 func TestWriteBinaryLen(t *testing.T) {
