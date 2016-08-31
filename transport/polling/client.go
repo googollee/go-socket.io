@@ -2,7 +2,6 @@ package polling
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,88 +13,6 @@ import (
 	"github.com/googollee/go-engine.io/base"
 	"github.com/googollee/go-engine.io/payload"
 )
-
-// DefaultDialer is default dialer.
-var DefaultDialer = &Dialer{
-	Retry: 3,
-}
-
-// Dialer is polling dialer.
-type Dialer struct {
-	Client *http.Client
-	Retry  int
-}
-
-// Dial dials to url with requestHeader and returns connection.
-func (d *Dialer) Dial(url string, requestHeader http.Header, params base.ConnParameters) (base.Conn, error) {
-	ret, err := d.dial(url, requestHeader, params.PingTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	go ret.doGet(false)
-	go ret.doPost()
-
-	return ret, nil
-}
-
-// Open gets connection parameters from url.
-func (d *Dialer) Open(url string, requestHeader http.Header, timeout time.Duration) (base.ConnParameters, error) {
-	c, err := d.dial(url, requestHeader, timeout)
-	if err != nil {
-		return base.ConnParameters{}, base.OpErr(url, "dial", err)
-	}
-	defer c.Close()
-
-	go c.doGet(true)
-
-	_, pt, r, err := c.NextReader()
-	if err != nil {
-		return base.ConnParameters{}, base.OpErr(url, "open", err)
-	}
-	if pt != base.OPEN {
-		return base.ConnParameters{}, base.OpErr(url, "open", errors.New("not open packet"))
-	}
-	return base.ReadConnParameters(r)
-}
-
-func (d *Dialer) dial(url string, requestHeader http.Header, timeout time.Duration) (*clientConn, error) {
-	if d.Client == nil {
-		d.Client = &http.Client{
-			Timeout: timeout,
-		}
-	}
-	if d.Retry == 0 {
-		d.Retry = 3
-	}
-	req, err := http.NewRequest("", url, nil)
-	if err != nil {
-		return nil, base.OpErr(url, "create request", err)
-	}
-	for k, v := range requestHeader {
-		req.Header[k] = v
-	}
-	supportBinary := req.URL.Query().Get("b64") == ""
-	closed := make(chan struct{})
-	if supportBinary {
-		req.Header.Set("Content-Type", "application/octet-stream")
-	} else {
-		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
-	}
-
-	ret := &clientConn{
-		supportBinary: supportBinary,
-		retry:         d.Retry,
-		request:       *req,
-		httpClient:    d.Client,
-		closed:        closed,
-	}
-	ret.err.Store(base.OpErr(url, "i/o", io.EOF))
-	ret.encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
-	ret.decoder = payload.NewDecoder(closed, &ret.err)
-
-	return ret, nil
-}
 
 type clientConn struct {
 	supportBinary bool

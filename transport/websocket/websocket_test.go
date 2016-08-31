@@ -25,10 +25,12 @@ var tests = []struct {
 func TestWebsocket(t *testing.T) {
 	at := assert.New(t)
 
-	svr := New(nil)
+	tran := &Transport{}
+	at.Equal("websocket", tran.Name())
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
-		svr.ServeHTTP(w, r)
+		tran.ServeHTTP(conn, w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
@@ -37,14 +39,13 @@ func TestWebsocket(t *testing.T) {
 	at.Nil(err)
 	u.Scheme = "ws"
 
-	dialer := Dialer{}
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := dialer.Dial(u.String(), header)
+	cc, err := tran.Dial(u.String(), header)
 	at.Nil(err)
 	defer cc.Close()
 
-	sc := <-svr.ConnChan()
+	sc := <-conn
 	defer sc.Close()
 
 	at.Equal(sc.LocalAddr(), cc.RemoteAddr())

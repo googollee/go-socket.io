@@ -25,11 +25,12 @@ func TestDialOpen(t *testing.T) {
 	at := assert.New(t)
 
 	var scValue atomic.Value
-	transport := New()
+	transport := Default
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(w, r)
+			transport.ServeHTTP(conn, w, r)
 			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
@@ -41,7 +42,7 @@ func TestDialOpen(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		sc := <-transport.ConnChan()
+		sc := <-conn
 		defer sc.Close()
 		scValue.Store(sc)
 		w, err := sc.NextWriter(base.FrameBinary, base.OPEN)
@@ -63,17 +64,14 @@ func TestDialOpen(t *testing.T) {
 	u, err := url.Parse(httpSvr.URL)
 	at.Nil(err)
 
-	dialer := Dialer{}
-	connP, err := dialer.Open(u.String(), nil, time.Second)
+	connP, err := transport.Open(u.String(), nil)
 	at.Nil(err)
 	at.Equal(cp, connP)
 
 	query := u.Query()
 	query.Set("sid", connP.SID)
 	u.RawQuery = query.Encode()
-	cc, err := dialer.Dial(u.String(), nil, base.ConnParameters{
-		PingTimeout: time.Second,
-	})
+	cc, err := transport.Dial(u.String(), nil)
 	at.Nil(err)
 	defer cc.Close()
 
@@ -88,12 +86,6 @@ func TestDialOpen(t *testing.T) {
 }
 
 func TestClientSetReadDeadline(t *testing.T) {
-	cp := base.ConnParameters{
-		PingInterval: time.Second,
-		PingTimeout:  time.Second / 10,
-		SID:          "abcdefg",
-		Upgrades:     []string{"polling"},
-	}
 	at := assert.New(t)
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -102,8 +94,8 @@ func TestClientSetReadDeadline(t *testing.T) {
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
 
-	dialer := Dialer{}
-	c, err := dialer.Dial(httpSvr.URL, nil, cp)
+	tran := Default
+	c, err := tran.Dial(httpSvr.URL, nil)
 	at.Nil(err)
 
 	err = c.SetReadDeadline(time.Now().Add(time.Second / 10))
@@ -115,12 +107,6 @@ func TestClientSetReadDeadline(t *testing.T) {
 }
 
 func TestClientSetWriteDeadline(t *testing.T) {
-	cp := base.ConnParameters{
-		PingInterval: time.Second,
-		PingTimeout:  time.Second / 10,
-		SID:          "abcdefg",
-		Upgrades:     []string{"polling"},
-	}
 	at := assert.New(t)
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -129,8 +115,8 @@ func TestClientSetWriteDeadline(t *testing.T) {
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
 
-	dialer := Dialer{}
-	c, err := dialer.Dial(httpSvr.URL, nil, cp)
+	tran := Default
+	c, err := tran.Dial(httpSvr.URL, nil)
 	at.Nil(err)
 
 	err = c.SetWriteDeadline(time.Now().Add(time.Second / 10))

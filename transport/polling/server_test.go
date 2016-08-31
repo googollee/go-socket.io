@@ -18,11 +18,12 @@ func TestServerJSONP(t *testing.T) {
 	at := assert.New(t)
 	var scValue atomic.Value
 
-	transport := New()
+	transport := Default
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(w, r)
+			transport.ServeHTTP(conn, w, r)
 			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
@@ -34,7 +35,7 @@ func TestServerJSONP(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		sc := <-transport.ConnChan()
+		sc := <-conn
 		defer sc.Close()
 		scValue.Store(sc)
 
@@ -82,11 +83,12 @@ func TestServerSetReadDeadline(t *testing.T) {
 	at := assert.New(t)
 	var scValue atomic.Value
 
-	transport := New()
+	transport := Default
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(w, r)
+			transport.ServeHTTP(conn, w, r)
 			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
@@ -98,7 +100,7 @@ func TestServerSetReadDeadline(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		sc := <-transport.ConnChan()
+		sc := <-conn
 		defer sc.Close()
 		scValue.Store(sc)
 
@@ -127,11 +129,12 @@ func TestServerSetWriteDeadline(t *testing.T) {
 	at := assert.New(t)
 	var scValue atomic.Value
 
-	transport := New()
+	transport := Default
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(w, r)
+			transport.ServeHTTP(conn, w, r)
 			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
@@ -143,7 +146,7 @@ func TestServerSetWriteDeadline(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		sc := <-transport.ConnChan()
+		sc := <-conn
 		defer sc.Close()
 		scValue.Store(sc)
 

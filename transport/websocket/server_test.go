@@ -8,15 +8,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWebsocketSetReadDeadline(t *testing.T) {
 	at := assert.New(t)
 
-	svr := New(nil)
+	tran := &Transport{}
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		svr.ServeHTTP(w, r)
+		tran.ServeHTTP(conn, w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
@@ -25,13 +27,12 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	at.Nil(err)
 	u.Scheme = "ws"
 
-	dialer := Dialer{}
 	header := make(http.Header)
-	cc, err := dialer.Dial(u.String(), header)
+	cc, err := tran.Dial(u.String(), header)
 	at.Nil(err)
 	defer cc.Close()
 
-	sc := <-svr.ConnChan()
+	sc := <-conn
 	defer sc.Close()
 
 	cc.SetReadDeadline(time.Now().Add(time.Second / 10))

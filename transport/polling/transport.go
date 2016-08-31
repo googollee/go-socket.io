@@ -1,31 +1,113 @@
 package polling
 
 import (
+	"errors"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/googollee/go-engine.io/base"
-	"github.com/googollee/go-engine.io/transport"
+	"github.com/googollee/go-engine.io/payload"
 )
 
-type pTransport struct {
-	connChan chan base.Conn
+// Transport is the transport of polling.
+type Transport struct {
+	Client *http.Client
+	Retry  int
 }
 
-// New creates a new polling transport.
-func New() transport.Transport {
-	return &pTransport{
-		connChan: make(chan base.Conn),
-	}
+// Default is the default transport.
+var Default = &Transport{
+	Client: &http.Client{
+		Timeout: time.Minute,
+	},
+	Retry: 3,
 }
 
-func (s *pTransport) ConnChan() <-chan base.Conn {
-	return s.connChan
+// Name is the name of transport.
+func (t *Transport) Name() string {
+	return "polling"
 }
 
-func (s *pTransport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (t *Transport) ServeHTTP(connChan chan<- base.Conn, w http.ResponseWriter, r *http.Request) {
 	closed := make(chan struct{})
 	conn := newServerConn(r, closed)
-	s.connChan <- conn
+	connChan <- conn
 	handler := conn.(http.Handler)
 	handler.ServeHTTP(w, r)
+}
+
+// Dial dials to url with requestHeader and returns connection.
+func (t *Transport) Dial(url string, requestHeader http.Header) (base.Conn, error) {
+	ret, err := t.dial(url, requestHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	go ret.doGet(false)
+	go ret.doPost()
+
+	return ret, nil
+}
+
+// Open gets connection parameters from url.
+func (t *Transport) Open(url string, requestHeader http.Header) (base.ConnParameters, error) {
+	c, err := t.dial(url, requestHeader)
+	if err != nil {
+		return base.ConnParameters{}, base.OpErr(url, "dial", err)
+	}
+	defer c.Close()
+
+	go c.doGet(true)
+
+	_, pt, r, err := c.NextReader()
+	if err != nil {
+		return base.ConnParameters{}, base.OpErr(url, "open", err)
+	}
+	if pt != base.OPEN {
+		return base.ConnParameters{}, base.OpErr(url, "open", errors.New("not open packet"))
+	}
+	ret, err := base.ReadConnParameters(r)
+	if err != nil {
+		return base.ConnParameters{}, base.OpErr(url, "open", err)
+	}
+	t.Client.Timeout = ret.PingTimeout
+	return ret, nil
+}
+
+func (t *Transport) dial(url string, requestHeader http.Header) (*clientConn, error) {
+	client := t.Client
+	if client == nil {
+		client = &http.Client{}
+	}
+	if t.Retry == 0 {
+		t.Retry = 3
+	}
+	req, err := http.NewRequest("", url, nil)
+	if err != nil {
+		return nil, base.OpErr(url, "create request", err)
+	}
+	for k, v := range requestHeader {
+		req.Header[k] = v
+	}
+	supportBinary := req.URL.Query().Get("b64") == ""
+	closed := make(chan struct{})
+	if supportBinary {
+		req.Header.Set("Content-Type", "application/octet-stream")
+	} else {
+		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
+	}
+
+	ret := &clientConn{
+		supportBinary: supportBinary,
+		retry:         t.Retry,
+		request:       *req,
+		httpClient:    client,
+		closed:        closed,
+	}
+	ret.err.Store(base.OpErr(url, "i/o", io.EOF))
+	ret.encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
+	ret.decoder = payload.NewDecoder(closed, &ret.err)
+
+	return ret, nil
 }

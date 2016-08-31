@@ -8,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
@@ -28,12 +27,14 @@ func TestPollingBinary(t *testing.T) {
 	at := assert.New(t)
 	var scValue atomic.Value
 
-	transport := New()
+	transport := Default
+	at.Equal("polling", transport.Name())
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(w, r)
+			transport.ServeHTTP(conn, w, r)
 			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
@@ -44,16 +45,13 @@ func TestPollingBinary(t *testing.T) {
 	u, err := url.Parse(httpSvr.URL)
 	at.Nil(err)
 
-	dialer := Dialer{}
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := dialer.Dial(u.String(), header, base.ConnParameters{
-		PingTimeout: time.Second,
-	})
+	cc, err := transport.Dial(u.String(), header)
 	at.Nil(err)
 	defer cc.Close()
 
-	sc := <-transport.ConnChan()
+	sc := <-conn
 	defer sc.Close()
 	scValue.Store(sc)
 
@@ -112,12 +110,13 @@ func TestPollingString(t *testing.T) {
 	at := assert.New(t)
 	var scValue atomic.Value
 
-	transport := New()
+	transport := Default
+	conn := make(chan base.Conn)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(w, r)
+			transport.ServeHTTP(conn, w, r)
 			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
@@ -132,16 +131,13 @@ func TestPollingString(t *testing.T) {
 	query.Set("b64", "true")
 	u.RawQuery = query.Encode()
 
-	dialer := Dialer{}
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := dialer.Dial(u.String(), header, base.ConnParameters{
-		PingTimeout: time.Second,
-	})
+	cc, err := transport.Dial(u.String(), header)
 	at.Nil(err)
 	defer cc.Close()
 
-	sc := <-transport.ConnChan()
+	sc := <-conn
 	defer sc.Close()
 	scValue.Store(sc)
 

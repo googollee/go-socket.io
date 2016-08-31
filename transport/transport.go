@@ -8,8 +8,9 @@ import (
 
 // Transport is a transport which can creates base.Conn
 type Transport interface {
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
-	ConnChan() <-chan base.Conn
+	Name() string
+	Dial(url string, requestHeader http.Header) (base.Conn, error)
+	ServeHTTP(conn chan<- base.Conn, w http.ResponseWriter, r *http.Request)
 }
 
 // Manager is a manager of transports.
@@ -38,9 +39,9 @@ func (m Manager) Get(name string) Transport {
 }
 
 // Register registers a transport t with name.
-func (m Manager) Register(name string, t Transport) {
+func (m Manager) Register(t Transport) {
 	if t == nil {
 		panic("can't register nil transport")
 	}
-	m[name] = t
+	m[t.Name()] = t
 }
