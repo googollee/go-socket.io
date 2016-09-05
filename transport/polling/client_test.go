@@ -26,12 +26,15 @@ func TestDialOpen(t *testing.T) {
 
 	var scValue atomic.Value
 	transport := Default
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(conn, w, r)
-			return
+			co, err := transport.Accept(w, r)
+			at.Nil(err)
+			scValue.Store(co)
+			c = co
+			conn <- co
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -44,7 +47,7 @@ func TestDialOpen(t *testing.T) {
 		defer wg.Done()
 		sc := <-conn
 		defer sc.Close()
-		scValue.Store(sc)
+
 		w, err := sc.NextWriter(base.FrameBinary, base.OPEN)
 		at.Nil(err)
 		_, err = cp.WriteTo(w)

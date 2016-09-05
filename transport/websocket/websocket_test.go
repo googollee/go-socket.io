@@ -27,10 +27,13 @@ func TestWebsocket(t *testing.T) {
 
 	tran := &Transport{}
 	at.Equal("websocket", tran.Name())
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
-		tran.ServeHTTP(conn, w, r)
+		c, err := tran.Accept(w, r)
+		at.Nil(err)
+		conn <- c
+		c.(http.Handler).ServeHTTP(w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()

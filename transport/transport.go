@@ -6,42 +6,50 @@ import (
 	"github.com/googollee/go-engine.io/base"
 )
 
+// HTTPError is error which has http response code
+type HTTPError interface {
+	Code() int
+}
+
 // Transport is a transport which can creates base.Conn
 type Transport interface {
 	Name() string
 	Dial(url string, requestHeader http.Header) (base.Conn, error)
-	ServeHTTP(conn chan<- base.Conn, w http.ResponseWriter, r *http.Request)
+	Accept(w http.ResponseWriter, r *http.Request) (base.Conn, error)
 }
 
 // Manager is a manager of transports.
-type Manager map[string]Transport
-
-// NewManager creates a new manager.
-func NewManager() Manager {
-	return make(Manager)
+type Manager struct {
+	order      []string
+	transports map[string]Transport
 }
 
-// OtherNames returns a name list of transports except given name.
-func (m Manager) OtherNames(name string) []string {
-	ret := make([]string, 0, len(m))
-	for k := range m {
-		if k == name {
-			continue
-		}
-		ret = append(ret, k)
+// NewManager creates a new manager.
+func NewManager(transports []Transport) *Manager {
+	tranMap := make(map[string]Transport)
+	names := make([]string, len(transports))
+	for i, t := range transports {
+		names[i] = t.Name()
+		tranMap[t.Name()] = t
 	}
-	return ret
+	return &Manager{
+		order:      names,
+		transports: tranMap,
+	}
+}
+
+// UpgradeFrom returns a name list of transports which can upgrade from given
+// name.
+func (m *Manager) UpgradeFrom(name string) []string {
+	for i, n := range m.order {
+		if n == name {
+			return m.order[i+1:]
+		}
+	}
+	return nil
 }
 
 // Get returns the transport with given name.
-func (m Manager) Get(name string) Transport {
-	return m[name]
-}
-
-// Register registers a transport t with name.
-func (m Manager) Register(t Transport) {
-	if t == nil {
-		panic("can't register nil transport")
-	}
-	m[t.Name()] = t
+func (m *Manager) Get(name string) Transport {
+	return m.transports[name]
 }

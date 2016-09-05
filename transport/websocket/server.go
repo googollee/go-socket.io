@@ -19,8 +19,9 @@ type conn struct {
 	base.FrameReader
 }
 
-func newConn(ws *websocket.Conn, remote http.Header, closed chan struct{}) base.Conn {
+func newConn(ws *websocket.Conn, remote http.Header) base.Conn {
 	w := newWrapper(ws)
+	closed := make(chan struct{})
 	return &conn{
 		remoteHeader: remote,
 		ws:           w,
@@ -48,6 +49,10 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 
 func (c *conn) SetWriteDeadline(t time.Time) error {
 	return c.ws.SetWriteDeadline(t)
+}
+
+func (c *conn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	<-c.closed
 }
 
 func (c *conn) Close() error {

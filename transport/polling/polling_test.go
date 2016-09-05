@@ -29,13 +29,16 @@ func TestPollingBinary(t *testing.T) {
 
 	transport := Default
 	at.Equal("polling", transport.Name())
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(conn, w, r)
-			return
+			co, err := transport.Accept(w, r)
+			at.Nil(err)
+			scValue.Store(co)
+			c = co
+			conn <- co
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -53,7 +56,6 @@ func TestPollingBinary(t *testing.T) {
 
 	sc := <-conn
 	defer sc.Close()
-	scValue.Store(sc)
 
 	at.Equal(sc.LocalAddr(), cc.RemoteAddr())
 	at.Equal(cc.LocalAddr(), "")
@@ -111,13 +113,16 @@ func TestPollingString(t *testing.T) {
 	var scValue atomic.Value
 
 	transport := Default
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(conn, w, r)
-			return
+			co, err := transport.Accept(w, r)
+			at.Nil(err)
+			scValue.Store(co)
+			c = co
+			conn <- co
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -139,7 +144,6 @@ func TestPollingString(t *testing.T) {
 
 	sc := <-conn
 	defer sc.Close()
-	scValue.Store(sc)
 
 	at.Equal(sc.LocalAddr(), cc.RemoteAddr())
 	at.Equal(cc.LocalAddr(), "")

@@ -19,12 +19,15 @@ func TestServerJSONP(t *testing.T) {
 	var scValue atomic.Value
 
 	transport := Default
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(conn, w, r)
-			return
+			co, err := transport.Accept(w, r)
+			at.Nil(err)
+			scValue.Store(co)
+			c = co
+			conn <- co
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -37,7 +40,6 @@ func TestServerJSONP(t *testing.T) {
 		defer wg.Done()
 		sc := <-conn
 		defer sc.Close()
-		scValue.Store(sc)
 
 		w, err := sc.NextWriter(base.FrameBinary, base.MESSAGE)
 		at.Nil(err)
@@ -84,12 +86,15 @@ func TestServerSetReadDeadline(t *testing.T) {
 	var scValue atomic.Value
 
 	transport := Default
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(conn, w, r)
-			return
+			co, err := transport.Accept(w, r)
+			at.Nil(err)
+			scValue.Store(co)
+			c = co
+			conn <- co
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -102,7 +107,6 @@ func TestServerSetReadDeadline(t *testing.T) {
 		defer wg.Done()
 		sc := <-conn
 		defer sc.Close()
-		scValue.Store(sc)
 
 		err := sc.SetReadDeadline(time.Now().Add(time.Second / 10))
 		at.Nil(err)
@@ -130,12 +134,15 @@ func TestServerSetWriteDeadline(t *testing.T) {
 	var scValue atomic.Value
 
 	transport := Default
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			transport.ServeHTTP(conn, w, r)
-			return
+			co, err := transport.Accept(w, r)
+			at.Nil(err)
+			scValue.Store(co)
+			c = co
+			conn <- co
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -148,7 +155,6 @@ func TestServerSetWriteDeadline(t *testing.T) {
 		defer wg.Done()
 		sc := <-conn
 		defer sc.Close()
-		scValue.Store(sc)
 
 		err := sc.SetWriteDeadline(time.Now().Add(time.Second / 10))
 		at.Nil(err)

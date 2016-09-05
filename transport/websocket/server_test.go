@@ -16,9 +16,12 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	at := assert.New(t)
 
 	tran := &Transport{}
-	conn := make(chan base.Conn)
+	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		tran.ServeHTTP(conn, w, r)
+		c, err := tran.Accept(w, r)
+		at.Nil(err)
+		conn <- c
+		c.(http.Handler).ServeHTTP(w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()

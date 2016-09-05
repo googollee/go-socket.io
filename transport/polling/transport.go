@@ -29,12 +29,10 @@ func (t *Transport) Name() string {
 	return "polling"
 }
 
-func (t *Transport) ServeHTTP(connChan chan<- base.Conn, w http.ResponseWriter, r *http.Request) {
-	closed := make(chan struct{})
-	conn := newServerConn(r, closed)
-	connChan <- conn
-	handler := conn.(http.Handler)
-	handler.ServeHTTP(w, r)
+// Accept accepts a http request and create Conn.
+func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, error) {
+	conn := newServerConn(r)
+	return conn, nil
 }
 
 // Dial dials to url with requestHeader and returns connection.

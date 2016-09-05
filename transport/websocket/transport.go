@@ -59,24 +59,19 @@ func (t *Transport) Dial(url string, requestHeader http.Header) (base.Conn, erro
 		}
 	}
 
-	closed := make(chan struct{})
-
-	return newConn(c, resp.Header, closed), nil
+	return newConn(c, resp.Header), nil
 }
 
-func (t *Transport) ServeHTTP(conn chan<- base.Conn, w http.ResponseWriter, r *http.Request) {
+// Accept accepts a http request and create Conn.
+func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, error) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  t.ReadBufferSize,
 		WriteBufferSize: t.WriteBufferSize,
 	}
 	c, err := upgrader.Upgrade(w, r, w.Header())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
+		return nil, err
 	}
-	defer c.Close()
 
-	closed := make(chan struct{})
-	conn <- newConn(c, r.Header, closed)
-	<-closed
+	return newConn(c, r.Header), nil
 }

@@ -32,13 +32,14 @@ type serverConn struct {
 	jsonp         string
 }
 
-func newServerConn(r *http.Request, closed chan struct{}) base.Conn {
+func newServerConn(r *http.Request) base.Conn {
 	query := r.URL.Query()
 	supportBinary := query.Get("b64") == ""
 	jsonp := query.Get("j")
 	if jsonp != "" {
 		supportBinary = false
 	}
+	closed := make(chan struct{})
 	ret := &serverConn{
 		closed:        closed,
 		remoteHeader:  r.Header,

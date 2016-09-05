@@ -5,11 +5,6 @@ import (
 	"net/http"
 )
 
-// HTTPError is error which has http response code
-type HTTPError interface {
-	Code() int
-}
-
 // Checker is function to check request.
 type Checker func(*http.Request) (http.Header, error)
 
