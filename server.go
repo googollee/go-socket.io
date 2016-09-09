@@ -11,6 +11,7 @@ type Server struct {
 	*namespace
 	broadcast BroadcastAdaptor
 	eio       *engineio.Server
+	headers	  map[string]string
 }
 
 // NewServer returns the server supported given transports. If transports is nil, the server will use ["polling", "websocket"] as default.
@@ -22,6 +23,7 @@ func NewServer(transportNames []string) (*Server, error) {
 	ret := &Server{
 		namespace: newNamespace(newBroadcastDefault()),
 		eio:       eio,
+		headers:   make(map[string]string),
 	}
 	go ret.loop()
 	return ret, nil
@@ -82,8 +84,16 @@ func (s *Server) SetAdaptor(adaptor BroadcastAdaptor) {
 	s.namespace = newNamespace(adaptor)
 }
 
+func (s *Server) AddHeader(headerName string, headerValue string) {
+	s.headers[headerName] = headerValue
+}
+
 // ServeHTTP handles http requests.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	for header, value := range s.headers {
+		w.Header().Add(header, value)
+	}
+
 	s.eio.ServeHTTP(w, r)
 }
 
