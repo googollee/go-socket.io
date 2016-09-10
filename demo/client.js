@@ -1,6 +1,5 @@
 var url = 'ws://localhost:8080';
 var eio = require('engine.io-client')(url, {
-    'transports': ['websocket']
 });
 
 var msgCount = 0;
