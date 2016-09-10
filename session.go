@@ -10,32 +10,49 @@ import (
 )
 
 type session struct {
-	id        string
+	params    base.ConnParameters
 	manager   *manager
 	closeOnce sync.Once
 
 	upgradeLocker sync.RWMutex
 	transport     string
 	conn          base.Conn
-	params        base.ConnParameters
-
-	writeLocker sync.Mutex
 }
 
-func newSession(m *manager, t string, conn base.Conn, params base.ConnParameters) *session {
+func newSession(m *manager, t string, conn base.Conn, params base.ConnParameters) (*session, error) {
+	params.SID = m.NewID()
 	ret := &session{
-		id:        m.NewID(),
 		transport: t,
 		conn:      conn,
 		params:    params,
 		manager:   m,
 	}
 	m.Add(ret)
-	return ret
+	ret.setDeadline()
+
+	go func() {
+		w, err := ret.nextWriter(base.FrameString, base.OPEN)
+		if err != nil {
+			w.Close()
+			ret.Close()
+			return
+		}
+		if _, err := ret.params.WriteTo(w); err != nil {
+			w.Close()
+			ret.Close()
+			return
+		}
+		if err := w.Close(); err != nil {
+			ret.Close()
+			return
+		}
+	}()
+
+	return ret, nil
 }
 
 func (s *session) ID() string {
-	return s.id
+	return s.params.SID
 }
 
 func (s *session) Transport() string {
@@ -45,59 +62,49 @@ func (s *session) Transport() string {
 }
 
 func (s *session) Close() error {
+	s.upgradeLocker.RLock()
+	defer s.upgradeLocker.RUnlock()
 	s.closeOnce.Do(func() {
-		s.manager.Remove(s.id)
+		s.manager.Remove(s.params.SID)
 	})
 	return s.conn.Close()
 }
 
-func (s *session) NextReader() (FrameType, io.Reader, error) {
+func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
 	for {
-		s.upgradeLocker.RLock()
-		ft, pt, r, err := s.conn.NextReader()
-		s.upgradeLocker.RUnlock()
+		ft, pt, r, err := s.nextReader()
 		if err != nil {
 			return 0, nil, err
 		}
 		switch pt {
 		case base.PING:
 			err := func() error {
-				s.writeLocker.Lock()
-				defer s.writeLocker.Unlock()
-
-				s.upgradeLocker.RLock()
-				w, err := s.conn.NextWriter(ft, base.PONG)
-				s.upgradeLocker.RUnlock()
+				w, err := s.nextWriter(ft, base.PONG)
 				if err != nil {
 					return err
 				}
 				io.Copy(w, r)
 				return w.Close()
 			}()
+			r.Close()
 			if err != nil {
+				s.Close()
 				return 0, nil, err
 			}
+			s.setDeadline()
 		case base.CLOSE:
+			r.Close()
 			s.Close()
 			return 0, nil, io.EOF
-		case base.NOOP:
 		case base.MESSAGE:
 			return FrameType(ft), r, nil
-		case base.OPEN:
-			fallthrough
-		default:
 		}
+		r.Close()
 	}
 }
 
 func (s *session) NextWriter(typ FrameType) (io.WriteCloser, error) {
-	s.writeLocker.Lock()
-	defer s.writeLocker.Unlock()
-
-	s.upgradeLocker.RLock()
-	w, err := s.conn.NextWriter(base.FrameType(typ), base.MESSAGE)
-	s.upgradeLocker.RUnlock()
-	return w, err
+	return s.nextWriter(base.FrameType(typ), base.MESSAGE)
 }
 
 func (s *session) LocalAddr() string {
@@ -118,50 +125,113 @@ func (s *session) RemoteHeader() http.Header {
 	return s.conn.RemoteHeader()
 }
 
-func (s *session) upgrade(params base.ConnParameters, transport string, conn base.Conn) {
-	go s.upgrading(params, transport, conn)
+func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
+	var conn base.Conn
+	var ft base.FrameType
+	var pt base.PacketType
+	var r io.Reader
+	var err error
+	for {
+		s.upgradeLocker.RLock()
+		if conn == s.conn {
+			if err != nil {
+				s.upgradeLocker.RUnlock()
+				return 0, 0, nil, err
+			}
+			return ft, pt, newReader(r, &s.upgradeLocker), nil
+		}
+		conn = s.conn
+		s.upgradeLocker.RUnlock()
+
+		ft, pt, r, err = conn.NextReader()
+	}
+}
+
+func (s *session) nextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
+	s.upgradeLocker.RLock()
+	w, err := s.conn.NextWriter(ft, pt)
+	if err != nil {
+		s.upgradeLocker.RUnlock()
+		return nil, err
+	}
+	return newWriter(w, &s.upgradeLocker), nil
+}
+
+func (s *session) setDeadline() {
+	deadline := time.Now().Add(s.params.PingTimeout)
+	var conn base.Conn
+	for {
+		s.upgradeLocker.RLock()
+		if conn == s.conn {
+			s.upgradeLocker.RUnlock()
+			return
+		}
+		conn = s.conn
+		s.upgradeLocker.RUnlock()
+
+		s.conn.SetReadDeadline(deadline)
+		s.conn.SetWriteDeadline(deadline)
+	}
+}
+
+func (s *session) upgrade(transport string, conn base.Conn) {
+	go s.upgrading(transport, conn)
 }
 
 func (s *session) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	s.upgradeLocker.RLock()
-	defer s.upgradeLocker.RUnlock()
-	if h, ok := s.conn.(http.Handler); ok {
+	conn := s.conn
+	s.upgradeLocker.RUnlock()
+
+	if h, ok := conn.(http.Handler); ok {
 		h.ServeHTTP(w, r)
 	}
 }
 
-func (s *session) upgrading(params base.ConnParameters, transport string, conn base.Conn) {
-	conn.SetReadDeadline(time.Now().Add(params.PingTimeout))
+func (s *session) upgrading(transport string, conn base.Conn) {
+	deadline := time.Now().Add(s.params.PingTimeout)
+	conn.SetReadDeadline(deadline)
+	conn.SetWriteDeadline(deadline)
+
 	ft, pt, r, err := conn.NextReader()
 	if err != nil {
+		conn.Close()
 		return
 	}
 	if pt != base.PING {
-		return
-	}
-	conn.SetWriteDeadline(time.Now().Add(params.PingTimeout))
-	w, err := conn.NextWriter(ft, base.PONG)
-	if err != nil {
-		return
-	}
-	if _, err := io.Copy(w, r); err != nil {
-		return
-	}
-	if err := w.Close(); err != nil {
-		return
-	}
-	_, pt, _, err = conn.NextReader()
-	if err != nil {
-		return
-	}
-	if pt != base.UPGRADE {
+		conn.Close()
 		return
 	}
 
-	s.conn.Close()
+	w, err := conn.NextWriter(ft, base.PONG)
+	if err != nil {
+		conn.Close()
+		return
+	}
+	if _, err := io.Copy(w, r); err != nil {
+		conn.Close()
+		return
+	}
+	if err := w.Close(); err != nil {
+		conn.Close()
+		return
+	}
+
+	_, pt, _, err = conn.NextReader()
+	if err != nil {
+		conn.Close()
+		return
+	}
+	if pt != base.UPGRADE {
+		conn.Close()
+		return
+	}
+
 	s.upgradeLocker.Lock()
-	defer s.upgradeLocker.Unlock()
+	oldConn := s.conn
 	s.conn = conn
-	s.params = params
 	s.transport = transport
+	s.upgradeLocker.Unlock()
+
+	oldConn.Close()
 }

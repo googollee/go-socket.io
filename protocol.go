@@ -10,13 +10,13 @@ import (
 type FrameType base.FrameType
 
 const (
-	STRING = FrameType(base.FrameString)
+	TEXT   = FrameType(base.FrameString)
 	BINARY = FrameType(base.FrameBinary)
 )
 
 type Conn interface {
 	ID() string
-	NextReader() (FrameType, io.Reader, error)
+	NextReader() (FrameType, io.ReadCloser, error)
 	NextWriter(typ FrameType) (io.WriteCloser, error)
 	Close() error
 	LocalAddr() string

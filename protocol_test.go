@@ -5,16 +5,13 @@ import (
 	"io"
 	"log"
 	"net/http/httptest"
-
-	"github.com/googollee/go-engine.io/transport"
-	"github.com/googollee/go-engine.io/transport/polling"
-	"github.com/googollee/go-engine.io/transport/websocket"
 )
 
 func ExampleServer() {
-	polling := polling.Default
-	websocket := websocket.Default
-	eio := NewServer([]transport.Transport{polling, websocket})
+	eio, err := NewServer(nil)
+	if err != nil {
+		log.Fatalln("server error:", err)
+	}
 	httpSvr := httptest.NewServer(eio)
 	defer httpSvr.Close()
 

@@ -1,3 +1,4 @@
 profile.cov
 *.prof
 *.svg
+xtest/node_modules

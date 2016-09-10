@@ -19,18 +19,17 @@ func newWrapper(conn *websocket.Conn) wrapper {
 }
 
 func (w wrapper) NextReader() (base.FrameType, io.Reader, error) {
-	for {
-		typ, r, err := w.Conn.NextReader()
-		if err != nil {
-			return 0, nil, err
-		}
-		switch typ {
-		case websocket.TextMessage:
-			return base.FrameString, r, nil
-		case websocket.BinaryMessage:
-			return base.FrameBinary, r, nil
-		}
+	typ, r, err := w.Conn.NextReader()
+	if err != nil {
+		return 0, nil, err
 	}
+	switch typ {
+	case websocket.TextMessage:
+		return base.FrameString, r, nil
+	case websocket.BinaryMessage:
+		return base.FrameBinary, r, nil
+	}
+	return 0, nil, transport.ErrInvalidFrame
 }
 
 func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
