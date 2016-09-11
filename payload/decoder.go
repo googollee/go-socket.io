@@ -69,8 +69,9 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 		ft, pt, ret, err := read(r.lastReader)
 		if err != io.EOF {
 			if err != nil {
+				r.signal.StoreError(err)
 				r.closeFrame(err)
-				return 0, 0, nil, r.signal.StoreError(err)
+				return 0, 0, nil, err
 			}
 			return ft, pt, ret, nil
 		}

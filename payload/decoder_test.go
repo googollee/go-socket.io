@@ -378,16 +378,16 @@ func TestDecoderCloseWhenRead(t *testing.T) {
 	var wg sync.WaitGroup
 	sig := NewSignal()
 	r := NewDecoder(sig)
+	targetErr := errors.New("error")
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
 		_, _, _, err := r.NextReader()
-		at.NotNil(err)
+		at.Equal(targetErr, err)
 	}()
 
-	targetErr := errors.New("error")
 	reader := readCloser{
 		sig: sig,
 		err: targetErr,

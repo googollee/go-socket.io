@@ -13,7 +13,7 @@ import (
 // ErrTimeout is timeout error.
 var ErrTimeout = timeoutError{}
 
-// ErrPaused means decoder is paused.
+// ErrPause means decoder is paused.
 var ErrPause = errors.New("pause")
 
 // ByteReader can read byte by byte
