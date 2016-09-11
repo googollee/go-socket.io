@@ -20,11 +20,10 @@ type clientConn struct {
 	request       http.Request
 	remoteHeader  atomic.Value
 	httpClient    *http.Client
-	closed        chan struct{}
 	closeOnce     sync.Once
-	err           payload.AtomicError
 	encoder       payload.Encoder
 	decoder       payload.Decoder
+	signal        *payload.Signal
 }
 
 func (c *clientConn) SetReadDeadline(t time.Time) error {
@@ -77,7 +76,7 @@ func (c *clientConn) RemoteHeader() http.Header {
 
 func (c *clientConn) Close() error {
 	c.closeOnce.Do(func() {
-		close(c.closed)
+		c.signal.Close()
 	})
 	return nil
 }
@@ -175,5 +174,5 @@ func (c *clientConn) storeErr(op string, err error) error {
 	if _, ok := err.(*base.OpError); ok || err == io.EOF {
 		return err
 	}
-	return c.err.Store(base.OpErr(c.request.URL.String(), op, err))
+	return c.signal.StoreError(base.OpErr(c.request.URL.String(), op, err))
 }

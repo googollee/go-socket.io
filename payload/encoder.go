@@ -17,19 +17,17 @@ type encoder struct {
 	writerChan    chan io.Writer
 	errorChan     chan error
 	supportBinary bool
-	closed        chan struct{}
-	err           *AtomicError
+	signal        *Signal
 	cache         *frameCache
 	deadline      time.Time
 }
 
-func newEncoder(supportBinary bool, closed chan struct{}, err *AtomicError) *encoder {
+func newEncoder(supportBinary bool, sig *Signal) *encoder {
 	ret := &encoder{
 		writerChan:    make(chan io.Writer),
 		errorChan:     make(chan error),
 		supportBinary: supportBinary,
-		closed:        closed,
-		err:           err,
+		signal:        sig,
 	}
 	ret.cache = newFrameCache(ret)
 	return ret
@@ -52,14 +50,30 @@ func (w *encoder) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteClo
 func (w *encoder) FlushOut(wr io.Writer) error {
 	select {
 	case w.writerChan <- wr:
-	case <-w.closed:
-		return w.err.Load()
+	case <-w.signal.WaitClose():
+		return w.signal.LoadError()
+	case <-w.signal.WaitPause():
+		var err error
+		if w.supportBinary {
+			_, err = wr.Write([]byte{0x00, 0x01, 0xff, '6'})
+		} else {
+			_, err = wr.Write([]byte("1:6"))
+		}
+		return err
 	}
 	select {
 	case err := <-w.errorChan:
 		return err
-	case <-w.closed:
-		return w.err.Load()
+	case <-w.signal.WaitClose():
+		return w.signal.LoadError()
+	case <-w.signal.WaitPause():
+		var err error
+		if w.supportBinary {
+			_, err = wr.Write([]byte{0x00, 0x01, 0xff, '6'})
+		} else {
+			_, err = wr.Write([]byte("1:6"))
+		}
+		return err
 	}
 }
 
@@ -68,17 +82,17 @@ func (w *encoder) waitWriter() (io.Writer, error) {
 		select {
 		case arg := <-w.writerChan:
 			return arg, nil
-		case <-w.closed:
-			return nil, w.err.Load()
+		case <-w.signal.WaitClose():
+			return nil, w.signal.LoadError()
 		}
 	}
 	select {
 	case <-time.After(w.deadline.Sub(time.Now())):
-		return nil, w.err.Store(ErrTimeout)
+		return nil, w.signal.StoreError(ErrTimeout)
 	case arg := <-w.writerChan:
 		return arg, nil
-	case <-w.closed:
-		return nil, w.err.Load()
+	case <-w.signal.WaitClose():
+		return nil, w.signal.LoadError()
 	}
 }
 
@@ -113,12 +127,12 @@ func (w *encoder) closeFrame() error {
 		err = flusher.Flush()
 	}
 	if err != nil {
-		w.err.Store(err)
+		w.signal.StoreError(err)
 	}
 	select {
 	case w.errorChan <- err:
-	case <-w.closed:
-		return w.err.Load()
+	case <-w.signal.WaitClose():
+		return w.signal.LoadError()
 	}
 	return err
 }

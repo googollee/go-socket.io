@@ -16,6 +16,7 @@ func defaultChecker(*http.Request) (http.Header, error) {
 	return nil, nil
 }
 
+// Config is configure.
 type Config struct {
 	RequestChecker func(*http.Request) (http.Header, error)
 	PingTimeout    time.Duration
@@ -41,6 +42,7 @@ func (c *Config) fillNil() {
 	}
 }
 
+// Server is server.
 type Server struct {
 	transports     *transport.Manager
 	pingInterval   time.Duration
@@ -51,6 +53,7 @@ type Server struct {
 	connChan       chan Conn
 }
 
+// NewServer returns a server.
 func NewServer(c *Config) (*Server, error) {
 	if c == nil {
 		c = &Config{}
@@ -68,6 +71,7 @@ func NewServer(c *Config) (*Server, error) {
 	}, nil
 }
 
+// Accept accepts a connection.
 func (s *Server) Accept() (Conn, error) {
 	c := <-s.connChan
 	if c == nil {

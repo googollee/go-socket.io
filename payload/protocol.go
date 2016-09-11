@@ -13,6 +13,9 @@ import (
 // ErrTimeout is timeout error.
 var ErrTimeout = timeoutError{}
 
+// ErrPaused means decoder is paused.
+var ErrPause = errors.New("pause")
+
 // ByteReader can read byte by byte
 type ByteReader interface {
 	ReadByte() (byte, error)
@@ -23,6 +26,74 @@ type ByteReader interface {
 type ByteWriter interface {
 	WriteByte(b byte) error
 	io.Writer
+}
+
+// Signal sends signal to encoder/decoder.
+type Signal struct {
+	close chan struct{}
+
+	pauseLocker sync.RWMutex
+	pause       chan struct{}
+
+	errLocker sync.RWMutex
+	err       error
+}
+
+// NewSignal creates a new signal.
+func NewSignal() *Signal {
+	return &Signal{
+		close: make(chan struct{}),
+		pause: make(chan struct{}),
+	}
+}
+
+// Close sends close signal.
+func (s *Signal) Close() {
+	close(s.close)
+}
+
+// WaitClose waits close signal with chan.
+func (s *Signal) WaitClose() <-chan struct{} {
+	return s.close
+}
+
+// Pause sends pause signal.
+func (s *Signal) Pause() {
+	s.pauseLocker.Lock()
+	defer s.pauseLocker.Unlock()
+	close(s.pause)
+}
+
+// WaitPause waits pause signal with chan.
+func (s *Signal) WaitPause() <-chan struct{} {
+	s.pauseLocker.RLock()
+	defer s.pauseLocker.RUnlock()
+	return s.pause
+}
+
+// Resume resumes from pause status.
+func (s *Signal) Resume() {
+	s.pauseLocker.Lock()
+	defer s.pauseLocker.Unlock()
+	s.pause = make(chan struct{})
+}
+
+// StoreError saves error.
+func (s *Signal) StoreError(err error) error {
+	s.errLocker.Lock()
+	defer s.errLocker.Unlock()
+	s.err = err
+	return err
+}
+
+// LoadError loads error.
+func (s *Signal) LoadError() error {
+	s.errLocker.RLock()
+	defer s.errLocker.RUnlock()
+	if s.err == nil {
+		return io.EOF
+	}
+	return s.err
 }
 
 // Encoder encodes packet frames into a payload. It need be closed before
@@ -39,8 +110,8 @@ type Encoder interface {
 // NewEncoder creates a new encoder, output to w. The maximum size of one frame
 // is limited with maxFrameSize. If w supports binary, set supportBinary true,
 // otherwise set it to false.
-func NewEncoder(supportBinary bool, closed chan struct{}, err *AtomicError) Encoder {
-	return newEncoder(supportBinary, closed, err)
+func NewEncoder(supportBinary bool, sig *Signal) Encoder {
+	return newEncoder(supportBinary, sig)
 }
 
 // ErrInvalidPayload is error of invalid payload while decoding.
@@ -58,30 +129,6 @@ type Decoder interface {
 
 // NewDecoder creates a new decoder, input from r. If r supports binary, set
 // supportBinary true, otherwise set it to false.
-func NewDecoder(closed chan struct{}, err *AtomicError) Decoder {
-	return newDecoder(closed, err)
-}
-
-// AtomicError is a error storage.
-type AtomicError struct {
-	locker sync.RWMutex
-	error
-}
-
-// Store saves error.
-func (e *AtomicError) Store(err error) error {
-	e.locker.Lock()
-	defer e.locker.Unlock()
-	e.error = err
-	return err
-}
-
-// Load loads error.
-func (e *AtomicError) Load() error {
-	e.locker.RLock()
-	defer e.locker.RUnlock()
-	if e.error == nil {
-		return io.EOF
-	}
-	return e.error
+func NewDecoder(sig *Signal) Decoder {
+	return newDecoder(sig)
 }

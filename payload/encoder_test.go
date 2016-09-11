@@ -13,26 +13,25 @@ import (
 
 func TestEncoderCloseWhileFraming(t *testing.T) {
 	at := assert.New(t)
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 
-	w := NewEncoder(true, closed, &err)
+	w := NewEncoder(true, sig)
 
 	wr, e := w.NextWriter(base.FrameString, base.OPEN)
 	at.Nil(e)
-	close(closed)
+	sig.Close()
 	e = wr.Close()
 	at.Equal(io.EOF, e)
 }
 
 type errWriter struct {
-	err    error
-	closed chan struct{}
+	err error
+	sig *Signal
 }
 
 func (w *errWriter) Write(p []byte) (int, error) {
 	if w.err == nil {
-		close(w.closed)
+		w.sig.Close()
 		return len(p), nil
 	}
 	return 0, w.err
@@ -40,11 +39,10 @@ func (w *errWriter) Write(p []byte) (int, error) {
 
 func TestEncoderCloseWhenWriting(t *testing.T) {
 	at := assert.New(t)
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
 
-	w := NewEncoder(true, closed, &err)
+	w := NewEncoder(true, sig)
 
 	wg.Add(1)
 	go func() {
@@ -56,7 +54,7 @@ func TestEncoderCloseWhenWriting(t *testing.T) {
 	}()
 
 	writer := errWriter{
-		closed: closed,
+		sig: sig,
 	}
 	e := w.FlushOut(&writer)
 	at.Equal(io.EOF, e)
@@ -66,15 +64,14 @@ func TestEncoderCloseWhenWriting(t *testing.T) {
 
 func TestEncoderErrorWhenWriting(t *testing.T) {
 	at := assert.New(t)
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
 
-	w := NewEncoder(true, closed, &err)
+	w := NewEncoder(true, sig)
 
 	writer := errWriter{
-		closed: closed,
-		err:    errors.New("error"),
+		sig: sig,
+		err: errors.New("error"),
 	}
 
 	wg.Add(1)
@@ -94,10 +91,9 @@ func TestEncoderErrorWhenWriting(t *testing.T) {
 
 func TestEncoderTimeout(t *testing.T) {
 	at := assert.New(t)
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 
-	w := NewEncoder(true, closed, &err)
+	w := NewEncoder(true, sig)
 
 	e := w.SetDeadline(time.Now().Add(time.Second))
 	at.Nil(e)
@@ -110,5 +106,5 @@ func TestEncoderTimeout(t *testing.T) {
 	end := time.Now()
 	at.True(end.Sub(begin) > time.Second)
 
-	at.Equal(ErrTimeout, err.Load().(error))
+	at.Equal(ErrTimeout, sig.LoadError().(error))
 }

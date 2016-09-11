@@ -6,6 +6,11 @@ import (
 	"github.com/googollee/go-engine.io/base"
 )
 
+type Pauser interface {
+	Pause()
+	Resume()
+}
+
 // HTTPError is error which has http response code
 type HTTPError interface {
 	Code() int

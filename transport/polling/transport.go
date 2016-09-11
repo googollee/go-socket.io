@@ -89,7 +89,6 @@ func (t *Transport) dial(url string, requestHeader http.Header) (*clientConn, er
 		req.Header[k] = v
 	}
 	supportBinary := req.URL.Query().Get("b64") == ""
-	closed := make(chan struct{})
 	if supportBinary {
 		req.Header.Set("Content-Type", "application/octet-stream")
 	} else {
@@ -101,11 +100,11 @@ func (t *Transport) dial(url string, requestHeader http.Header) (*clientConn, er
 		retry:         t.Retry,
 		request:       *req,
 		httpClient:    client,
-		closed:        closed,
+		signal:        payload.NewSignal(),
 	}
-	ret.err.Store(base.OpErr(url, "i/o", io.EOF))
-	ret.encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
-	ret.decoder = payload.NewDecoder(closed, &ret.err)
+	ret.signal.StoreError(base.OpErr(url, "i/o", io.EOF))
+	ret.encoder = payload.NewEncoder(supportBinary, ret.signal)
+	ret.decoder = payload.NewDecoder(ret.signal)
 
 	return ret, nil
 }

@@ -19,17 +19,15 @@ type decoder struct {
 	lastType    base.FrameType
 	lastReader  ByteReader
 	limitReader *limitReader
-	closed      chan struct{}
-	err         *AtomicError
+	signal      *Signal
 	deadline    time.Time
 }
 
-func newDecoder(closed chan struct{}, err *AtomicError) *decoder {
+func newDecoder(sig *Signal) *decoder {
 	ret := &decoder{
 		errorChan:  make(chan error),
 		readerChan: make(chan readerArg),
-		closed:     closed,
-		err:        err,
+		signal:     sig,
 	}
 	ret.limitReader = newLimitReader(ret)
 	return ret
@@ -65,14 +63,14 @@ func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, erro
 		case base.FrameString:
 			read = r.stringRead
 		default:
-			return 0, 0, nil, r.err.Store(ErrInvalidPayload)
+			return 0, 0, nil, r.signal.LoadError()
 		}
 
 		ft, pt, ret, err := read(r.lastReader)
 		if err != io.EOF {
 			if err != nil {
 				r.closeFrame(err)
-				return 0, 0, nil, r.err.Store(err)
+				return 0, 0, nil, r.signal.StoreError(err)
 			}
 			return ft, pt, ret, nil
 		}
@@ -98,14 +96,18 @@ func (r *decoder) FeedIn(typ base.FrameType, rd io.Reader) error {
 		r:   rd,
 		typ: typ,
 	}:
-	case <-r.closed:
-		return r.err.Load()
+	case <-r.signal.WaitClose():
+		return r.signal.LoadError()
+	case <-r.signal.WaitPause():
+		return ErrPause
 	}
 	select {
 	case err := <-r.errorChan:
 		return err
-	case <-r.closed:
-		return r.err.Load()
+	case <-r.signal.WaitClose():
+		return r.signal.LoadError()
+	case <-r.signal.WaitPause():
+		return ErrPause
 	}
 }
 
@@ -114,26 +116,26 @@ func (r *decoder) waitReader() (readerArg, error) {
 		select {
 		case ret := <-r.readerChan:
 			return ret, nil
-		case <-r.closed:
-			return readerArg{}, r.err.Load()
+		case <-r.signal.WaitClose():
+			return readerArg{}, r.signal.LoadError()
 		}
 	}
 
 	waiting := r.deadline.Sub(time.Now())
 	select {
 	case <-time.After(waiting):
-		return readerArg{}, r.err.Store(ErrTimeout)
+		return readerArg{}, r.signal.StoreError(ErrTimeout)
 	case ret := <-r.readerChan:
 		return ret, nil
-	case <-r.closed:
-		return readerArg{}, r.err.Load()
+	case <-r.signal.WaitClose():
+		return readerArg{}, r.signal.LoadError()
 	}
 }
 
 func (r *decoder) closeFrame(err error) {
 	select {
 	case r.errorChan <- err:
-	case <-r.closed:
+	case <-r.signal.WaitClose():
 	}
 }
 

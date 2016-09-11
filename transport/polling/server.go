@@ -16,13 +16,12 @@ import (
 type serverConn struct {
 	encoder payload.Encoder
 	decoder payload.Decoder
-	err     payload.AtomicError
+	signal  *payload.Signal
 
 	readDeadline  time.Time
 	writeDeadline time.Time
 
 	query         url.Values
-	closed        chan struct{}
 	closeOnce     sync.Once
 	remoteHeader  http.Header
 	localAddr     string
@@ -39,9 +38,9 @@ func newServerConn(r *http.Request) base.Conn {
 	if jsonp != "" {
 		supportBinary = false
 	}
-	closed := make(chan struct{})
+	sig := payload.NewSignal()
 	ret := &serverConn{
-		closed:        closed,
+		signal:        sig,
 		remoteHeader:  r.Header,
 		localAddr:     r.Host,
 		remoteAddr:    r.RemoteAddr,
@@ -49,9 +48,17 @@ func newServerConn(r *http.Request) base.Conn {
 		supportBinary: supportBinary,
 		jsonp:         jsonp,
 	}
-	ret.encoder = payload.NewEncoder(supportBinary, closed, &ret.err)
-	ret.decoder = payload.NewDecoder(closed, &ret.err)
+	ret.encoder = payload.NewEncoder(supportBinary, sig)
+	ret.decoder = payload.NewDecoder(sig)
 	return ret
+}
+
+func (c *serverConn) Pause() {
+	c.signal.Pause()
+}
+
+func (c *serverConn) Resume() {
+	c.signal.Resume()
 }
 
 func (c *serverConn) SetReadDeadline(t time.Time) error {
@@ -94,7 +101,7 @@ func (c *serverConn) RemoteHeader() http.Header {
 
 func (c *serverConn) Close() error {
 	c.closeOnce.Do(func() {
-		close(c.closed)
+		c.signal.Close()
 	})
 	return nil
 }
@@ -156,5 +163,5 @@ func (c *serverConn) storeErr(op string, err error) error {
 	if _, ok := err.(*base.OpError); ok || err == io.EOF {
 		return err
 	}
-	return c.err.Store(base.OpErr(c.url.String(), op, err))
+	return c.signal.StoreError(base.OpErr(c.url.String(), op, err))
 }

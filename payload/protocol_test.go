@@ -11,6 +11,86 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestSignalClose(t *testing.T) {
+	assert := assert.New(t)
+	var wg sync.WaitGroup
+	sig := NewSignal()
+	closed := false
+
+	max := 10
+	wg.Add(max)
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			<-sig.WaitClose()
+			assert.True(closed)
+		}()
+	}
+
+	closed = true
+	sig.Close()
+	wg.Wait()
+
+	// should return immediately after closed
+	<-sig.WaitClose()
+}
+
+func TestSignalPause(t *testing.T) {
+	assert := assert.New(t)
+	var wg sync.WaitGroup
+	sig := NewSignal()
+	closed := false
+
+	max := 10
+	wg.Add(max)
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			<-sig.WaitPause()
+			assert.True(closed)
+		}()
+	}
+
+	closed = true
+	sig.Pause()
+	wg.Wait()
+
+	// should return immediately after closed
+	<-sig.WaitPause()
+
+	sig.Resume()
+
+	wg.Add(max)
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			<-sig.WaitPause()
+			assert.True(closed)
+		}()
+	}
+
+	closed = true
+	sig.Pause()
+	wg.Wait()
+}
+
+func TestSignalError(t *testing.T) {
+	assert := assert.New(t)
+	tests := []struct {
+		storeErr error
+		loadErr  error
+	}{
+		{nil, io.EOF},
+		{ErrTimeout, ErrTimeout},
+	}
+	for _, test := range tests {
+		sig := NewSignal()
+		assert.Equal(io.EOF, sig.LoadError())
+		assert.Equal(test.storeErr, sig.StoreError(test.storeErr))
+		assert.Equal(test.loadErr, sig.LoadError())
+	}
+}
+
 type Packet struct {
 	ft   base.FrameType
 	pt   base.PacketType
@@ -52,11 +132,10 @@ func TestEncoder(t *testing.T) {
 	at := assert.New(t)
 
 	for _, test := range tests {
-		closed := make(chan struct{})
-		var err AtomicError
+		sig := NewSignal()
 		var wg sync.WaitGroup
 
-		w := NewEncoder(test.supportBinary, closed, &err)
+		w := NewEncoder(test.supportBinary, sig)
 		writer := &nonByteWriter{
 			buf: bytes.NewBuffer(nil),
 		}
@@ -80,7 +159,7 @@ func TestEncoder(t *testing.T) {
 		e = fw.Close()
 		at.Nil(e)
 
-		close(closed)
+		sig.Close()
 		wg.Wait()
 
 		at.Equal(test.data, writer.buf.Bytes())
@@ -91,11 +170,10 @@ func TestDecoder(t *testing.T) {
 	at := assert.New(t)
 
 	for _, test := range tests {
-		closed := make(chan struct{})
-		var err AtomicError
+		sig := NewSignal()
 		var wg sync.WaitGroup
 
-		r := NewDecoder(closed, &err)
+		r := NewDecoder(sig)
 		var packets []Packet
 
 		wg.Add(1)
@@ -127,7 +205,7 @@ func TestDecoder(t *testing.T) {
 		e := r.FeedIn(typ, bytes.NewReader(test.data))
 		at.Nil(e)
 
-		close(closed)
+		sig.Close()
 		wg.Wait()
 
 		at.Equal([]Packet{test.packet}, packets)
@@ -150,10 +228,9 @@ func BenchmarkStringEncoder(b *testing.B) {
 		{base.FrameString, base.MESSAGE, []byte("你好\n")},
 		{base.FrameString, base.PING, []byte("probe")},
 	}
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
-	encoder := NewEncoder(false, closed, &err)
+	encoder := NewEncoder(false, sig)
 	writer := discarder{}
 
 	wg.Add(1)
@@ -184,7 +261,7 @@ func BenchmarkStringEncoder(b *testing.B) {
 
 	b.StopTimer()
 
-	close(closed)
+	sig.Close()
 	wg.Wait()
 }
 
@@ -194,10 +271,9 @@ func BenchmarkB64Encoder(b *testing.B) {
 		{base.FrameBinary, base.MESSAGE, []byte("hello\n")},
 		{base.FrameString, base.PING, []byte("probe")},
 	}
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
-	encoder := NewEncoder(false, closed, &err)
+	encoder := NewEncoder(false, sig)
 	writer := discarder{}
 
 	wg.Add(1)
@@ -228,7 +304,7 @@ func BenchmarkB64Encoder(b *testing.B) {
 
 	b.StopTimer()
 
-	close(closed)
+	sig.Close()
 	wg.Wait()
 }
 
@@ -239,10 +315,9 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 		{base.FrameString, base.MESSAGE, []byte("你好\n")},
 		{base.FrameString, base.PING, []byte("probe")},
 	}
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
-	encoder := NewEncoder(true, closed, &err)
+	encoder := NewEncoder(true, sig)
 	writer := discarder{}
 
 	wg.Add(1)
@@ -273,17 +348,16 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 
 	b.StopTimer()
 
-	close(closed)
+	sig.Close()
 	wg.Wait()
 }
 
 func BenchmarkStringDecoder(b *testing.B) {
 	data := bytes.Repeat([]byte("1:08:4你好\n6:2probe"), b.N)
 	reader := bytes.NewReader(data)
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
-	decoder := NewDecoder(closed, &err)
+	decoder := NewDecoder(sig)
 
 	wg.Add(1)
 	go func() {
@@ -306,17 +380,16 @@ func BenchmarkStringDecoder(b *testing.B) {
 
 	b.StopTimer()
 
-	close(closed)
+	sig.Close()
 	wg.Wait()
 }
 
 func BenchmarkB64Decoder(b *testing.B) {
 	data := bytes.Repeat([]byte("1:010:b4aGVsbG8K6:2probe"), b.N)
 	reader := bytes.NewReader(data)
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
-	decoder := NewDecoder(closed, &err)
+	decoder := NewDecoder(sig)
 
 	wg.Add(1)
 	go func() {
@@ -341,7 +414,7 @@ func BenchmarkB64Decoder(b *testing.B) {
 
 	b.StopTimer()
 
-	close(closed)
+	sig.Close()
 	wg.Wait()
 }
 
@@ -353,10 +426,9 @@ func BenchmarkBinaryDecoder(b *testing.B) {
 		0x00, 0x06, 0xff, '2', 'p', 'r', 'o', 'b', 'e',
 	}, b.N)
 	reader := bytes.NewReader(data)
-	closed := make(chan struct{})
-	var err AtomicError
+	sig := NewSignal()
 	var wg sync.WaitGroup
-	decoder := NewDecoder(closed, &err)
+	decoder := NewDecoder(sig)
 
 	wg.Add(1)
 	go func() {
@@ -381,23 +453,6 @@ func BenchmarkBinaryDecoder(b *testing.B) {
 
 	b.StopTimer()
 
-	close(closed)
+	sig.Close()
 	wg.Wait()
-}
-
-func TestAtomicError(t *testing.T) {
-	at := assert.New(t)
-	tests := []struct {
-		storeErr error
-		loadErr  error
-	}{
-		{nil, io.EOF},
-		{ErrTimeout, ErrTimeout},
-	}
-	for _, test := range tests {
-		var err AtomicError
-		at.Equal(io.EOF, err.Load())
-		at.Equal(test.storeErr, err.Store(test.storeErr))
-		at.Equal(test.loadErr, err.Load())
-	}
 }
