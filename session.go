@@ -229,12 +229,12 @@ func (s *session) upgrading(t string, conn base.Conn) {
 
 	func() {
 		s.upgradeLocker.Lock()
-		defer s.upgradeLocker.Unlock()
-
 		s.conn.(transport.Pauser).Pause()
-
-		s.conn.Close()
+		old := s.conn
 		s.conn = conn
 		s.transport = t
+		s.upgradeLocker.Unlock()
+
+		old.Close()
 	}()
 }
