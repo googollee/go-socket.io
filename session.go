@@ -1,7 +1,6 @@
 package engineio
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -134,18 +133,15 @@ func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, 
 	var r io.Reader
 	var err error
 	for {
-		fmt.Println("next reader lock")
 		s.upgradeLocker.RLock()
 		if conn == s.conn {
 			if err != nil {
-				fmt.Println("next reader unlock:", err)
 				s.upgradeLocker.RUnlock()
 				return 0, 0, nil, err
 			}
 			return ft, pt, newReader(r, &s.upgradeLocker), nil
 		}
 		conn = s.conn
-		fmt.Println("next reader unlock")
 		s.upgradeLocker.RUnlock()
 
 		ft, pt, r, err = conn.NextReader()
@@ -153,11 +149,9 @@ func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, 
 }
 
 func (s *session) nextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
-	fmt.Println("next writer lock", ft, pt)
 	s.upgradeLocker.RLock()
 	w, err := s.conn.NextWriter(ft, pt)
 	if err != nil {
-		fmt.Println("next writer unlock:", err)
 		s.upgradeLocker.RUnlock()
 		return nil, err
 	}
@@ -168,15 +162,12 @@ func (s *session) setDeadline() {
 	deadline := time.Now().Add(s.params.PingTimeout)
 	var conn base.Conn
 	for {
-		fmt.Println("set deadline lock")
 		s.upgradeLocker.RLock()
 		if conn == s.conn {
-			fmt.Println("set deadline quit unlock")
 			s.upgradeLocker.RUnlock()
 			return
 		}
 		conn = s.conn
-		fmt.Println("set deadline unlock")
 		s.upgradeLocker.RUnlock()
 
 		s.conn.SetReadDeadline(deadline)
@@ -199,12 +190,10 @@ func (s *session) serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *session) upgrading(t string, conn base.Conn) {
-	defer fmt.Println("upgrading quit")
 	deadline := time.Now().Add(s.params.PingTimeout)
 	conn.SetReadDeadline(deadline)
 	conn.SetWriteDeadline(deadline)
 
-	fmt.Println("upgrading read ping")
 	ft, pt, r, err := conn.NextReader()
 	if err != nil {
 		conn.Close()
@@ -215,41 +204,35 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 
+	w, err := conn.NextWriter(ft, base.PONG)
+	if err != nil {
+		conn.Close()
+		return
+	}
+	if _, err := io.Copy(w, r); err != nil {
+		conn.Close()
+		return
+	}
+	if err := w.Close(); err != nil {
+		conn.Close()
+		return
+	}
+
+	_, pt, _, err = conn.NextReader()
+	if err != nil {
+		conn.Close()
+		return
+	}
+	if pt != base.UPGRADE {
+		return
+	}
+
 	func() {
-		fmt.Println("upgrading lock")
 		s.upgradeLocker.Lock()
 		defer s.upgradeLocker.Unlock()
-		defer fmt.Println("upgrading unlock")
 
-		fmt.Println("upgrading write pong")
-		w, err := conn.NextWriter(ft, base.PONG)
-		if err != nil {
-			conn.Close()
-			return
-		}
-		if _, err := io.Copy(w, r); err != nil {
-			conn.Close()
-			return
-		}
-		if err := w.Close(); err != nil {
-			conn.Close()
-			return
-		}
-
-		fmt.Println("upgrading close old")
 		s.conn.(transport.Pauser).Pause()
 
-		fmt.Println("upgrading read upgrade")
-		_, pt, _, err = conn.NextReader()
-		if err != nil {
-			conn.Close()
-			return
-		}
-		if pt != base.UPGRADE {
-			return
-		}
-
-		fmt.Println("upgrading switching")
 		s.conn.Close()
 		s.conn = conn
 		s.transport = t

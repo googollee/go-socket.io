@@ -6,38 +6,16 @@ var msgCount = 0;
 server.on('connection', function(socket) {
     console.log('open');
     socket.on('message', function(data) {
-        console.log('receive: '+data);
-        switch (msgCount) {
-        case 0:
-            if (data != "hello你好") {
-                process.exit(-1);
-            }
-            break;
-        case 1:
+        if (data instanceof ArrayBuffer || data instanceof Buffer) {
             var a = new Uint8Array(data);
-            if (a !== undefined) {
-                process.exit(-1);
-            }
-            if (a.toString() != "1,2,3,4") {
-                process.exit(-1);
-            }
-            break;
-        default:
-            process.exit(-1);
-            break;
+            console.log('receive: binary '+a.toString());
+        } else {
+            console.log('receive: text '+data);
         }
+        socket.send(data);
     });
     socket.on('upgrade', function() {
         console.log('upgrade');
-
-        console.log("sending text");
-        socket.send('hello你好');
-
-        var ab = new ArrayBuffer(4);
-        var a = new Uint8Array(ab);
-        a.set([1,2,3,4]);
-        console.log("sending binary");
-        socket.send(ab);
     });
     socket.on('ping', function() {
         console.log('ping');

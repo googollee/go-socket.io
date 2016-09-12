@@ -1,6 +1,7 @@
 package payload
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"sync"
@@ -107,4 +108,43 @@ func TestEncoderTimeout(t *testing.T) {
 	at.True(end.Sub(begin) > time.Second)
 
 	at.Equal(ErrTimeout, sig.LoadError().(error))
+}
+
+func TestEncoderPauseBinary(t *testing.T) {
+	assert := assert.New(t)
+	sig := NewSignal()
+	w := newEncoder(true, sig)
+	buf := bytes.NewBuffer(nil)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := w.FlushOut(buf)
+		assert.Nil(err)
+	}()
+
+	sig.Pause()
+	wg.Wait()
+	assert.Equal([]byte{0x0, 0x1, 0xff, 0x36}, buf.Bytes())
+}
+
+func TestEncoderPauseText(t *testing.T) {
+	assert := assert.New(t)
+	sig := NewSignal()
+	w := newEncoder(false, sig)
+	buf := bytes.NewBuffer(nil)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := w.FlushOut(buf)
+		assert.Nil(err)
+	}()
+
+	sig.Pause()
+	wg.Wait()
+
+	assert.Equal([]byte("1:6"), buf.Bytes())
 }

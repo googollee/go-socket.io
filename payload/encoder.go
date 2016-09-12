@@ -66,14 +66,6 @@ func (w *encoder) FlushOut(wr io.Writer) error {
 		return err
 	case <-w.signal.WaitClose():
 		return w.signal.LoadError()
-	case <-w.signal.WaitPause():
-		var err error
-		if w.supportBinary {
-			_, err = wr.Write([]byte{0x00, 0x01, 0xff, '6'})
-		} else {
-			_, err = wr.Write([]byte("1:6"))
-		}
-		return err
 	}
 }
 

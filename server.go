@@ -86,6 +86,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session := s.sessions.Get(sid)
 	t := query.Get("transport")
 	transport := s.transports.Get(t)
+
 	if transport == nil {
 		http.Error(w, "invalid transport", http.StatusBadRequest)
 		return
