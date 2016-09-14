@@ -80,7 +80,7 @@ func TestHandler(t *testing.T) {
 		var handlerCalled bool
 		baseHandlerInstance := newBaseHandler("some:event", &FakeBroadcastAdaptor{})
 		socketInstance := newSocket(&FakeSockConnection{}, baseHandlerInstance)
-		c, _ := newCaller(func () {handlerCalled = true})
+		c, _ := NewCaller(func() { handlerCalled = true })
 
 		socketInstance.acks[0] = c
 		socketInstance.onPacket(newDecoder(saver), &packet{Type:_ACK, Id:0, Data:"[]", NSP:"/"})
@@ -94,7 +94,7 @@ func TestHandler(t *testing.T) {
 		var handlerCalled bool
 		baseHandlerInstance := newBaseHandler("some:event", &FakeBroadcastAdaptor{})
 		socketInstance := newSocket(&FakeSockConnection{}, baseHandlerInstance)
-		c, _ := newCaller(func () {handlerCalled = true})
+		c, _ := NewCaller(func() { handlerCalled = true })
 
 		socketInstance.acks[0] = c
 		socketInstance.onPacket(newDecoder(saver), &packet{Type:_BINARY_ACK, Id:0, Data:"[]", NSP:"/"})

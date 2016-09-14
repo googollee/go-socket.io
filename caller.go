@@ -6,20 +6,20 @@ import (
 	"reflect"
 )
 
-type caller struct {
+type Caller struct {
 	Func       reflect.Value
 	Args       []reflect.Type
 	NeedSocket bool
 }
 
-func newCaller(f interface{}) (*caller, error) {
+func NewCaller(f interface{}) (*Caller, error) {
 	fv := reflect.ValueOf(f)
 	if fv.Kind() != reflect.Func {
 		return nil, fmt.Errorf("f is not func")
 	}
 	ft := fv.Type()
 	if ft.NumIn() == 0 {
-		return &caller{
+		return &Caller{
 			Func: fv,
 		}, nil
 	}
@@ -32,14 +32,14 @@ func newCaller(f interface{}) (*caller, error) {
 		args = args[1:]
 		needSocket = true
 	}
-	return &caller{
+	return &Caller{
 		Func:       fv,
 		Args:       args,
 		NeedSocket: needSocket,
 	}, nil
 }
 
-func (c *caller) GetArgs() []interface{} {
+func (c *Caller) GetArgs() []interface{} {
 	ret := make([]interface{}, len(c.Args))
 	for i, argT := range c.Args {
 		if argT.Kind() == reflect.Ptr {
@@ -51,7 +51,7 @@ func (c *caller) GetArgs() []interface{} {
 	return ret
 }
 
-func (c *caller) Call(so Socket, args []interface{}) []reflect.Value {
+func (c *Caller) Call(so Socket, args []interface{}) []reflect.Value {
 	var a []reflect.Value
 	diff := 0
 	if c.NeedSocket {
