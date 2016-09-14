@@ -6,20 +6,29 @@ import (
 	"reflect"
 )
 
-type Caller struct {
+type Caller interface {
+
+	// build an array for decoding data into.
+	GetArgs() []interface{}
+
+	// Call the function passed arguments and return results.
+	Call(so Socket, args []interface{}) []reflect.Value
+}
+
+type callFunc struct {
 	Func       reflect.Value
 	Args       []reflect.Type
 	NeedSocket bool
 }
 
-func NewCaller(f interface{}) (*Caller, error) {
+func NewCaller(f interface{}) (Caller, error) {
 	fv := reflect.ValueOf(f)
 	if fv.Kind() != reflect.Func {
 		return nil, fmt.Errorf("f is not func")
 	}
 	ft := fv.Type()
 	if ft.NumIn() == 0 {
-		return &Caller{
+		return &callFunc{
 			Func: fv,
 		}, nil
 	}
@@ -32,14 +41,15 @@ func NewCaller(f interface{}) (*Caller, error) {
 		args = args[1:]
 		needSocket = true
 	}
-	return &Caller{
+	return &callFunc{
 		Func:       fv,
 		Args:       args,
 		NeedSocket: needSocket,
 	}, nil
 }
 
-func (c *Caller) GetArgs() []interface{} {
+// build an array for decoding data into.
+func (c *callFunc) GetArgs() []interface{} {
 	ret := make([]interface{}, len(c.Args))
 	for i, argT := range c.Args {
 		if argT.Kind() == reflect.Ptr {
@@ -51,7 +61,8 @@ func (c *Caller) GetArgs() []interface{} {
 	return ret
 }
 
-func (c *Caller) Call(so Socket, args []interface{}) []reflect.Value {
+// Call the function passed arguments and return results.
+func (c *callFunc) Call(so Socket, args []interface{}) []reflect.Value {
 	var a []reflect.Value
 	diff := 0
 	if c.NeedSocket {

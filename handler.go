@@ -16,7 +16,7 @@ type EventHandler interface {
 	On(event string, f interface{}) error
 
 	// GetCaller returns the registered caller for an event.
-	Caller(event string) (*Caller, bool)
+	Caller(event string) (Caller, bool)
 }
 
 func newEventHandler(base EventHandler) EventHandler {
@@ -24,19 +24,19 @@ func newEventHandler(base EventHandler) EventHandler {
 		return base.New()
 	}
 	return &ServeMux{
-		events: make(map[string]*Caller),
+		events: make(map[string]Caller),
 	}
 }
 
 // ServeMux is a socket.io request multiplexer
 type ServeMux struct {
 	sync.RWMutex
-	events map[string]*Caller
+	events map[string]Caller
 }
 
 // New generates a new event handler based on itself.
 func (m *ServeMux) New() EventHandler {
-	events := make(map[string]*Caller)
+	events := make(map[string]Caller)
 	if m != nil && m.events != nil {
 		m.RLock()
 		for k, v := range m.events {
@@ -57,7 +57,7 @@ func (m *ServeMux) On(event string, f interface{}) error {
 	}
 	m.Lock()
 	if m.events == nil {
-		m.events = make(map[string]*Caller)
+		m.events = make(map[string]Caller)
 	}
 	m.events[event] = c
 	m.Unlock()
@@ -65,7 +65,7 @@ func (m *ServeMux) On(event string, f interface{}) error {
 }
 
 // Caller returns the registered caller for an event.
-func (m *ServeMux) Caller(event string) (*Caller, bool) {
+func (m *ServeMux) Caller(event string) (Caller, bool) {
 	if m.events == nil {
 		return nil, false
 	}
@@ -97,7 +97,7 @@ func (h *baseHandler) SetMux(mux EventHandler) {
 type socketHandler struct {
 	*baseHandler
 	acksmu sync.Mutex
-	acks   map[int]*Caller
+	acks   map[int]Caller
 	socket *socket
 	rooms  map[string]struct{}
 }
@@ -108,14 +108,14 @@ func newSocketHandler(s *socket, base *baseHandler) *socketHandler {
 			EventHandler: newEventHandler(base.EventHandler),
 			broadcast:    base.broadcast,
 		},
-		acks:   make(map[int]*Caller),
+		acks:   make(map[int]Caller),
 		socket: s,
 		rooms:  make(map[string]struct{}),
 	}
 }
 
 func (h *socketHandler) Emit(event string, args ...interface{}) error {
-	var c *Caller
+	var c Caller
 	if l := len(args); l > 0 {
 		fv := reflect.ValueOf(args[l-1])
 		if fv.Kind() == reflect.Func {
