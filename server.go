@@ -92,6 +92,11 @@ func (s *Server) BroadcastTo(room, message string, args ...interface{}) {
 	s.namespace.BroadcastTo(room, message, args...)
 }
 
+// SetMux sets a new multiplexer for the handler.
+func (s *Server) SetMux(mux EventHandler) {
+	s.namespace.SetMux(mux)
+}
+
 func (s *Server) loop() {
 	for {
 		conn, err := s.eio.Accept()

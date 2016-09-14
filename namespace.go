@@ -11,6 +11,9 @@ type Namespace interface {
 
 	// On registers the function f to handle an event.
 	On(event string, f interface{}) error
+
+	// SetMux sets a new multiplexer for the handler.
+	SetMux(mux EventHandler)
 }
 
 type namespace struct {
