@@ -18,11 +18,14 @@ type Transport interface {
 	Dial(url string, requestHeader http.Header) (base.Conn, error)
 }
 
-// UpgradableClient is the client transport connection which can upgrade to
-// other transport.
-type UpgradableClient interface {
+// Pauser is connection which can be paused and resumes.
+type Pauser interface {
 	Pause()
 	Resume()
+}
+
+// Opener is client connection which need receive open message first.
+type Opener interface {
 	Open() (base.ConnParameters, error)
 }
 

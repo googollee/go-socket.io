@@ -1,13 +1,13 @@
 package engineio
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
+	"github.com/googollee/go-engine.io/payload"
 	"github.com/googollee/go-engine.io/transport"
 )
 
@@ -35,16 +35,11 @@ func newSession(m *manager, t string, conn base.Conn, params base.ConnParameters
 	go func() {
 		w, err := ret.nextWriter(base.FrameString, base.OPEN)
 		if err != nil {
-			w.Close()
 			ret.Close()
 			return
 		}
+		defer w.Close()
 		if _, err := ret.params.WriteTo(w); err != nil {
-			w.Close()
-			ret.Close()
-			return
-		}
-		if err := w.Close(); err != nil {
 			ret.Close()
 			return
 		}
@@ -58,8 +53,6 @@ func (s *session) ID() string {
 }
 
 func (s *session) Transport() string {
-	fmt.Println("transport rlock")
-	defer fmt.Println("transport runlock")
 	s.upgradeLocker.RLock()
 	defer s.upgradeLocker.RUnlock()
 	return s.transport
@@ -130,40 +123,41 @@ func (s *session) RemoteHeader() http.Header {
 }
 
 func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
-	var conn base.Conn
 	var ft base.FrameType
 	var pt base.PacketType
-	var r io.Reader
+	var r io.ReadCloser
 	var err error
 	for {
-		fmt.Println("next reader rlock")
 		s.upgradeLocker.RLock()
-		if conn == s.conn {
-			if err != nil {
-				fmt.Println("next reader runlock")
-				s.upgradeLocker.RUnlock()
-				return 0, 0, nil, err
+		ft, pt, r, err = s.conn.NextReader()
+		if err != nil {
+			s.upgradeLocker.RUnlock()
+			if op, ok := err.(payload.Error); ok {
+				if op.Temporary() {
+					continue
+				}
 			}
-			return ft, pt, newReader(r, &s.upgradeLocker), nil
+			return 0, 0, nil, err
 		}
-		conn = s.conn
-		fmt.Println("next reader runlock")
-		s.upgradeLocker.RUnlock()
-
-		ft, pt, r, err = conn.NextReader()
+		return ft, pt, newReader(r, &s.upgradeLocker), nil
 	}
 }
 
 func (s *session) nextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
-	fmt.Println("next writer rlock")
-	s.upgradeLocker.RLock()
-	w, err := s.conn.NextWriter(ft, pt)
-	if err != nil {
-		fmt.Println("next writer runlock")
-		s.upgradeLocker.RUnlock()
-		return nil, err
+	for {
+		s.upgradeLocker.RLock()
+		w, err := s.conn.NextWriter(ft, pt)
+		if err != nil {
+			s.upgradeLocker.RUnlock()
+			if op, ok := err.(payload.Error); ok {
+				if op.Temporary() {
+					continue
+				}
+			}
+			return nil, err
+		}
+		return newWriter(w, &s.upgradeLocker), nil
 	}
-	return newWriter(w, &s.upgradeLocker), nil
 }
 
 func (s *session) setDeadline() {
@@ -171,12 +165,13 @@ func (s *session) setDeadline() {
 	var conn base.Conn
 	for {
 		s.upgradeLocker.RLock()
-		if conn == s.conn {
-			s.upgradeLocker.RUnlock()
-			return
-		}
+		same := conn == s.conn
 		conn = s.conn
 		s.upgradeLocker.RUnlock()
+
+		if same {
+			return
+		}
 
 		s.conn.SetReadDeadline(deadline)
 		s.conn.SetWriteDeadline(deadline)
@@ -211,6 +206,10 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		conn.Close()
 		return
 	}
+	if err := r.Close(); err != nil {
+		conn.Close()
+		return
+	}
 
 	w, err := conn.NextWriter(ft, base.PONG)
 	if err != nil {
@@ -226,7 +225,7 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 
-	_, pt, _, err = conn.NextReader()
+	_, pt, r, err = conn.NextReader()
 	if err != nil {
 		conn.Close()
 		return
@@ -234,25 +233,23 @@ func (s *session) upgrading(t string, conn base.Conn) {
 	if pt != base.UPGRADE {
 		return
 	}
+	if err := r.Close(); err != nil {
+		conn.Close()
+		return
+	}
 
 	func() {
-		fmt.Println("upgrade rlock")
 		s.upgradeLocker.RLock()
 		old := s.conn
-		fmt.Println("upgrade runlock")
+		old.(transport.Pauser).Pause()
 		s.upgradeLocker.RUnlock()
 
-		fmt.Println("upgrade pause old")
-		old.(transport.UpgradableClient).Pause()
-
-		fmt.Println("upgrade lock")
 		s.upgradeLocker.Lock()
+		defer s.upgradeLocker.Unlock()
+
 		s.conn = conn
 		s.transport = t
-		fmt.Println("upgrade unlock")
-		s.upgradeLocker.Unlock()
 
-		fmt.Println("upgrade close old")
 		old.Close()
 	}()
 }

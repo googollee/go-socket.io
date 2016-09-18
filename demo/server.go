@@ -43,13 +43,13 @@ func main() {
 
 					for {
 						select {
-						case arg := <-data:
-							w, err := conn.NextWriter(arg.typ)
+						case d := <-data:
+							w, err := conn.NextWriter(d.typ)
 							if err != nil {
 								log.Println("next write error:", err)
 								return
 							}
-							if _, err := w.Write(arg.data); err != nil {
+							if _, err := w.Write(d.data); err != nil {
 								log.Println("write error:", err)
 								return
 							}

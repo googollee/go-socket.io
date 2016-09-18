@@ -1,7 +1,6 @@
 package engineio
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -82,8 +81,6 @@ func (s *Server) Accept() (Conn, error) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("serving", r.Method, r.URL.String())
-	defer fmt.Println("served", r.Method, r.URL.String())
 	query := r.URL.Query()
 	sid := query.Get("sid")
 	session := s.sessions.Get(sid)
