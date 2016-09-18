@@ -32,7 +32,7 @@ func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, e
 	return conn, nil
 }
 
-// Open gets connection parameters from url.
+// Dial dials connection to url.
 func (t *Transport) Dial(url string, requestHeader http.Header) (base.Conn, error) {
 	return dial(t.Retry, t.Client, url, requestHeader)
 }
