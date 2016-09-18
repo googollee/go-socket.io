@@ -59,6 +59,7 @@ func TestDialOpen(t *testing.T) {
 	defer cc.Close()
 
 	params, err := cc.Open()
+	must.Nil(err)
 	should.Equal(cp, params)
 	u, err = url.Parse(cc.URL())
 	must.Nil(err)

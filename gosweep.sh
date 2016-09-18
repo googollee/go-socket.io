@@ -1,14 +1,14 @@
 #!/bin/bash
 # The script does automatic checking on a Go package and its sub-packages, including:
 # 1. gofmt         (http://golang.org/cmd/gofmt/)
-# 2. goimports     (https://github.com/bradfitz/goimports)
+# 2. goimports     (http://golang.org/x/tools/cmd/goimports)
 # 3. golint        (https://github.com/golang/lint)
 # 4. go vet        (http://golang.org/cmd/vet)
 # 5. ineffassign   (https://github.com/gordonklaus/ineffassign)
 # 6. race detector (http://blog.golang.org/race-detector)
 # 7. test coverage (http://blog.golang.org/cover)
 
-go get github.com/bradfitz/goimports
+go get golang.org/x/tools/cmd/goimports
 go get github.com/golang/lint/golint
 go get github.com/gordonklaus/ineffassign
 
