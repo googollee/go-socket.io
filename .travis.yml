@@ -3,7 +3,7 @@ language: go
 env:
   CI_SERVICE: travis-ci
 go:
-  - 1.7
+  - 1.7.1
   - tip
 install:
   - make getdev
