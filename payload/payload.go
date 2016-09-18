@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"fmt"
 	"io"
 	"math"
 	"sync"
@@ -28,12 +27,13 @@ type Payload struct {
 	waiterLocker sync.RWMutex
 
 	readerChan   chan readArg
-	reading      int64
+	feeding      int64
 	readError    chan error
 	readDeadline atomic.Value
 	decoder      decoder
 
 	writerChan    chan io.Writer
+	flushing      int64
 	writeError    chan error
 	writeDeadline atomic.Value
 	encoder       encoder
@@ -50,9 +50,10 @@ func New(supportBinary bool) *Payload {
 		writeError: make(chan error),
 	}
 	ret.readDeadline.Store(time.Time{})
+	ret.decoder.feeder = ret
 	ret.writeDeadline.Store(time.Time{})
 	ret.encoder.supportBinary = supportBinary
-	ret.encoder.encoderWriter = ret
+	ret.encoder.feeder = ret
 	return ret
 }
 
@@ -70,6 +71,11 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 	default:
 	}
 
+	if !atomic.CompareAndSwapInt64(&p.feeding, 0, 1) {
+		return newOpError("read", errOverlap)
+	}
+	defer atomic.StoreInt64(&p.feeding, 0)
+
 	select {
 	case <-p.close:
 		return p.load()
@@ -81,7 +87,7 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 	for {
 		after, ok := p.readTimeout()
 		if !ok {
-			return p.store("read", errTimeout)
+			return p.Store("read", errTimeout)
 		}
 		p.waiterLocker.RLock()
 		select {
@@ -109,14 +115,14 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 	for {
 		after, ok := p.readTimeout()
 		if !ok {
-			return p.store("read", errTimeout)
+			return p.Store("read", errTimeout)
 		}
 		select {
 		case <-after:
 			// it may changed during wait, need check again
 			continue
 		case err := <-p.readError:
-			return p.store("read", err)
+			return p.Store("read", err)
 		}
 	}
 }
@@ -135,6 +141,10 @@ func (p *Payload) FlushOut(w io.Writer) error {
 		return p.load()
 	default:
 	}
+	if !atomic.CompareAndSwapInt64(&p.flushing, 0, 1) {
+		return newOpError("write", errOverlap)
+	}
+	defer atomic.StoreInt64(&p.flushing, 0)
 
 	select {
 	case <-p.close:
@@ -147,7 +157,7 @@ func (p *Payload) FlushOut(w io.Writer) error {
 	for {
 		after, ok := p.writeTimeout()
 		if !ok {
-			return p.store("write", errTimeout)
+			return p.Store("write", errTimeout)
 		}
 		p.waiterLocker.RLock()
 		select {
@@ -171,13 +181,13 @@ func (p *Payload) FlushOut(w io.Writer) error {
 	for {
 		after, ok := p.writeTimeout()
 		if !ok {
-			return p.store("write", errTimeout)
+			return p.Store("write", errTimeout)
 		}
 		select {
 		case <-after:
 			// it may changed during wait, need check again
 		case err := <-p.writeError:
-			return p.store("write", err)
+			return p.Store("write", err)
 		}
 	}
 }
@@ -188,20 +198,8 @@ func (p *Payload) FlushOut(w io.Writer) error {
 // If Close called when NextReader,  it return io.EOF.
 // Pause doesn't effect to NextReader. NextReader should wait till resumed
 // and next FeedIn.
-func (p *Payload) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
-	ft, pt, r, err := p.decoder.NextReader()
-	if err == io.EOF {
-		arg, e := p.waitReader()
-		if e != nil {
-			return 0, 0, nil, e
-		}
-		p.decoder.FeedIn(arg.r, arg.supportBinary)
-		ft, pt, r, err = p.decoder.NextReader()
-	}
-	if err != nil {
-		return 0, 0, nil, p.store("next read", err)
-	}
-	return ft, pt, r, nil
+func (p *Payload) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
+	return p.decoder.NextReader()
 }
 
 // SetReadDeadline sets next reader deadline.
@@ -267,6 +265,20 @@ func (p *Payload) Close() error {
 	return nil
 }
 
+// Store stores a error in payload, and block all other request.
+func (p *Payload) Store(op string, err error) error {
+	old := p.err.Load()
+	if old == nil {
+		if err == io.EOF || err == nil {
+			return err
+		}
+		op := newOpError(op, err)
+		p.err.Store(op)
+		return op
+	}
+	return old.(error)
+}
+
 func (p *Payload) pauseChan() chan struct{} {
 	p.pauseLocker.RLock()
 	defer p.pauseLocker.RUnlock()
@@ -299,60 +311,62 @@ func (p *Payload) writeTimeout() (<-chan time.Time, bool) {
 	return time.After(wait), true
 }
 
-func (p *Payload) waitReader() (readArg, error) {
+func (p *Payload) getReader() (io.Reader, bool, error) {
 	select {
 	case <-p.close:
-		return readArg{}, p.load()
+		return nil, false, p.load()
 	default:
 	}
 
-	if atomic.LoadInt64(&p.reading) == 1 {
-		for {
-			after, ok := p.readTimeout()
-			if !ok {
-				return readArg{}, p.store("read", errTimeout)
-			}
-			err := p.decoder.Close()
-			select {
-			case <-after:
-				continue
-			case p.readError <- err:
-				fmt.Println("return reader")
-				atomic.StoreInt64(&p.reading, 0)
-			}
-			break
-		}
-	}
-
 	select {
 	case <-p.close:
-		return readArg{}, p.load()
+		return nil, false, p.load()
 	case <-p.pauseChan():
-		return readArg{}, newOpError("payload", errPaused)
+		return nil, false, newOpError("payload", errPaused)
 	default:
 	}
 
 	for {
 		after, ok := p.readTimeout()
 		if !ok {
-			return readArg{}, p.store("read", errTimeout)
+			return nil, false, p.Store("read", errTimeout)
 		}
 		select {
 		case <-p.close:
-			return readArg{}, p.load()
+			return nil, false, p.load()
 		case <-p.pauseChan():
-			return readArg{}, newOpError("payload", errPaused)
+			return nil, false, newOpError("payload", errPaused)
 		case <-after:
 			continue
 		case arg := <-p.readerChan:
-			fmt.Println("get reader")
-			atomic.StoreInt64(&p.reading, 1)
-			return arg, nil
+			return arg.r, arg.supportBinary, nil
 		}
 	}
 }
 
-func (p *Payload) beginWrite() (io.Writer, error) {
+func (p *Payload) putReader(err error) error {
+	select {
+	case <-p.close:
+		return p.load()
+	default:
+	}
+	for {
+		after, ok := p.readTimeout()
+		if !ok {
+			return p.Store("read", errTimeout)
+		}
+		select {
+		case <-p.close:
+			return p.load()
+		case <-after:
+			continue
+		case p.readError <- err:
+		}
+		return nil
+	}
+}
+
+func (p *Payload) getWriter() (io.Writer, error) {
 	select {
 	case <-p.close:
 		return nil, p.load()
@@ -369,7 +383,7 @@ func (p *Payload) beginWrite() (io.Writer, error) {
 	for {
 		after, ok := p.writeTimeout()
 		if !ok {
-			return nil, p.store("write", errTimeout)
+			return nil, p.Store("write", errTimeout)
 		}
 		select {
 		case <-p.close:
@@ -384,7 +398,7 @@ func (p *Payload) beginWrite() (io.Writer, error) {
 	}
 }
 
-func (p *Payload) endWrite(err error) error {
+func (p *Payload) putWriter(err error) error {
 	select {
 	case <-p.close:
 		return p.load()
@@ -393,9 +407,9 @@ func (p *Payload) endWrite(err error) error {
 	for {
 		after, ok := p.writeTimeout()
 		if !ok {
-			return p.store("write", errTimeout)
+			return p.Store("write", errTimeout)
 		}
-		ret := p.store("write", err)
+		ret := p.Store("write", err)
 		select {
 		case <-p.close:
 			return p.load()
@@ -405,19 +419,6 @@ func (p *Payload) endWrite(err error) error {
 			return ret
 		}
 	}
-}
-
-func (p *Payload) store(op string, err error) error {
-	old := p.err.Load()
-	if old == nil {
-		if err == io.EOF || err == nil {
-			return err
-		}
-		op := newOpError(op, err)
-		p.err.Store(op)
-		return op
-	}
-	return old.(error)
 }
 
 func (p *Payload) load() error {

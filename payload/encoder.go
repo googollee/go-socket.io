@@ -1,167 +1,126 @@
 package payload
 
 import (
-	"bufio"
+	"bytes"
+	"encoding/base64"
 	"io"
-	"time"
 
 	"github.com/googollee/go-engine.io/base"
 )
 
-type writerArg struct {
-	w   io.Writer
-	err chan error
+type writerFeeder interface {
+	getWriter() (io.Writer, error)
+	putWriter(error) error
 }
 
 type encoder struct {
-	writerChan    chan io.Writer
-	errorChan     chan error
 	supportBinary bool
-	signal        *Signal
-	cache         *frameCache
-	deadline      time.Time
+	feeder        writerFeeder
+
+	ft         base.FrameType
+	pt         base.PacketType
+	header     bytes.Buffer
+	frameCache bytes.Buffer
+	b64Writer  io.WriteCloser
+	rawWriter  io.Writer
 }
 
-func newEncoder(supportBinary bool, sig *Signal) *encoder {
-	ret := &encoder{
-		writerChan:    make(chan io.Writer),
-		errorChan:     make(chan error),
-		supportBinary: supportBinary,
-		signal:        sig,
+func (e *encoder) NOOP() []byte {
+	if e.supportBinary {
+		return []byte{0x00, 0x01, 0xff, '6'}
 	}
-	ret.cache = newFrameCache(ret)
-	return ret
+	return []byte("1:6")
 }
 
-func (w *encoder) SetDeadline(t time.Time) error {
-	w.deadline = t
-	return nil
-}
+func (e *encoder) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
+	w, err := e.feeder.getWriter()
+	if err != nil {
+		return nil, err
+	}
+	e.rawWriter = w
 
-func (w *encoder) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
-	b64 := false
-	if !w.supportBinary && ft == base.FrameBinary {
-		b64 = true
-	}
-	w.cache.Reset(b64, ft, pt)
-	return w.cache, nil
-}
+	e.ft = ft
+	e.pt = pt
+	e.frameCache.Reset()
 
-func (w *encoder) FlushOut(wr io.Writer) error {
-	select {
-	case w.writerChan <- wr:
-	case <-w.signal.WaitClose():
-		return w.signal.LoadError()
-	case <-w.signal.WaitPause():
-		var err error
-		if w.supportBinary {
-			_, err = wr.Write([]byte{0x00, 0x01, 0xff, '6'})
-		} else {
-			_, err = wr.Write([]byte("1:6"))
-		}
-		return err
-	}
-	select {
-	case err := <-w.errorChan:
-		return err
-	case <-w.signal.WaitClose():
-		return w.signal.LoadError()
-	}
-}
-
-func (w *encoder) waitWriter() (io.Writer, error) {
-	if w.deadline.IsZero() {
-		select {
-		case arg := <-w.writerChan:
-			return arg, nil
-		case <-w.signal.WaitClose():
-			return nil, w.signal.LoadError()
-		}
-	}
-	select {
-	case <-time.After(w.deadline.Sub(time.Now())):
-		return nil, w.signal.StoreError(ErrTimeout)
-	case arg := <-w.writerChan:
-		return arg, nil
-	case <-w.signal.WaitClose():
-		return nil, w.signal.LoadError()
-	}
-}
-
-func (w *encoder) closeFrame() error {
-	var writeHeader func(ByteWriter) error
-	if w.supportBinary {
-		writeHeader = w.writeBinaryHeader
+	if !e.supportBinary && ft == base.FrameBinary {
+		e.b64Writer = base64.NewEncoder(base64.StdEncoding, &e.frameCache)
 	} else {
-		if w.cache.ft == base.FrameBinary {
-			writeHeader = w.writeB64Header
+		e.b64Writer = nil
+	}
+	return e, nil
+}
+
+func (e *encoder) Write(p []byte) (int, error) {
+	if e.b64Writer != nil {
+		return e.b64Writer.Write(p)
+	}
+	return e.frameCache.Write(p)
+}
+
+func (e *encoder) Close() error {
+	if e.b64Writer != nil {
+		e.b64Writer.Close()
+	}
+
+	var writeHeader func() error
+	if e.supportBinary {
+		writeHeader = e.writeBinaryHeader
+	} else {
+		if e.ft == base.FrameBinary {
+			writeHeader = e.writeB64Header
 		} else {
-			writeHeader = w.writeStringHeader
+			writeHeader = e.writeTextHeader
 		}
 	}
 
-	arg, err := w.waitWriter()
-	if err != nil {
-		return err
-	}
-	writer, ok := arg.(ByteWriter)
-	var flusher *bufio.Writer
-	if !ok {
-		flusher = bufio.NewWriter(arg)
-		writer = flusher
-	}
-
-	err = writeHeader(writer)
+	e.header.Reset()
+	err := writeHeader()
 	if err == nil {
-		_, err = writer.Write(w.cache.data.Bytes())
+		_, err = e.header.WriteTo(e.rawWriter)
 	}
-	if err == nil && flusher != nil {
-		err = flusher.Flush()
+	if err == nil {
+		_, err = e.frameCache.WriteTo(e.rawWriter)
 	}
-	if err != nil {
-		w.signal.StoreError(err)
-	}
-	select {
-	case w.errorChan <- err:
-	case <-w.signal.WaitClose():
-		return w.signal.LoadError()
+	if werr := e.feeder.putWriter(err); werr != nil {
+		return werr
 	}
 	return err
 }
 
-func (w *encoder) writeStringHeader(bw ByteWriter) error {
-	l := w.cache.data.Len() + 1 // length for packet type
-	err := writeStringLen(l, bw)
+func (e *encoder) writeTextHeader() error {
+	l := int64(e.frameCache.Len() + 1) // length for packet type
+	err := writeTextLen(l, &e.header)
 	if err == nil {
-		err = bw.WriteByte(w.cache.pt.StringByte())
+		err = e.header.WriteByte(e.pt.StringByte())
 	}
 	return err
 }
 
-func (w *encoder) writeB64Header(bw ByteWriter) error {
-	l := w.cache.data.Len() + 2 // length for 'b' and packet type
-	err := writeStringLen(l, bw)
+func (e *encoder) writeB64Header() error {
+	l := int64(e.frameCache.Len() + 2) // length for 'b' and packet type
+	err := writeTextLen(l, &e.header)
 	if err == nil {
-		err = bw.WriteByte('b')
+		err = e.header.WriteByte('b')
 	}
 	if err == nil {
-		err = bw.WriteByte(w.cache.pt.StringByte())
+		err = e.header.WriteByte(e.pt.StringByte())
 	}
 	return err
 }
 
-func (w *encoder) writeBinaryHeader(bw ByteWriter) error {
-	l := w.cache.data.Len() + 1 // length for packet type
-	b := w.cache.pt.StringByte()
-	if w.cache.ft == base.FrameBinary {
-		b = w.cache.pt.BinaryByte()
+func (e *encoder) writeBinaryHeader() error {
+	l := int64(e.frameCache.Len() + 1) // length for packet type
+	b := e.pt.StringByte()
+	if e.ft == base.FrameBinary {
+		b = e.pt.BinaryByte()
 	}
-	err := bw.WriteByte(w.cache.ft.Byte())
+	err := e.header.WriteByte(e.ft.Byte())
 	if err == nil {
-		err = writeBinaryLen(l, bw)
+		err = writeBinaryLen(l, &e.header)
 	}
 	if err == nil {
-		err = bw.WriteByte(b)
+		err = e.header.WriteByte(b)
 	}
 	return err
 }

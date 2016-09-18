@@ -6,6 +6,10 @@ import (
 	"github.com/googollee/go-engine.io/base"
 )
 
+type Opener interface {
+	Open(url string, requestHeader http.Header) (base.ConnParameters, error)
+}
+
 type Pauser interface {
 	Pause()
 	Resume()
@@ -19,8 +23,19 @@ type HTTPError interface {
 // Transport is a transport which can creates base.Conn
 type Transport interface {
 	Name() string
-	Dial(url string, requestHeader http.Header) (base.Conn, error)
+}
+
+// Transport is a transport which can creates base.Conn
+type Server interface {
 	Accept(w http.ResponseWriter, r *http.Request) (base.Conn, error)
+}
+
+type UpgradeClient interface {
+	Dial(url string, requestHeader http.Header) (base.Conn, error)
+}
+
+type OpenClient interface {
+	Open(url string, requestHeader http.Header) (base.Conn, base.ConnParameters, error)
 }
 
 // Manager is a manager of transports.

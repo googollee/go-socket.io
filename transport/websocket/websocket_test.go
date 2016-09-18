@@ -51,6 +51,8 @@ func TestWebsocket(t *testing.T) {
 	sc := <-conn
 	defer sc.Close()
 
+	at.Equal(u.String(), cc.URL())
+	at.Equal("/", sc.URL())
 	at.Equal(sc.LocalAddr(), cc.RemoteAddr())
 	at.Equal(cc.LocalAddr(), sc.RemoteAddr())
 	at.Equal("server", cc.RemoteHeader().Get("X-Eio-Test"))

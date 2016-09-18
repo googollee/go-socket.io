@@ -11,6 +11,7 @@ import (
 )
 
 type conn struct {
+	url          string
 	remoteHeader http.Header
 	ws           wrapper
 	closed       chan struct{}
@@ -19,16 +20,21 @@ type conn struct {
 	base.FrameReader
 }
 
-func newConn(ws *websocket.Conn, remote http.Header) base.Conn {
+func newConn(ws *websocket.Conn, url string, header http.Header) base.Conn {
 	w := newWrapper(ws)
 	closed := make(chan struct{})
 	return &conn{
-		remoteHeader: remote,
+		url:          url,
+		remoteHeader: header,
 		ws:           w,
 		closed:       closed,
 		FrameReader:  packet.NewDecoder(w),
 		FrameWriter:  packet.NewEncoder(w),
 	}
+}
+
+func (c *conn) URL() string {
+	return c.url
 }
 
 func (c *conn) RemoteHeader() http.Header {

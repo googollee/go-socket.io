@@ -1,18 +1,18 @@
 package polling
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDialOpen(t *testing.T) {
@@ -22,119 +22,50 @@ func TestDialOpen(t *testing.T) {
 		SID:          "abcdefg",
 		Upgrades:     []string{"polling"},
 	}
-	at := assert.New(t)
+	should := assert.New(t)
+	must := require.New(t)
 
-	var scValue atomic.Value
 	transport := Default
-	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		c := scValue.Load()
-		if c == nil {
-			co, err := transport.Accept(w, r)
-			at.Nil(err)
-			scValue.Store(co)
-			c = co
-			conn <- co
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		query := r.URL.Query()
+		sid := query.Get("sid")
+		if sid == "" {
+			buf := bytes.NewBuffer(nil)
+			cp.WriteTo(buf)
+			fmt.Fprintf(w, "%d", buf.Len()+1)
+			w.Write([]byte(":0"))
+			w.Write(buf.Bytes())
+			return
 		}
-		c.(http.Handler).ServeHTTP(w, r)
+		must.Equal(cp.SID, sid)
+		b, err := ioutil.ReadAll(r.Body)
+		must.Nil(err)
+		should.Equal("6:4hello", string(b))
 	}
+
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		sc := <-conn
-		defer sc.Close()
-
-		w, err := sc.NextWriter(base.FrameBinary, base.OPEN)
-		at.Nil(err)
-		_, err = cp.WriteTo(w)
-		at.Nil(err)
-		err = w.Close()
-		at.Nil(err)
-
-		ft, pt, r, err := sc.NextReader()
-		at.Nil(err)
-		at.Equal(base.FrameString, ft)
-		at.Equal(base.MESSAGE, pt)
-		b, err := ioutil.ReadAll(r)
-		at.Nil(err)
-		at.Equal("hello", string(b))
-	}()
 
 	u, err := url.Parse(httpSvr.URL)
-	at.Nil(err)
-
-	connP, err := transport.Open(u.String(), nil)
-	at.Nil(err)
-	at.Equal(cp, connP)
-
+	must.Nil(err)
 	query := u.Query()
-	query.Set("sid", connP.SID)
+	query.Set("b64", "1")
 	u.RawQuery = query.Encode()
-	cc, err := transport.Dial(u.String(), nil)
-	at.Nil(err)
+
+	cc, params, err := transport.Open(u.String(), nil)
+	must.Nil(err)
 	defer cc.Close()
+	should.Equal(cp, params)
+	u, err = url.Parse(cc.URL())
+	must.Nil(err)
+	sid := u.Query().Get("sid")
+	should.Equal(cp.SID, sid)
 
 	w, err := cc.NextWriter(base.FrameString, base.MESSAGE)
-	at.Nil(err)
+	should.Nil(err)
 	_, err = w.Write([]byte("hello"))
-	at.Nil(err)
+	should.Nil(err)
 	err = w.Close()
-	at.Nil(err)
-
-	wg.Wait()
-}
-
-func TestClientSetReadDeadline(t *testing.T) {
-	at := assert.New(t)
-
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(time.Second)
-	}
-	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
-	defer httpSvr.Close()
-
-	tran := Default
-	c, err := tran.Dial(httpSvr.URL, nil)
-	at.Nil(err)
-
-	err = c.SetReadDeadline(time.Now().Add(time.Second / 10))
-	at.Nil(err)
-	_, _, _, err = c.NextReader()
-	e, ok := err.(net.Error)
-	at.True(ok)
-	at.True(e.Timeout())
-}
-
-func TestClientSetWriteDeadline(t *testing.T) {
-	at := assert.New(t)
-
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(time.Second)
-	}
-	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
-	defer httpSvr.Close()
-
-	tran := Default
-	c, err := tran.Dial(httpSvr.URL, nil)
-	at.Nil(err)
-
-	err = c.SetWriteDeadline(time.Now().Add(time.Second / 10))
-	at.Nil(err)
-
-	w, err := c.NextWriter(base.FrameBinary, base.OPEN)
-	at.Nil(err)
-	err = w.Close()
-	at.Nil(err)
-
-	w, err = c.NextWriter(base.FrameBinary, base.OPEN)
-	at.Nil(err)
-	err = w.Close()
-
-	e, ok := err.(net.Error)
-	at.True(ok)
-	at.True(e.Timeout())
+	should.Nil(err)
 }

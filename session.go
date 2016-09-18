@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -57,6 +58,8 @@ func (s *session) ID() string {
 }
 
 func (s *session) Transport() string {
+	fmt.Println("transport rlock")
+	defer fmt.Println("transport runlock")
 	s.upgradeLocker.RLock()
 	defer s.upgradeLocker.RUnlock()
 	return s.transport
@@ -133,15 +136,18 @@ func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, 
 	var r io.Reader
 	var err error
 	for {
+		fmt.Println("next reader rlock")
 		s.upgradeLocker.RLock()
 		if conn == s.conn {
 			if err != nil {
+				fmt.Println("next reader runlock")
 				s.upgradeLocker.RUnlock()
 				return 0, 0, nil, err
 			}
 			return ft, pt, newReader(r, &s.upgradeLocker), nil
 		}
 		conn = s.conn
+		fmt.Println("next reader runlock")
 		s.upgradeLocker.RUnlock()
 
 		ft, pt, r, err = conn.NextReader()
@@ -149,9 +155,11 @@ func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, 
 }
 
 func (s *session) nextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
+	fmt.Println("next writer rlock")
 	s.upgradeLocker.RLock()
 	w, err := s.conn.NextWriter(ft, pt)
 	if err != nil {
+		fmt.Println("next writer runlock")
 		s.upgradeLocker.RUnlock()
 		return nil, err
 	}
@@ -228,13 +236,23 @@ func (s *session) upgrading(t string, conn base.Conn) {
 	}
 
 	func() {
-		s.upgradeLocker.Lock()
-		s.conn.(transport.Pauser).Pause()
+		fmt.Println("upgrade rlock")
+		s.upgradeLocker.RLock()
 		old := s.conn
+		fmt.Println("upgrade runlock")
+		s.upgradeLocker.RUnlock()
+
+		fmt.Println("upgrade pause old")
+		old.(transport.Pauser).Pause()
+
+		fmt.Println("upgrade lock")
+		s.upgradeLocker.Lock()
 		s.conn = conn
 		s.transport = t
+		fmt.Println("upgrade unlock")
 		s.upgradeLocker.Unlock()
 
+		fmt.Println("upgrade close old")
 		old.Close()
 	}()
 }

@@ -16,7 +16,7 @@ func newDecoder(r FrameReader) *decoder {
 	}
 }
 
-func (e *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
+func (e *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
 	ft, r, err := e.r.NextReader()
 	if err != nil {
 		return 0, 0, nil, err

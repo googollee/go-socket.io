@@ -1,10 +1,8 @@
 package payload
 
-type byteWriter interface {
-	WriteByte(byte) error
-}
+import "bytes"
 
-func writeBinaryLen(l int, w byteWriter) error {
+func writeBinaryLen(l int64, w *bytes.Buffer) error {
 	if l <= 0 {
 		if err := w.WriteByte(0x00); err != nil {
 			return err
@@ -14,7 +12,7 @@ func writeBinaryLen(l int, w byteWriter) error {
 		}
 		return nil
 	}
-	max := 1
+	max := int64(1)
 	for n := l / 10; n > 0; n /= 10 {
 		max *= 10
 	}
@@ -29,7 +27,7 @@ func writeBinaryLen(l int, w byteWriter) error {
 	return w.WriteByte(0xff)
 }
 
-func writeStringLen(l int, w byteWriter) error {
+func writeTextLen(l int64, w *bytes.Buffer) error {
 	if l <= 0 {
 		if err := w.WriteByte('0'); err != nil {
 			return err
@@ -39,7 +37,7 @@ func writeStringLen(l int, w byteWriter) error {
 		}
 		return nil
 	}
-	max := 1
+	max := int64(1)
 	for n := l / 10; n > 0; n /= 10 {
 		max *= 10
 	}
@@ -54,8 +52,8 @@ func writeStringLen(l int, w byteWriter) error {
 	return w.WriteByte(':')
 }
 
-func readBinaryLen(r ByteReader) (int, error) {
-	ret := 0
+func readBinaryLen(r byteReader) (int64, error) {
+	ret := int64(0)
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
@@ -65,15 +63,15 @@ func readBinaryLen(r ByteReader) (int, error) {
 			break
 		}
 		if b > 9 {
-			return 0, ErrInvalidPayload
+			return 0, errInvalidPayload
 		}
-		ret = ret*10 + int(b)
+		ret = ret*10 + int64(b)
 	}
 	return ret, nil
 }
 
-func readStringLen(r ByteReader) (int, error) {
-	ret := 0
+func readTextLen(r byteReader) (int64, error) {
+	ret := int64(0)
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
@@ -83,23 +81,9 @@ func readStringLen(r ByteReader) (int, error) {
 			break
 		}
 		if b < '0' || b > '9' {
-			return 0, ErrInvalidPayload
+			return 0, errInvalidPayload
 		}
-		ret = ret*10 + int(b-'0')
+		ret = ret*10 + int64(b-'0')
 	}
 	return ret, nil
-}
-
-type timeoutError struct{}
-
-func (e timeoutError) Error() string {
-	return "i/o timeout"
-}
-
-func (e timeoutError) Timeout() bool {
-	return true
-}
-
-func (e timeoutError) Temporary() bool {
-	return false
 }

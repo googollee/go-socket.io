@@ -5,412 +5,155 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
-	"sync"
 	"testing"
-	"time"
 
-	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestDecoderPartRead(t *testing.T) {
-	at := assert.New(t)
-	tests := []struct {
-		supportBinary bool
-		packets       []Packet
-		data          []byte
-	}{
-		{true, []Packet{
-			{base.FrameString, base.OPEN, []byte{}},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameString, base.PING, []byte("pro")},
-		}, []byte{
-			0x00, 0x01, 0xff, '0',
-			0x01, 0x07, 0xff, 0x04, 'h', 'e', 'l', 'l', 'o', '\n',
-			0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
-			0x01, 0x07, 0xff, 0x04, 'h', 'e', 'l', 'l', 'o', '\n',
-			0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
-			0x00, 0x06, 0xff, '2', 'p', 'r', 'o', 'b', 'e',
-		}},
+type fakeReader struct {
+	r io.Reader
+}
 
-		{false, []Packet{
-			{base.FrameString, base.OPEN, []byte{}},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameString, base.PING, []byte("pro")},
-		}, []byte("1:010:b4aGVsbG8K8:4你好\n10:b4aGVsbG8K8:4你好\n6:2probe")},
-	}
+func (r fakeReader) Read(p []byte) (int, error) {
+	return r.r.Read(p)
+}
+
+type fakeReaderFeeder struct {
+	data          []byte
+	supportBinary bool
+	returnError   error
+	sendError     error
+	getCounter    int
+	putCounter    int
+}
+
+func (f *fakeReaderFeeder) getReader() (io.Reader, bool, error) {
+	f.getCounter++
+	return fakeReader{bytes.NewReader(f.data)}, f.supportBinary, f.returnError
+}
+
+func (f *fakeReaderFeeder) putReader(err error) error {
+	f.putCounter++
+	f.sendError = err
+	return f.returnError
+}
+
+func TestDecoder(t *testing.T) {
+	assert := assert.New(t)
+	must := require.New(t)
 
 	for _, test := range tests {
-		sig := NewSignal()
-		var wg sync.WaitGroup
-		r := NewDecoder(sig)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			buf := bytes.NewBuffer(test.data)
-			typ := base.FrameString
-			if test.supportBinary {
-				typ = base.FrameBinary
-			}
-			err := r.FeedIn(typ, buf)
-			at.Nil(err)
-
-			sig.Close()
-		}()
-
+		feeder := fakeReaderFeeder{
+			data:          test.data,
+			supportBinary: test.supportBinary,
+		}
+		d := decoder{
+			feeder: &feeder,
+		}
 		var packets []Packet
-		for {
-			ft, pt, fr, err := r.NextReader()
+
+		for i := 0; i < len(test.packets); i++ {
+			ft, pt, fr, err := d.NextReader()
 			if err != nil {
-				at.Equal(io.EOF, err)
+				must.Equal(io.EOF, err)
 				break
 			}
-			var data [3]byte
-			n, err := io.ReadFull(fr, data[:])
-			if err == io.EOF {
-				n = 0
-			} else {
-				at.Nil(err)
-			}
+			data, err := ioutil.ReadAll(fr)
+			must.Nil(err)
 			packet := Packet{
 				ft:   ft,
 				pt:   pt,
-				data: data[:n],
+				data: data,
 			}
+			err = fr.Close()
+			must.Nil(err)
 			packets = append(packets, packet)
 		}
-		at.Equal(test.packets, packets)
 
-		wg.Wait()
+		assert.Equal(test.packets, packets)
+		assert.Equal(feeder.getCounter, 1)
+		assert.Equal(feeder.putCounter, 1)
 	}
 }
 
-func TestDecoderMultiPacket(t *testing.T) {
-	at := assert.New(t)
-	tests := []struct {
-		supportBinary bool
-		packets       []Packet
-		data          [][]byte
-	}{
-		{true, []Packet{
-			{base.FrameString, base.OPEN, []byte{}},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameString, base.PING, []byte("pro")},
-		}, [][]byte{[]byte{
-			0x00, 0x01, 0xff, '0',
-			0x01, 0x07, 0xff, 0x04, 'h', 'e', 'l', 'l', 'o', '\n',
-			0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
-		}, []byte{
-			0x01, 0x07, 0xff, 0x04, 'h', 'e', 'l', 'l', 'o', '\n',
-			0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
-			0x00, 0x06, 0xff, '2', 'p', 'r', 'o', 'b', 'e',
-		}}},
+func TestDecoderNextReaderError(t *testing.T) {
+	assert := assert.New(t)
 
-		{false, []Packet{
-			{base.FrameString, base.OPEN, []byte{}},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameString, base.PING, []byte("pro")},
-		}, [][]byte{
-			[]byte("1:010:b4aGVsbG8K8:4你好\n"),
-			[]byte("10:b4aGVsbG8K8:4你好\n6:2probe"),
-		}},
+	feeder := fakeReaderFeeder{
+		data:          []byte{0x00, 0x01, 0xff, '0'},
+		supportBinary: true,
+	}
+	d := decoder{
+		feeder: &feeder,
 	}
 
-	for _, test := range tests {
-		sig := NewSignal()
-		var wg sync.WaitGroup
-		r := NewDecoder(sig)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for _, bs := range test.data {
-				buf := bytes.NewBuffer(bs)
-				typ := base.FrameString
-				if test.supportBinary {
-					typ = base.FrameBinary
-				}
-				err := r.FeedIn(typ, buf)
-				at.Nil(err)
-			}
-
-			sig.Close()
-		}()
-
-		var packets []Packet
-		for {
-			ft, pt, fr, err := r.NextReader()
-			if err != nil {
-				at.Equal(io.EOF, err)
-				break
-			}
-			var data [3]byte
-			n, err := io.ReadFull(fr, data[:])
-			if err == io.EOF {
-				n = 0
-			} else {
-				at.Nil(err)
-			}
-			packet := Packet{
-				ft:   ft,
-				pt:   pt,
-				data: data[:n],
-			}
-			packets = append(packets, packet)
-		}
-		at.Equal(test.packets, packets)
-
-		wg.Wait()
-	}
-}
-
-func TestDecoderSwitchFrameType(t *testing.T) {
-	at := assert.New(t)
-	type Binary struct {
-		typ  base.FrameType
-		data []byte
-	}
-	tests := []struct {
-		packets []Packet
-		binary  []Binary
-	}{
-		{[]Packet{
-			{base.FrameString, base.OPEN, []byte{}},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameBinary, base.MESSAGE, []byte("hel")},
-			{base.FrameString, base.MESSAGE, []byte("你")},
-			{base.FrameString, base.PING, []byte("pro")},
-		}, []Binary{
-			Binary{base.FrameBinary, []byte{
-				0x00, 0x01, 0xff, '0',
-				0x01, 0x07, 0xff, 0x04, 'h', 'e', 'l', 'l', 'o', '\n',
-				0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
-			}}, Binary{base.FrameString,
-				[]byte("10:b4aGVsbG8K8:4你好\n6:2probe"),
-			}}},
-	}
-
-	for _, test := range tests {
-		sig := NewSignal()
-		var wg sync.WaitGroup
-		r := NewDecoder(sig)
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for _, bin := range test.binary {
-				buf := bytes.NewBuffer(bin.data)
-				err := r.FeedIn(bin.typ, buf)
-				at.Nil(err)
-			}
-
-			sig.Close()
-		}()
-
-		var packets []Packet
-		for {
-			ft, pt, fr, err := r.NextReader()
-			if err != nil {
-				at.Equal(io.EOF, err)
-				break
-			}
-			var data [3]byte
-			n, err := io.ReadFull(fr, data[:])
-			if err == io.EOF {
-				n = 0
-			} else {
-				at.Nil(err)
-			}
-			packet := Packet{
-				ft:   ft,
-				pt:   pt,
-				data: data[:n],
-			}
-			packets = append(packets, packet)
-		}
-		at.Equal(test.packets, packets)
-
-		wg.Wait()
-	}
-}
-
-func TestDecoderCloseWhenFeedIn(t *testing.T) {
-	at := assert.New(t)
-	sig := NewSignal()
-	var wg sync.WaitGroup
-	r := NewDecoder(sig)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		sig.Close()
-	}()
-
-	e := r.FeedIn(base.FrameBinary, bytes.NewReader([]byte{0x00, 0x01, 0xff, '0'}))
-	at.Equal(io.EOF, e)
-
-	wg.Wait()
-}
-
-func TestDecoderCloseWhenFraming(t *testing.T) {
-	at := assert.New(t)
-	sig := NewSignal()
-	var wg sync.WaitGroup
-	r := NewDecoder(sig)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		ft, pt, rd, err := r.NextReader()
-		at.Nil(err)
-		at.Equal(base.FrameString, ft)
-		at.Equal(base.OPEN, pt)
-		at.NotNil(rd)
-
-		sig.Close()
-	}()
-
-	e := r.FeedIn(base.FrameBinary, bytes.NewReader([]byte{0x00, 0x01, 0xff, '0'}))
-	at.Equal(io.EOF, e)
-
-	wg.Wait()
-}
-
-func TestDecoderCloseWhenNextRead(t *testing.T) {
-	at := assert.New(t)
-	sig := NewSignal()
-	var wg sync.WaitGroup
-	r := NewDecoder(sig)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		sig.Close()
-	}()
-
-	_, _, _, e := r.NextReader()
-	at.Equal(io.EOF, e)
-
-	wg.Wait()
-}
-
-type fakeNonByteReader struct {
-	buf *bytes.Buffer
-}
-
-func (r *fakeNonByteReader) Read(p []byte) (int, error) {
-	return r.buf.Read(p)
-}
-
-func TestDecoderNonByteReader(t *testing.T) {
-	at := assert.New(t)
-	sig := NewSignal()
-	var wg sync.WaitGroup
-	r := NewDecoder(sig)
-	max := 10
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for i := 0; i < max; i++ {
-			ft, pt, rd, err := r.NextReader()
-			at.Nil(err)
-			at.Equal(base.FrameString, ft)
-			at.Equal(base.MESSAGE, pt)
-			b, err := ioutil.ReadAll(rd)
-			at.Nil(err)
-			at.Equal("你好\n", string(b))
-		}
-
-		sig.Close()
-	}()
-
-	for i := 0; i < max; i++ {
-		reader := fakeNonByteReader{
-			buf: bytes.NewBuffer([]byte{0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n'}),
-		}
-		e := r.FeedIn(base.FrameBinary, &reader)
-		if e == io.EOF {
-			break
-		}
-		at.Nil(e)
-	}
-
-	wg.Wait()
-}
-
-type readCloser struct {
-	once sync.Once
-	sig  *Signal
-	err  error
-}
-
-func (r *readCloser) Read(p []byte) (int, error) {
-	r.once.Do(func() {
-		r.sig.Close()
-	})
-	return 0, r.err
-}
-
-func TestDecoderCloseWhenRead(t *testing.T) {
-	at := assert.New(t)
-	var wg sync.WaitGroup
-	sig := NewSignal()
-	r := NewDecoder(sig)
 	targetErr := errors.New("error")
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		_, _, _, err := r.NextReader()
-		at.Equal(targetErr, err)
-	}()
-
-	reader := readCloser{
-		sig: sig,
-		err: targetErr,
-	}
-	e := r.FeedIn(base.FrameBinary, &reader)
-	at.Equal(targetErr, e)
-
-	wg.Wait()
+	feeder.returnError = targetErr
+	_, _, _, err := d.NextReader()
+	assert.Equal(targetErr, err)
 }
 
-func TestDecoderTimeout(t *testing.T) {
-	at := assert.New(t)
-	sig := NewSignal()
-	r := NewDecoder(sig)
-	e := r.SetDeadline(time.Now().Add(time.Second))
-	at.Nil(e)
+func BenchmarkStringDecoder(b *testing.B) {
+	feeder := fakeReaderFeeder{
+		data:          []byte("8:4你好\n6:2probe"),
+		supportBinary: false,
+	}
+	d := decoder{
+		feeder: &feeder,
+	}
+	buf := make([]byte, 10)
 
-	begin := time.Now()
-	_, _, _, e = r.NextReader()
-	at.Equal(ErrTimeout, e)
-	end := time.Now()
-	duration := end.Sub(begin)
-	at.True(duration > time.Second)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 2; j++ {
+			_, _, r, _ := d.NextReader()
+			r.Read(buf)
+			r.Close()
+		}
+	}
+}
 
-	at.Equal(ErrTimeout, sig.LoadError().(error))
+func BenchmarkB64Decoder(b *testing.B) {
+	feeder := fakeReaderFeeder{
+		data:          []byte("10:b4aGVsbG8K6:2probe"),
+		supportBinary: false,
+	}
+	d := decoder{
+		feeder: &feeder,
+	}
+	buf := make([]byte, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 2; j++ {
+			_, _, r, _ := d.NextReader()
+			r.Read(buf)
+			r.Close()
+		}
+	}
+}
+
+func BenchmarkBinaryDecoder(b *testing.B) {
+	feeder := fakeReaderFeeder{
+		data: []byte{
+			0x01, 0x07, 0xff, 0x04, 'h', 'e', 'l', 'l', 'o', '\n',
+			0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
+			0x00, 0x06, 0xff, '2', 'p', 'r', 'o', 'b', 'e',
+		},
+		supportBinary: true,
+	}
+	d := decoder{
+		feeder: &feeder,
+	}
+	buf := make([]byte, 10)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 3; j++ {
+			_, _, r, _ := d.NextReader()
+			r.Read(buf)
+			r.Close()
+		}
+	}
 }

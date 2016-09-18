@@ -2,7 +2,6 @@ package payload
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -27,22 +26,30 @@ func TestPayloadFeedIn(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		for _, d := range tests {
-			r := bytes.NewReader(d.data)
-			p.FeedIn(r, d.supportBinary)
+		for _, test := range tests {
+			if len(test.packets) != 1 {
+				continue
+			}
+			r := bytes.NewReader(test.data)
+			err := p.FeedIn(r, test.supportBinary)
+			must.Nil(err)
 		}
 	}()
 
-	for _, d := range tests {
+	for _, test := range tests {
+		if len(test.packets) != 1 {
+			continue
+		}
 		p.SetReadDeadline(time.Now().Add(time.Second / 10))
 		ft, pt, r, err := p.NextReader()
-		fmt.Println("read err:", err)
 		must.Nil(err)
-		should.Equal(d.packet.ft, ft)
-		should.Equal(d.packet.pt, pt)
+		should.Equal(test.packets[0].ft, ft)
+		should.Equal(test.packets[0].pt, pt)
 		b, err := ioutil.ReadAll(r)
 		must.Nil(err)
-		should.Equal(d.packet.data, b)
+		err = r.Close()
+		must.Nil(err)
+		should.Equal(test.packets[0].data, b)
 	}
 
 	p.SetReadDeadline(time.Now().Add(time.Second / 10))
@@ -67,26 +74,31 @@ func TestPayloadFlushOutText(t *testing.T) {
 		should := assert.New(t)
 		must := require.New(t)
 		defer wg.Done()
-		for _, d := range tests {
-			if d.supportBinary != supportBinary {
+		for _, test := range tests {
+			if len(test.packets) != 1 {
+				continue
+			}
+			if test.supportBinary != supportBinary {
 				continue
 			}
 			buf := bytes.NewBuffer(nil)
 			err := p.FlushOut(buf)
 			must.Nil(err)
-			should.Equal(d.data, buf.Bytes())
+			should.Equal(test.data, buf.Bytes())
 		}
 	}()
 
-	for _, d := range tests {
-		if d.supportBinary != supportBinary {
+	for _, test := range tests {
+		if len(test.packets) != 1 {
+			continue
+		}
+		if test.supportBinary != supportBinary {
 			continue
 		}
 		p.SetWriteDeadline(time.Now().Add(time.Second / 10))
-		w, err := p.NextWriter(d.packet.ft, d.packet.pt)
-		fmt.Println("write err:", err)
+		w, err := p.NextWriter(test.packets[0].ft, test.packets[0].pt)
 		must.Nil(err)
-		_, err = w.Write(d.packet.data)
+		_, err = w.Write(test.packets[0].data)
 		must.Nil(err)
 		err = w.Close()
 		must.Nil(err)
@@ -114,25 +126,31 @@ func TestPayloadFlushOutBinary(t *testing.T) {
 		should := assert.New(t)
 		must := require.New(t)
 		defer wg.Done()
-		for _, d := range tests {
-			if d.supportBinary != supportBinary {
+		for _, test := range tests {
+			if len(test.packets) != 1 {
+				continue
+			}
+			if test.supportBinary != supportBinary {
 				continue
 			}
 			buf := bytes.NewBuffer(nil)
 			err := p.FlushOut(buf)
 			must.Nil(err)
-			should.Equal(d.data, buf.Bytes())
+			should.Equal(test.data, buf.Bytes())
 		}
 	}()
 
-	for _, d := range tests {
-		if d.supportBinary != supportBinary {
+	for _, test := range tests {
+		if len(test.packets) != 1 {
+			continue
+		}
+		if test.supportBinary != supportBinary {
 			continue
 		}
 		p.SetWriteDeadline(time.Now().Add(time.Second / 10))
-		w, err := p.NextWriter(d.packet.ft, d.packet.pt)
+		w, err := p.NextWriter(test.packets[0].ft, test.packets[0].pt)
 		must.Nil(err)
-		_, err = w.Write(d.packet.data)
+		_, err = w.Write(test.packets[0].data)
 		must.Nil(err)
 		err = w.Close()
 		must.Nil(err)
@@ -370,11 +388,13 @@ func TestPayloadNextClosePause(t *testing.T) {
 		should := assert.New(t)
 		must := require.New(t)
 		defer wg.Done()
-		_, _, _, err := p.NextReader()
+		_, _, r, err := p.NextReader()
 		must.Nil(err)
 		time.Sleep(time.Second / 2)
+		err = r.Close()
+		must.Nil(err)
 
-		_, _, _, err = p.NextReader()
+		_, _, r, err = p.NextReader()
 		op, ok := err.(Error)
 		must.True(ok)
 		should.True(op.Temporary())
@@ -408,7 +428,6 @@ func TestPayloadNextClosePause(t *testing.T) {
 	// let next run
 	time.Sleep(time.Second / 10)
 	begin := time.Now()
-	fmt.Println("pausing")
 	p.Pause()
 	end := time.Now()
 	should.True(end.Sub(begin) > time.Second/5)

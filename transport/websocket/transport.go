@@ -56,7 +56,7 @@ func (t *Transport) Dial(url string, requestHeader http.Header) (base.Conn, erro
 		}
 	}
 
-	return newConn(c, resp.Header), nil
+	return newConn(c, url, resp.Header), nil
 }
 
 // Accept accepts a http request and create Conn.
@@ -70,5 +70,5 @@ func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, e
 		return nil, err
 	}
 
-	return newConn(c, r.Header), nil
+	return newConn(c, r.URL.String(), r.Header), nil
 }

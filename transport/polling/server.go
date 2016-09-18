@@ -3,32 +3,21 @@ package polling
 import (
 	"bytes"
 	"html/template"
-	"io"
 	"net/http"
-	"net/url"
-	"sync"
-	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/googollee/go-engine.io/payload"
 )
 
 type serverConn struct {
-	encoder payload.Encoder
-	decoder payload.Decoder
-	signal  *payload.Signal
-
-	readDeadline  time.Time
-	writeDeadline time.Time
-
-	query         url.Values
-	closeOnce     sync.Once
-	remoteHeader  http.Header
-	localAddr     string
-	remoteAddr    string
-	url           url.URL
+	*payload.Payload
 	supportBinary bool
-	jsonp         string
+
+	remoteHeader http.Header
+	localAddr    string
+	remoteAddr   string
+	url          string
+	jsonp        string
 }
 
 func newServerConn(r *http.Request) base.Conn {
@@ -38,53 +27,19 @@ func newServerConn(r *http.Request) base.Conn {
 	if jsonp != "" {
 		supportBinary = false
 	}
-	sig := payload.NewSignal()
-	ret := &serverConn{
-		signal:        sig,
+	return &serverConn{
+		Payload:       payload.New(supportBinary),
+		supportBinary: supportBinary,
 		remoteHeader:  r.Header,
 		localAddr:     r.Host,
 		remoteAddr:    r.RemoteAddr,
-		url:           *r.URL,
-		supportBinary: supportBinary,
+		url:           r.URL.String(),
 		jsonp:         jsonp,
 	}
-	ret.encoder = payload.NewEncoder(supportBinary, sig)
-	ret.decoder = payload.NewDecoder(sig)
-	return ret
 }
 
-func (c *serverConn) Pause() {
-	c.signal.Pause()
-}
-
-func (c *serverConn) Resume() {
-	c.signal.Resume()
-}
-
-func (c *serverConn) SetReadDeadline(t time.Time) error {
-	err := c.decoder.SetDeadline(t)
-	if err == nil {
-		return nil
-	}
-	return base.OpErr(c.url.String(), "SetReadDeadline", err)
-}
-
-func (c *serverConn) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
-	ft, pt, r, err := c.decoder.NextReader()
-	return ft, pt, r, retError(c.url.String(), "read", err)
-}
-
-func (c *serverConn) SetWriteDeadline(t time.Time) error {
-	err := c.encoder.SetDeadline(t)
-	if err == nil {
-		return nil
-	}
-	return base.OpErr(c.url.String(), "SetWriteDeadline", err)
-}
-
-func (c *serverConn) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
-	w, err := c.encoder.NextWriter(ft, pt)
-	return w, retError(c.url.String(), "write", err)
+func (c *serverConn) URL() string {
+	return c.url
 }
 
 func (c *serverConn) LocalAddr() string {
@@ -99,21 +54,12 @@ func (c *serverConn) RemoteHeader() http.Header {
 	return c.remoteHeader
 }
 
-func (c *serverConn) Close() error {
-	c.closeOnce.Do(func() {
-		c.signal.Close()
-	})
-	return nil
-}
-
 func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		if jsonp := r.URL.Query().Get("j"); jsonp != "" {
 			buf := bytes.NewBuffer(nil)
-			if err := c.encoder.FlushOut(buf); err != nil {
-				c.storeErr("flush out", err)
-				c.Close()
+			if err := c.Payload.FlushOut(buf); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -129,23 +75,19 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		}
-		if err := c.encoder.FlushOut(w); err != nil {
-			c.storeErr("flush out", err)
-			c.Close()
+		if err := c.Payload.FlushOut(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		return
 	case "POST":
 		mime := r.Header.Get("Content-Type")
-		typ, err := normalizeMime(mime)
+		supportBinary, err := mimeSupportBinary(mime)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := c.decoder.FeedIn(typ, r.Body); err != nil {
-			c.storeErr("feed in", err)
-			c.Close()
+		if err := c.Payload.FeedIn(r.Body, supportBinary); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -154,14 +96,4 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "invalid method", http.StatusBadRequest)
 	}
-}
-
-func (c *serverConn) storeErr(op string, err error) error {
-	if err == nil {
-		return err
-	}
-	if _, ok := err.(*base.OpError); ok || err == io.EOF {
-		return err
-	}
-	return c.signal.StoreError(base.OpErr(c.url.String(), op, err))
 }

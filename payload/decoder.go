@@ -2,193 +2,158 @@ package payload
 
 import (
 	"bufio"
+	"encoding/base64"
 	"io"
-	"time"
+	"io/ioutil"
 
 	"github.com/googollee/go-engine.io/base"
 )
 
-type readerArg struct {
-	r   io.Reader
-	typ base.FrameType
+type byteReader interface {
+	ReadByte() (byte, error)
+	io.Reader
+}
+
+type readerFeeder interface {
+	getReader() (io.Reader, bool, error)
+	putReader(error) error
 }
 
 type decoder struct {
-	errorChan   chan error
-	readerChan  chan readerArg
-	lastType    base.FrameType
-	lastReader  ByteReader
-	limitReader *limitReader
-	signal      *Signal
-	deadline    time.Time
+	feeder readerFeeder
+
+	ft            base.FrameType
+	pt            base.PacketType
+	supportBinary bool
+	rawReader     byteReader
+	limitReader   io.LimitedReader
+	b64Reader     io.Reader
 }
 
-func newDecoder(sig *Signal) *decoder {
-	ret := &decoder{
-		errorChan:  make(chan error),
-		readerChan: make(chan readerArg),
-		signal:     sig,
+func (d *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
+	if d.rawReader == nil {
+		r, supportBinary, err := d.feeder.getReader()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		br, ok := r.(byteReader)
+		if !ok {
+			br = bufio.NewReader(r)
+		}
+		if err := d.setNextReader(br, supportBinary); err != nil {
+			return 0, 0, nil, d.sendError(err)
+		}
 	}
-	ret.limitReader = newLimitReader(ret)
-	return ret
+
+	return d.ft, d.pt, d, nil
 }
 
-func (r *decoder) SetDeadline(t time.Time) error {
-	r.deadline = t
+func (d *decoder) Read(p []byte) (int, error) {
+	if d.b64Reader != nil {
+		return d.b64Reader.Read(p)
+	}
+	return d.limitReader.Read(p)
+}
+
+func (d *decoder) Close() error {
+	if _, err := io.Copy(ioutil.Discard, d); err != nil {
+		return d.sendError(err)
+	}
+	err := d.setNextReader(d.rawReader, d.supportBinary)
+	if err != nil {
+		if err != io.EOF {
+			return d.sendError(err)
+		}
+		d.rawReader = nil
+		d.limitReader.R = nil
+		d.limitReader.N = 0
+		d.b64Reader = nil
+		err = d.sendError(nil)
+	}
+	return err
+}
+
+func (d *decoder) setNextReader(r byteReader, supportBinary bool) error {
+	var read func(byteReader) (base.FrameType, base.PacketType, int64, error)
+	if supportBinary {
+		read = d.binaryRead
+	} else {
+		read = d.textRead
+	}
+
+	ft, pt, l, err := read(r)
+	if err != nil {
+		return err
+	}
+
+	d.ft = ft
+	d.pt = pt
+	d.rawReader = r
+	d.limitReader.R = r
+	d.limitReader.N = l
+	d.supportBinary = supportBinary
+	if !supportBinary && ft == base.FrameBinary {
+		d.b64Reader = base64.NewDecoder(base64.StdEncoding, &d.limitReader)
+	} else {
+		d.b64Reader = nil
+	}
 	return nil
 }
 
-func (r *decoder) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
-	if r.lastReader == nil {
-		arg, err := r.waitReader()
-		if err != nil {
-			return 0, 0, nil, err
-		}
-
-		br, ok := arg.r.(ByteReader)
-		if !ok {
-			br = bufio.NewReader(arg.r)
-		}
-		r.lastReader = br
-		r.lastType = arg.typ
-	} else {
-		r.limitReader.Close()
+func (d *decoder) sendError(err error) error {
+	if e := d.feeder.putReader(err); e != nil {
+		return e
 	}
-
-	for {
-		var read func(br ByteReader) (base.FrameType, base.PacketType, io.Reader, error)
-		switch r.lastType {
-		case base.FrameBinary:
-			read = r.binaryRead
-		case base.FrameString:
-			read = r.stringRead
-		default:
-			return 0, 0, nil, r.signal.LoadError()
-		}
-
-		ft, pt, ret, err := read(r.lastReader)
-		if err != io.EOF {
-			if err != nil {
-				r.signal.StoreError(err)
-				r.closeFrame(err)
-				return 0, 0, nil, err
-			}
-			return ft, pt, ret, nil
-		}
-		r.closeFrame(nil)
-
-		arg, err := r.waitReader()
-		if err != nil {
-			return 0, 0, nil, err
-		}
-
-		br, ok := arg.r.(ByteReader)
-		if !ok {
-			br = bufio.NewReader(arg.r)
-		}
-		r.lastReader = br
-		r.lastType = arg.typ
-	}
+	return err
 }
 
-func (r *decoder) FeedIn(typ base.FrameType, rd io.Reader) error {
-	select {
-	case r.readerChan <- readerArg{
-		r:   rd,
-		typ: typ,
-	}:
-	case <-r.signal.WaitClose():
-		return r.signal.LoadError()
-	case <-r.signal.WaitPause():
-		return ErrPause
-	}
-	select {
-	case err := <-r.errorChan:
-		return err
-	case <-r.signal.WaitClose():
-		return r.signal.LoadError()
-	case <-r.signal.WaitPause():
-		return ErrPause
-	}
-}
-
-func (r *decoder) waitReader() (readerArg, error) {
-	if r.deadline.IsZero() {
-		select {
-		case ret := <-r.readerChan:
-			return ret, nil
-		case <-r.signal.WaitClose():
-			return readerArg{}, r.signal.LoadError()
-		}
-	}
-
-	waiting := r.deadline.Sub(time.Now())
-	select {
-	case <-time.After(waiting):
-		return readerArg{}, r.signal.StoreError(ErrTimeout)
-	case ret := <-r.readerChan:
-		return ret, nil
-	case <-r.signal.WaitClose():
-		return readerArg{}, r.signal.LoadError()
-	}
-}
-
-func (r *decoder) closeFrame(err error) {
-	select {
-	case r.errorChan <- err:
-	case <-r.signal.WaitClose():
-	}
-}
-
-func (r *decoder) stringRead(br ByteReader) (base.FrameType, base.PacketType, io.Reader, error) {
-	l, err := readStringLen(br)
+func (d *decoder) textRead(r byteReader) (base.FrameType, base.PacketType, int64, error) {
+	l, err := readTextLen(r)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 
 	ft := base.FrameString
-	b, err := br.ReadByte()
+	b, err := r.ReadByte()
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 	l--
 
 	if b == 'b' {
 		ft = base.FrameBinary
-		b, err = br.ReadByte()
+		b, err = r.ReadByte()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, 0, err
 		}
 		l--
 	}
 
 	pt := base.ByteToPacketType(b, base.FrameString)
-	r.limitReader.SetReader(br, l, ft == base.FrameBinary)
-	return ft, pt, r.limitReader, nil
+	return ft, pt, l, nil
 }
 
-func (r *decoder) binaryRead(br ByteReader) (base.FrameType, base.PacketType, io.Reader, error) {
-	b, err := br.ReadByte()
+func (d *decoder) binaryRead(r byteReader) (base.FrameType, base.PacketType, int64, error) {
+	b, err := r.ReadByte()
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 	if b > 1 {
-		return 0, 0, nil, err
+		return 0, 0, 0, errInvalidPayload
 	}
 	ft := base.ByteToFrameType(b)
 
-	l, err := readBinaryLen(br)
+	l, err := readBinaryLen(r)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 
-	b, err = br.ReadByte()
+	b, err = r.ReadByte()
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, 0, err
 	}
 	pt := base.ByteToPacketType(b, ft)
 	l--
 
-	r.limitReader.SetReader(br, l, false)
-	return ft, pt, r.limitReader, nil
+	return ft, pt, l, nil
 }

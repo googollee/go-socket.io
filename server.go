@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -81,13 +82,15 @@ func (s *Server) Accept() (Conn, error) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("serving", r.Method, r.URL.String())
+	defer fmt.Println("served", r.Method, r.URL.String())
 	query := r.URL.Query()
 	sid := query.Get("sid")
 	session := s.sessions.Get(sid)
 	t := query.Get("transport")
-	transport := s.transports.Get(t)
+	tspt := s.transports.Get(t)
 
-	if transport == nil {
+	if tspt == nil {
 		http.Error(w, "invalid transport", http.StatusBadRequest)
 		return
 	}
@@ -104,7 +107,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for k, v := range header {
 			w.Header()[k] = v
 		}
-		conn, err := transport.Accept(w, r)
+		conn, err := tspt.(transport.Server).Accept(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -130,7 +133,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for k, v := range header {
 			w.Header()[k] = v
 		}
-		conn, err := transport.Accept(w, r)
+		conn, err := tspt.(transport.Server).Accept(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return

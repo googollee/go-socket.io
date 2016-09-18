@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"sync"
@@ -22,6 +23,7 @@ func newWriter(w io.WriteCloser, locker *sync.RWMutex) *writer {
 func (w *writer) Close() error {
 	err := w.WriteCloser.Close()
 	w.closeOnce.Do(func() {
+		fmt.Println("writer runlock")
 		w.locker.RUnlock()
 	})
 	return err
@@ -43,6 +45,7 @@ func newReader(r io.Reader, locker *sync.RWMutex) *reader {
 func (r *reader) Close() (err error) {
 	r.closeOnce.Do(func() {
 		_, err = io.Copy(ioutil.Discard, r.Reader)
+		fmt.Println("reader runlock")
 		r.locker.RUnlock()
 	})
 	return

@@ -55,3 +55,5 @@ var errTimeout = errors.New("timeout")
 var errInvalidPayload = errors.New("invalid payload")
 
 var errDrain = errors.New("drain")
+
+var errOverlap = errors.New("overlap")

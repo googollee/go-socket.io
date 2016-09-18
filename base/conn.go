@@ -68,7 +68,7 @@ func (t FrameType) Byte() byte {
 
 // FrameReader reads a frame. It need be closed before next reading.
 type FrameReader interface {
-	NextReader() (FrameType, PacketType, io.Reader, error)
+	NextReader() (FrameType, PacketType, io.ReadCloser, error)
 }
 
 // FrameWriter writes a frame. It need be closed before next writing.
@@ -81,6 +81,7 @@ type Conn interface {
 	FrameReader
 	FrameWriter
 	io.Closer
+	URL() string
 	LocalAddr() string
 	RemoteAddr() string
 	RemoteHeader() http.Header

@@ -2,60 +2,82 @@ package polling
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/googollee/go-engine.io/payload"
 )
 
 type clientConn struct {
-	supportBinary bool
-	retry         int
-	request       http.Request
-	remoteHeader  atomic.Value
-	httpClient    *http.Client
-	closeOnce     sync.Once
-	encoder       payload.Encoder
-	decoder       payload.Decoder
-	signal        *payload.Signal
+	*payload.Payload
+
+	httpClient   *http.Client
+	retry        int
+	request      http.Request
+	remoteHeader http.Header
 }
 
-func (c *clientConn) SetReadDeadline(t time.Time) error {
-	err := c.decoder.SetDeadline(t)
-	if err == nil {
-		return nil
+func open(retry int, client *http.Client, url string, requestHeader http.Header) (base.Conn, base.ConnParameters, error) {
+	if client == nil {
+		client = &http.Client{}
 	}
-	return base.OpErr(c.request.URL.String(), "set read deadline", err)
-}
-
-func (c *clientConn) NextReader() (base.FrameType, base.PacketType, io.Reader, error) {
-	ft, pt, r, err := c.decoder.NextReader()
+	if retry == 0 {
+		retry = 3
+	}
+	req, err := http.NewRequest("", url, nil)
 	if err != nil {
-		c.Close()
+		return nil, base.ConnParameters{}, err
 	}
-	return ft, pt, r, retError(c.request.URL.String(), "read", err)
-}
-
-func (c *clientConn) SetWriteDeadline(t time.Time) error {
-	err := c.encoder.SetDeadline(t)
-	if err == nil {
-		return nil
+	for k, v := range requestHeader {
+		req.Header[k] = v
 	}
-	return base.OpErr(c.request.URL.String(), "set write deadline", err)
-}
+	supportBinary := req.URL.Query().Get("b64") == ""
+	if supportBinary {
+		req.Header.Set("Content-Type", "application/octet-stream")
+	} else {
+		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
+	}
 
-func (c *clientConn) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
-	w, err := c.encoder.NextWriter(ft, pt)
+	ret := &clientConn{
+		Payload:    payload.New(supportBinary),
+		httpClient: client,
+		retry:      retry,
+		request:    *req,
+	}
+
+	go ret.getOpen()
+
+	_, pt, r, err := ret.NextReader()
 	if err != nil {
-		c.Close()
+		return nil, base.ConnParameters{}, err
 	}
-	return w, retError(c.request.URL.String(), "write", err)
+	if pt != base.OPEN {
+		return nil, base.ConnParameters{}, errors.New("invalid open")
+	}
+	conn, err := base.ReadConnParameters(r)
+	if err != nil {
+		return nil, base.ConnParameters{}, err
+	}
+	err = r.Close()
+	if err != nil {
+		return nil, base.ConnParameters{}, err
+	}
+	query := ret.request.URL.Query()
+	query.Set("sid", conn.SID)
+	ret.request.URL.RawQuery = query.Encode()
+
+	go ret.serveGet()
+	go ret.servePost()
+
+	return ret, conn, nil
+}
+
+func (c *clientConn) URL() string {
+	return c.request.URL.String()
 }
 
 func (c *clientConn) LocalAddr() string {
@@ -67,35 +89,25 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) RemoteHeader() http.Header {
-	v := c.remoteHeader.Load()
-	if v == nil {
-		return nil
-	}
-	return v.(http.Header)
+	return c.remoteHeader
 }
 
-func (c *clientConn) Close() error {
-	c.closeOnce.Do(func() {
-		c.signal.Close()
-	})
-	return nil
+func (c *clientConn) Resume() {
+	c.Payload.Resume()
+	go c.serveGet()
+	go c.servePost()
 }
 
-func (c *clientConn) doPost() {
-	defer c.Close()
-
-	buf := bytes.NewBuffer(nil)
-	rc := ioutil.NopCloser(buf)
+func (c *clientConn) servePost() {
+	var buf bytes.Buffer
 	req := c.request
 	req.Method = "POST"
-	req.Body = rc
+	req.Body = ioutil.NopCloser(&buf)
 	for {
 		buf.Reset()
-		if err := c.encoder.FlushOut(buf); err != nil {
-			c.storeErr("flush out", err)
+		if err := c.Payload.FlushOut(&buf); err != nil {
 			return
 		}
-
 		var resp *http.Response
 		var err error
 		for i := 0; i < c.retry; i++ {
@@ -105,74 +117,95 @@ func (c *clientConn) doPost() {
 			}
 		}
 		if err != nil {
-			c.storeErr("post(write) to", err)
+			c.Payload.Store("post", err)
+			c.Close()
 			return
 		}
-
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			c.storeErr("post(write) to ",
-				fmt.Errorf("invalid response(%d): %s", resp.StatusCode, resp.Status))
+			c.Payload.Store("post", fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
+			c.Close()
 			return
 		}
 	}
 }
 
-func (c *clientConn) doGet(init bool) {
-	defer c.Close()
-
+func (c *clientConn) getOpen() {
 	req := c.request
 	req.Method = "GET"
-	for run := true; run; {
-		var resp *http.Response
-		var err error
-		for i := 0; i < c.retry; i++ {
-			resp, err = c.httpClient.Do(&req)
-			if err == nil {
-				break
-			}
-		}
-		if err != nil {
-			c.storeErr("get(read) from", err)
-			return
-		}
-
-		func() {
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				c.storeErr("get(read) from",
-					fmt.Errorf("invalid response(%d): %s", resp.StatusCode, resp.Status))
-				run = false
-				return
-			}
-			if c.remoteHeader.Load() == nil {
-				c.remoteHeader.Store(resp.Header)
-			}
-			mime := resp.Header.Get("Content-Type")
-			typ, err := normalizeMime(mime)
-			if err != nil {
-				c.storeErr("get(read) from", err)
-				run = false
-				return
-			}
-			if err := c.decoder.FeedIn(typ, resp.Body); err != nil {
-				c.storeErr("feed in", err)
-				run = false
-				return
-			}
-		}()
-
-		if init {
+	var resp *http.Response
+	var err error
+	for i := 0; i < c.retry; i++ {
+		resp, err = c.httpClient.Do(&req)
+		if err == nil {
 			break
 		}
 	}
+	if err != nil {
+		c.Payload.Store("get", err)
+		c.Close()
+		return
+	}
+	defer func() {
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("invalid request: %s(%d)", resp.Status, resp.StatusCode)
+	}
+	var supportBinary bool
+	if err == nil {
+		mime := resp.Header.Get("Content-Type")
+		supportBinary, err = mimeSupportBinary(mime)
+	}
+	if err != nil {
+		c.Payload.Store("get", err)
+		c.Close()
+		return
+	}
+	c.remoteHeader = resp.Header
+	if err = c.Payload.FeedIn(resp.Body, supportBinary); err != nil {
+		return
+	}
 }
 
-func (c *clientConn) storeErr(op string, err error) error {
-	if err == nil {
-		return err
+func (c *clientConn) serveGet() {
+	req := c.request
+	req.Method = "GET"
+	for {
+		var resp *http.Response
+		var err error
+		for i := 0; i < c.retry; i++ {
+			resp, err = c.httpClient.Do(&req)
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			c.Payload.Store("get", err)
+			c.Close()
+			return
+		}
+		if resp.StatusCode != http.StatusOK {
+			err = fmt.Errorf("invalid request: %s(%d)", resp.Status, resp.StatusCode)
+		}
+		var supportBinary bool
+		if err == nil {
+			mime := resp.Header.Get("Content-Type")
+			supportBinary, err = mimeSupportBinary(mime)
+		}
+		if err != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+			c.Payload.Store("get", err)
+			c.Close()
+			return
+		}
+		if err = c.Payload.FeedIn(resp.Body, supportBinary); err != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+			return
+		}
 	}
-	if _, ok := err.(*base.OpError); ok || err == io.EOF {
-		return err
-	}
-	return c.signal.StoreError(base.OpErr(c.request.URL.String(), op, err))
 }
