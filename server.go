@@ -107,7 +107,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for k, v := range header {
 			w.Header()[k] = v
 		}
-		conn, err := tspt.(transport.Server).Accept(w, r)
+		conn, err := tspt.Accept(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -133,7 +133,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for k, v := range header {
 			w.Header()[k] = v
 		}
-		conn, err := tspt.(transport.Server).Accept(w, r)
+		conn, err := tspt.Accept(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return

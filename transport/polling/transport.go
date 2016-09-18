@@ -33,6 +33,6 @@ func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, e
 }
 
 // Open gets connection parameters from url.
-func (t *Transport) Open(url string, requestHeader http.Header) (base.Conn, base.ConnParameters, error) {
-	return open(t.Retry, t.Client, url, requestHeader)
+func (t *Transport) Dial(url string, requestHeader http.Header) (base.Conn, error) {
+	return dial(t.Retry, t.Client, url, requestHeader)
 }

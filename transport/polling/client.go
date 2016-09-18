@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/googollee/go-engine.io/payload"
@@ -18,10 +19,10 @@ type clientConn struct {
 	httpClient   *http.Client
 	retry        int
 	request      http.Request
-	remoteHeader http.Header
+	remoteHeader atomic.Value
 }
 
-func open(retry int, client *http.Client, url string, requestHeader http.Header) (base.Conn, base.ConnParameters, error) {
+func dial(retry int, client *http.Client, url string, requestHeader http.Header) (*clientConn, error) {
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -30,7 +31,7 @@ func open(retry int, client *http.Client, url string, requestHeader http.Header)
 	}
 	req, err := http.NewRequest("", url, nil)
 	if err != nil {
-		return nil, base.ConnParameters{}, err
+		return nil, err
 	}
 	for k, v := range requestHeader {
 		req.Header[k] = v
@@ -48,32 +49,35 @@ func open(retry int, client *http.Client, url string, requestHeader http.Header)
 		retry:      retry,
 		request:    *req,
 	}
+	return ret, nil
+}
 
-	go ret.getOpen()
+func (c *clientConn) Open() (base.ConnParameters, error) {
+	go c.getOpen()
 
-	_, pt, r, err := ret.NextReader()
+	_, pt, r, err := c.NextReader()
 	if err != nil {
-		return nil, base.ConnParameters{}, err
+		return base.ConnParameters{}, err
 	}
 	if pt != base.OPEN {
-		return nil, base.ConnParameters{}, errors.New("invalid open")
+		return base.ConnParameters{}, errors.New("invalid open")
 	}
 	conn, err := base.ReadConnParameters(r)
 	if err != nil {
-		return nil, base.ConnParameters{}, err
+		return base.ConnParameters{}, err
 	}
 	err = r.Close()
 	if err != nil {
-		return nil, base.ConnParameters{}, err
+		return base.ConnParameters{}, err
 	}
-	query := ret.request.URL.Query()
+	query := c.request.URL.Query()
 	query.Set("sid", conn.SID)
-	ret.request.URL.RawQuery = query.Encode()
+	c.request.URL.RawQuery = query.Encode()
 
-	go ret.serveGet()
-	go ret.servePost()
+	go c.serveGet()
+	go c.servePost()
 
-	return ret, conn, nil
+	return conn, nil
 }
 
 func (c *clientConn) URL() string {
@@ -89,7 +93,11 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) RemoteHeader() http.Header {
-	return c.remoteHeader
+	ret := c.remoteHeader.Load()
+	if ret == nil {
+		return nil
+	}
+	return ret.(http.Header)
 }
 
 func (c *clientConn) Resume() {
@@ -110,6 +118,7 @@ func (c *clientConn) servePost() {
 		}
 		var resp *http.Response
 		var err error
+		fmt.Println("serve post")
 		for i := 0; i < c.retry; i++ {
 			resp, err = c.httpClient.Do(&req)
 			if err == nil {
@@ -128,6 +137,7 @@ func (c *clientConn) servePost() {
 			c.Close()
 			return
 		}
+		c.remoteHeader.Store(resp.Header)
 	}
 }
 
@@ -136,6 +146,7 @@ func (c *clientConn) getOpen() {
 	req.Method = "GET"
 	var resp *http.Response
 	var err error
+	fmt.Println("open get")
 	for i := 0; i < c.retry; i++ {
 		resp, err = c.httpClient.Do(&req)
 		if err == nil {
@@ -164,7 +175,7 @@ func (c *clientConn) getOpen() {
 		c.Close()
 		return
 	}
-	c.remoteHeader = resp.Header
+	c.remoteHeader.Store(resp.Header)
 	if err = c.Payload.FeedIn(resp.Body, supportBinary); err != nil {
 		return
 	}
@@ -176,6 +187,7 @@ func (c *clientConn) serveGet() {
 	for {
 		var resp *http.Response
 		var err error
+		fmt.Println("serve get")
 		for i := 0; i < c.retry; i++ {
 			resp, err = c.httpClient.Do(&req)
 			if err == nil {
@@ -207,5 +219,6 @@ func (c *clientConn) serveGet() {
 			resp.Body.Close()
 			return
 		}
+		c.remoteHeader.Store(resp.Header)
 	}
 }

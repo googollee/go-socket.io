@@ -1,8 +1,6 @@
 package polling
 
 import (
-	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
@@ -30,12 +27,6 @@ func TestPollingBinary(t *testing.T) {
 	should := assert.New(t)
 	var scValue atomic.Value
 
-	cp := base.ConnParameters{
-		PingInterval: time.Second,
-		PingTimeout:  time.Minute,
-		SID:          "abcdefg",
-		Upgrades:     []string{"polling"},
-	}
 	transport := Default
 	should.Equal("polling", transport.Name())
 	conn := make(chan base.Conn, 1)
@@ -48,14 +39,6 @@ func TestPollingBinary(t *testing.T) {
 			scValue.Store(co)
 			c = co
 			conn <- co
-
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			buf := bytes.NewBuffer(nil)
-			cp.WriteTo(buf)
-			fmt.Fprintf(w, "%d", buf.Len()+1)
-			w.Write([]byte(":0"))
-			w.Write(buf.Bytes())
-			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -67,9 +50,9 @@ func TestPollingBinary(t *testing.T) {
 
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, params, err := transport.Open(u.String(), header)
+	cc, err := transport.Dial(u.String(), header)
 	should.Nil(err)
-	should.Equal(cp, params)
+	cc.(*clientConn).Resume()
 	defer cc.Close()
 
 	wg := sync.WaitGroup{}
@@ -133,12 +116,6 @@ func TestPollingString(t *testing.T) {
 	should := assert.New(t)
 	var scValue atomic.Value
 
-	cp := base.ConnParameters{
-		PingInterval: time.Second,
-		PingTimeout:  time.Minute,
-		SID:          "abcdefg",
-		Upgrades:     []string{"polling"},
-	}
 	transport := Default
 	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -150,14 +127,6 @@ func TestPollingString(t *testing.T) {
 			scValue.Store(co)
 			c = co
 			conn <- co
-
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			buf := bytes.NewBuffer(nil)
-			cp.WriteTo(buf)
-			fmt.Fprintf(w, "%d", buf.Len()+1)
-			w.Write([]byte(":0"))
-			w.Write(buf.Bytes())
-			return
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -173,9 +142,9 @@ func TestPollingString(t *testing.T) {
 
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, params, err := transport.Open(u.String(), header)
+	cc, err := transport.Dial(u.String(), header)
 	should.Nil(err)
-	should.Equal(cp, params)
+	cc.(*clientConn).Resume()
 	defer cc.Close()
 
 	sc := <-conn

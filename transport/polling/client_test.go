@@ -25,7 +25,6 @@ func TestDialOpen(t *testing.T) {
 	should := assert.New(t)
 	must := require.New(t)
 
-	transport := Default
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		query := r.URL.Query()
@@ -38,10 +37,12 @@ func TestDialOpen(t *testing.T) {
 			w.Write(buf.Bytes())
 			return
 		}
-		must.Equal(cp.SID, sid)
-		b, err := ioutil.ReadAll(r.Body)
-		must.Nil(err)
-		should.Equal("6:4hello", string(b))
+		if r.Method == "POST" {
+			must.Equal(cp.SID, sid)
+			b, err := ioutil.ReadAll(r.Body)
+			must.Nil(err)
+			should.Equal("6:4hello", string(b))
+		}
 	}
 
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
@@ -53,9 +54,11 @@ func TestDialOpen(t *testing.T) {
 	query.Set("b64", "1")
 	u.RawQuery = query.Encode()
 
-	cc, params, err := transport.Open(u.String(), nil)
+	cc, err := dial(0, nil, u.String(), nil)
 	must.Nil(err)
 	defer cc.Close()
+
+	params, err := cc.Open()
 	should.Equal(cp, params)
 	u, err = url.Parse(cc.URL())
 	must.Nil(err)

@@ -243,7 +243,7 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		s.upgradeLocker.RUnlock()
 
 		fmt.Println("upgrade pause old")
-		old.(transport.Pauser).Pause()
+		old.(transport.UpgradableClient).Pause()
 
 		fmt.Println("upgrade lock")
 		s.upgradeLocker.Lock()
