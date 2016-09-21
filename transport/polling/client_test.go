@@ -28,6 +28,7 @@ func TestDialOpen(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		query := r.URL.Query()
+		should.NotEmpty(r.URL.Query().Get("t"))
 		sid := query.Get("sid")
 		if sid == "" {
 			buf := bytes.NewBuffer(nil)
@@ -54,16 +55,15 @@ func TestDialOpen(t *testing.T) {
 	query.Set("b64", "1")
 	u.RawQuery = query.Encode()
 
-	cc, err := dial(0, nil, u.String(), nil)
+	cc, err := dial(0, nil, u, nil)
 	must.Nil(err)
 	defer cc.Close()
 
 	params, err := cc.Open()
 	must.Nil(err)
 	should.Equal(cp, params)
-	u, err = url.Parse(cc.URL())
-	must.Nil(err)
-	sid := u.Query().Get("sid")
+	ccURL := cc.URL()
+	sid := ccURL.Query().Get("sid")
 	should.Equal(cp.SID, sid)
 
 	w, err := cc.NextWriter(base.FrameString, base.MESSAGE)

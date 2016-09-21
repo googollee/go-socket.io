@@ -48,9 +48,11 @@ func TestPollingBinary(t *testing.T) {
 	u, err := url.Parse(httpSvr.URL)
 	should.Nil(err)
 
+	dialU := *u
+
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := transport.Dial(u.String(), header)
+	cc, err := transport.Dial(&dialU, header)
 	should.Nil(err)
 	cc.(*clientConn).Resume()
 	defer cc.Close()
@@ -140,9 +142,10 @@ func TestPollingString(t *testing.T) {
 	query.Set("b64", "1")
 	u.RawQuery = query.Encode()
 
+	dialU := *u
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := transport.Dial(u.String(), header)
+	cc, err := transport.Dial(&dialU, header)
 	should.Nil(err)
 	cc.(*clientConn).Resume()
 	defer cc.Close()

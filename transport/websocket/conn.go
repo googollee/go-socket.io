@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 )
 
 type conn struct {
-	url          string
+	url          url.URL
 	remoteHeader http.Header
 	ws           wrapper
 	closed       chan struct{}
@@ -20,7 +21,7 @@ type conn struct {
 	base.FrameReader
 }
 
-func newConn(ws *websocket.Conn, url string, header http.Header) base.Conn {
+func newConn(ws *websocket.Conn, url url.URL, header http.Header) base.Conn {
 	w := newWrapper(ws)
 	closed := make(chan struct{})
 	return &conn{
@@ -33,7 +34,7 @@ func newConn(ws *websocket.Conn, url string, header http.Header) base.Conn {
 	}
 }
 
-func (c *conn) URL() string {
+func (c *conn) URL() url.URL {
 	return c.url
 }
 

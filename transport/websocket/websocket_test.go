@@ -42,17 +42,28 @@ func TestWebsocket(t *testing.T) {
 	at.Nil(err)
 	u.Scheme = "ws"
 
+	dialU := *u
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := tran.Dial(u.String(), header)
+	cc, err := tran.Dial(&dialU, header)
 	at.Nil(err)
 	defer cc.Close()
 
 	sc := <-conn
 	defer sc.Close()
 
-	at.Equal(u.String(), cc.URL())
-	at.Equal("/", sc.URL())
+	ccURL := cc.URL()
+	query := ccURL.Query()
+	at.NotEmpty(query.Get("t"))
+	at.Equal("websocket", query.Get("transport"))
+	ccURL.RawQuery = ""
+	at.Equal(u.String(), ccURL.String())
+	scURL := sc.URL()
+	query = scURL.Query()
+	at.NotEmpty(query.Get("t"))
+	at.Equal("websocket", query.Get("transport"))
+	scURL.RawQuery = ""
+	at.Equal("/", scURL.String())
 	at.Equal(sc.LocalAddr(), cc.RemoteAddr())
 	at.Equal(cc.LocalAddr(), sc.RemoteAddr())
 	at.Equal("server", cc.RemoteHeader().Get("X-Eio-Test"))

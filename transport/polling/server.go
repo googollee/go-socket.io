@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"net/http"
+	"net/url"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/googollee/go-engine.io/payload"
@@ -16,7 +17,7 @@ type serverConn struct {
 	remoteHeader http.Header
 	localAddr    string
 	remoteAddr   string
-	url          string
+	url          url.URL
 	jsonp        string
 }
 
@@ -33,12 +34,12 @@ func newServerConn(r *http.Request) base.Conn {
 		remoteHeader:  r.Header,
 		localAddr:     r.Host,
 		remoteAddr:    r.RemoteAddr,
-		url:           r.URL.String(),
+		url:           *r.URL,
 		jsonp:         jsonp,
 	}
 }
 
-func (c *serverConn) URL() string {
+func (c *serverConn) URL() url.URL {
 	return c.url
 }
 

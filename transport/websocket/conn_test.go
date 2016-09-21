@@ -31,7 +31,7 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	u.Scheme = "ws"
 
 	header := make(http.Header)
-	cc, err := tran.Dial(u.String(), header)
+	cc, err := tran.Dial(u, header)
 	at.Nil(err)
 	defer cc.Close()
 

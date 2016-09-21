@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"net/url"
 
 	"github.com/googollee/go-engine.io/base"
 )
@@ -15,7 +16,7 @@ type HTTPError interface {
 type Transport interface {
 	Name() string
 	Accept(w http.ResponseWriter, r *http.Request) (base.Conn, error)
-	Dial(url string, requestHeader http.Header) (base.Conn, error)
+	Dial(u *url.URL, requestHeader http.Header) (base.Conn, error)
 }
 
 // Pauser is connection which can be paused and resumes.

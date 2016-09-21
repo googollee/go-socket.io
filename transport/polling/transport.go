@@ -2,6 +2,7 @@ package polling
 
 import (
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/googollee/go-engine.io/base"
@@ -33,6 +34,9 @@ func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, e
 }
 
 // Dial dials connection to url.
-func (t *Transport) Dial(url string, requestHeader http.Header) (base.Conn, error) {
-	return dial(t.Retry, t.Client, url, requestHeader)
+func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (base.Conn, error) {
+	query := u.Query()
+	query.Set("transport", t.Name())
+	u.RawQuery = query.Encode()
+	return dial(t.Retry, t.Client, u, requestHeader)
 }

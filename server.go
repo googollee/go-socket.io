@@ -16,7 +16,7 @@ func defaultChecker(*http.Request) (http.Header, error) {
 	return nil, nil
 }
 
-// Config is configure.
+// Config is server configure.
 type Config struct {
 	RequestChecker func(*http.Request) (http.Header, error)
 	PingTimeout    time.Duration

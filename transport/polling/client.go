@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sync/atomic"
 
 	"github.com/googollee/go-engine.io/base"
@@ -22,14 +23,14 @@ type clientConn struct {
 	remoteHeader atomic.Value
 }
 
-func dial(retry int, client *http.Client, url string, requestHeader http.Header) (*clientConn, error) {
+func dial(retry int, client *http.Client, url *url.URL, requestHeader http.Header) (*clientConn, error) {
 	if client == nil {
 		client = &http.Client{}
 	}
 	if retry == 0 {
 		retry = 3
 	}
-	req, err := http.NewRequest("", url, nil)
+	req, err := http.NewRequest("", url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +81,8 @@ func (c *clientConn) Open() (base.ConnParameters, error) {
 	return conn, nil
 }
 
-func (c *clientConn) URL() string {
-	return c.request.URL.String()
+func (c *clientConn) URL() url.URL {
+	return *c.request.URL
 }
 
 func (c *clientConn) LocalAddr() string {
@@ -109,6 +110,9 @@ func (c *clientConn) Resume() {
 func (c *clientConn) servePost() {
 	var buf bytes.Buffer
 	req := c.request
+	url := *req.URL
+	req.URL = &url
+	query := url.Query()
 	req.Method = "POST"
 	req.Body = ioutil.NopCloser(&buf)
 	for {
@@ -120,6 +124,8 @@ func (c *clientConn) servePost() {
 		var err error
 		fmt.Println("serve post")
 		for i := 0; i < c.retry; i++ {
+			query.Set("t", base.Timestamp())
+			req.URL.RawQuery = query.Encode()
 			resp, err = c.httpClient.Do(&req)
 			if err == nil {
 				break
@@ -143,11 +149,16 @@ func (c *clientConn) servePost() {
 
 func (c *clientConn) getOpen() {
 	req := c.request
+	query := req.URL.Query()
+	url := *req.URL
+	req.URL = &url
 	req.Method = "GET"
 	var resp *http.Response
 	var err error
 	fmt.Println("open get")
 	for i := 0; i < c.retry; i++ {
+		query.Set("t", base.Timestamp())
+		req.URL.RawQuery = query.Encode()
 		resp, err = c.httpClient.Do(&req)
 		if err == nil {
 			break
@@ -183,12 +194,17 @@ func (c *clientConn) getOpen() {
 
 func (c *clientConn) serveGet() {
 	req := c.request
+	query := req.URL.Query()
+	url := *req.URL
+	req.URL = &url
 	req.Method = "GET"
 	for {
 		var resp *http.Response
 		var err error
 		fmt.Println("serve get")
 		for i := 0; i < c.retry; i++ {
+			query.Set("t", base.Timestamp())
+			req.URL.RawQuery = query.Encode()
 			resp, err = c.httpClient.Do(&req)
 			if err == nil {
 				break

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -81,7 +82,7 @@ type Conn interface {
 	FrameReader
 	FrameWriter
 	io.Closer
-	URL() string
+	URL() url.URL
 	LocalAddr() string
 	RemoteAddr() string
 	RemoteHeader() http.Header
