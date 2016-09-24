@@ -2,7 +2,6 @@ package engineio
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -33,9 +32,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 			conn.Close()
 		}
 		t := d.Transports[i]
-		fmt.Println("dial", t.Name(), u, requestHeader)
 		conn, err = t.Dial(u, requestHeader)
-		fmt.Println("dial", conn, err)
 		if err != nil {
 			continue
 		}
@@ -48,20 +45,16 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 		} else {
 			var pt base.PacketType
 			var r io.ReadCloser
-			fmt.Println("wait reader")
 			_, pt, r, err = conn.NextReader()
 			if err != nil {
 				continue
 			}
 			func() {
 				defer r.Close()
-				defer fmt.Println("reader close")
-				fmt.Println("check open")
 				if pt != base.OPEN {
 					err = errors.New("invalid open")
 					return
 				}
-				fmt.Println("read params")
 				params, err = base.ReadConnParameters(r)
 				if err != nil {
 					return

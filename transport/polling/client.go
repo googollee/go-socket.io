@@ -122,7 +122,6 @@ func (c *clientConn) servePost() {
 		}
 		var resp *http.Response
 		var err error
-		fmt.Println("serve post")
 		for i := 0; i < c.retry; i++ {
 			query.Set("t", base.Timestamp())
 			req.URL.RawQuery = query.Encode()
@@ -155,7 +154,6 @@ func (c *clientConn) getOpen() {
 	req.Method = "GET"
 	var resp *http.Response
 	var err error
-	fmt.Println("open get")
 	for i := 0; i < c.retry; i++ {
 		query.Set("t", base.Timestamp())
 		req.URL.RawQuery = query.Encode()
@@ -201,7 +199,6 @@ func (c *clientConn) serveGet() {
 	for {
 		var resp *http.Response
 		var err error
-		fmt.Println("serve get")
 		for i := 0; i < c.retry; i++ {
 			query.Set("t", base.Timestamp())
 			req.URL.RawQuery = query.Encode()

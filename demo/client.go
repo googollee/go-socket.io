@@ -25,24 +25,27 @@ func main() {
 	go func() {
 		defer conn.Close()
 
-		ft, r, err := conn.NextReader()
-		if err != nil {
-			log.Println("next reader error:", err)
-			return
+		for {
+			ft, r, err := conn.NextReader()
+			if err != nil {
+				log.Println("next reader error:", err)
+				return
+			}
+			b, err := ioutil.ReadAll(r)
+			if err != nil {
+				log.Println("read all error:", err)
+				return
+			}
+			if err := r.Close(); err != nil {
+				log.Println("read close:", err)
+				return
+			}
+			fmt.Println("read:", ft, b)
 		}
-		b, err := ioutil.ReadAll(r)
-		if err != nil {
-			log.Println("read all error:", err)
-			return
-		}
-		if err := r.Close(); err != nil {
-			log.Println("read close:", err)
-			return
-		}
-		fmt.Println("read:", ft, b)
 	}()
 
 	for {
+		fmt.Println("write text hello")
 		w, err := conn.NextWriter(engineio.TEXT)
 		if err != nil {
 			log.Println("next writer error:", err)
@@ -56,6 +59,7 @@ func main() {
 			log.Println("write close error:", err)
 			return
 		}
+		fmt.Println("write binary 1234")
 		w, err = conn.NextWriter(engineio.BINARY)
 		if err != nil {
 			log.Println("next writer error:", err)
