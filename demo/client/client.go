@@ -9,11 +9,12 @@ import (
 	"github.com/googollee/go-engine.io"
 	"github.com/googollee/go-engine.io/transport"
 	"github.com/googollee/go-engine.io/transport/polling"
+	"github.com/googollee/go-engine.io/transport/websocket"
 )
 
 func main() {
 	dialer := engineio.Dialer{
-		Transports: []transport.Transport{polling.Default},
+		Transports: []transport.Transport{polling.Default, websocket.Default},
 	}
 	conn, err := dialer.Dial("http://localhost:8080/engine.io/", nil)
 	if err != nil {
