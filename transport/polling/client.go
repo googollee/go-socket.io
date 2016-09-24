@@ -18,17 +18,13 @@ type clientConn struct {
 	*payload.Payload
 
 	httpClient   *http.Client
-	retry        int
 	request      http.Request
 	remoteHeader atomic.Value
 }
 
-func dial(retry int, client *http.Client, url *url.URL, requestHeader http.Header) (*clientConn, error) {
+func dial(client *http.Client, url *url.URL, requestHeader http.Header) (*clientConn, error) {
 	if client == nil {
 		client = &http.Client{}
-	}
-	if retry == 0 {
-		retry = 3
 	}
 	req, err := http.NewRequest("", url.String(), nil)
 	if err != nil {
@@ -47,7 +43,6 @@ func dial(retry int, client *http.Client, url *url.URL, requestHeader http.Heade
 	ret := &clientConn{
 		Payload:    payload.New(supportBinary),
 		httpClient: client,
-		retry:      retry,
 		request:    *req,
 	}
 	return ret, nil
@@ -120,16 +115,9 @@ func (c *clientConn) servePost() {
 		if err := c.Payload.FlushOut(&buf); err != nil {
 			return
 		}
-		var resp *http.Response
-		var err error
-		for i := 0; i < c.retry; i++ {
-			query.Set("t", base.Timestamp())
-			req.URL.RawQuery = query.Encode()
-			resp, err = c.httpClient.Do(&req)
-			if err == nil {
-				break
-			}
-		}
+		query.Set("t", base.Timestamp())
+		req.URL.RawQuery = query.Encode()
+		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			c.Payload.Store("post", err)
 			c.Close()
@@ -152,16 +140,9 @@ func (c *clientConn) getOpen() {
 	url := *req.URL
 	req.URL = &url
 	req.Method = "GET"
-	var resp *http.Response
-	var err error
-	for i := 0; i < c.retry; i++ {
-		query.Set("t", base.Timestamp())
-		req.URL.RawQuery = query.Encode()
-		resp, err = c.httpClient.Do(&req)
-		if err == nil {
-			break
-		}
-	}
+	query.Set("t", base.Timestamp())
+	req.URL.RawQuery = query.Encode()
+	resp, err := c.httpClient.Do(&req)
 	if err != nil {
 		c.Payload.Store("get", err)
 		c.Close()
@@ -197,16 +178,9 @@ func (c *clientConn) serveGet() {
 	req.URL = &url
 	req.Method = "GET"
 	for {
-		var resp *http.Response
-		var err error
-		for i := 0; i < c.retry; i++ {
-			query.Set("t", base.Timestamp())
-			req.URL.RawQuery = query.Encode()
-			resp, err = c.httpClient.Do(&req)
-			if err == nil {
-				break
-			}
-		}
+		query.Set("t", base.Timestamp())
+		req.URL.RawQuery = query.Encode()
+		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			c.Payload.Store("get", err)
 			c.Close()

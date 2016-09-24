@@ -55,7 +55,7 @@ func TestDialOpen(t *testing.T) {
 	query.Set("b64", "1")
 	u.RawQuery = query.Encode()
 
-	cc, err := dial(0, nil, u, nil)
+	cc, err := dial(nil, u, nil)
 	must.Nil(err)
 	defer cc.Close()
 
