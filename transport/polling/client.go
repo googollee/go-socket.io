@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"sync/atomic"
@@ -80,12 +81,12 @@ func (c *clientConn) URL() url.URL {
 	return *c.request.URL
 }
 
-func (c *clientConn) LocalAddr() string {
-	return ""
+func (c *clientConn) LocalAddr() net.Addr {
+	return Addr{""}
 }
 
-func (c *clientConn) RemoteAddr() string {
-	return c.request.Host
+func (c *clientConn) RemoteAddr() net.Addr {
+	return Addr{c.request.Host}
 }
 
 func (c *clientConn) RemoteHeader() http.Header {

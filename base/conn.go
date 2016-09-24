@@ -83,8 +83,8 @@ type Conn interface {
 	FrameWriter
 	io.Closer
 	URL() url.URL
-	LocalAddr() string
-	RemoteAddr() string
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
 	RemoteHeader() http.Header
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error

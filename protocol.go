@@ -2,7 +2,9 @@ package engineio
 
 import (
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/googollee/go-engine.io/base"
 )
@@ -23,7 +25,8 @@ type Conn interface {
 	NextReader() (FrameType, io.ReadCloser, error)
 	NextWriter(typ FrameType) (io.WriteCloser, error)
 	Close() error
-	LocalAddr() string
-	RemoteAddr() string
+	URL() url.URL
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
 	RemoteHeader() http.Header
 }

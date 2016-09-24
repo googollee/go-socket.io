@@ -3,6 +3,7 @@ package engineio
 import (
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -122,11 +123,15 @@ func (c *client) NextWriter(typ FrameType) (io.WriteCloser, error) {
 	return c.conn.NextWriter(base.FrameType(typ), base.MESSAGE)
 }
 
-func (c *client) LocalAddr() string {
+func (c *client) URL() url.URL {
+	return c.conn.URL()
+}
+
+func (c *client) LocalAddr() net.Addr {
 	return c.conn.LocalAddr()
 }
 
-func (c *client) RemoteAddr() string {
+func (c *client) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 

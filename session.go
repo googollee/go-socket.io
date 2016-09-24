@@ -2,7 +2,9 @@ package engineio
 
 import (
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -104,13 +106,19 @@ func (s *session) NextWriter(typ FrameType) (io.WriteCloser, error) {
 	return s.nextWriter(base.FrameType(typ), base.MESSAGE)
 }
 
-func (s *session) LocalAddr() string {
+func (s *session) URL() url.URL {
+	s.upgradeLocker.RLock()
+	defer s.upgradeLocker.RUnlock()
+	return s.conn.URL()
+}
+
+func (s *session) LocalAddr() net.Addr {
 	s.upgradeLocker.RLock()
 	defer s.upgradeLocker.RUnlock()
 	return s.conn.LocalAddr()
 }
 
-func (s *session) RemoteAddr() string {
+func (s *session) RemoteAddr() net.Addr {
 	s.upgradeLocker.RLock()
 	defer s.upgradeLocker.RUnlock()
 	return s.conn.RemoteAddr()

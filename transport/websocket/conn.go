@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -42,12 +43,12 @@ func (c *conn) RemoteHeader() http.Header {
 	return c.remoteHeader
 }
 
-func (c *conn) LocalAddr() string {
-	return c.ws.LocalAddr().String()
+func (c *conn) LocalAddr() net.Addr {
+	return c.ws.LocalAddr()
 }
 
-func (c *conn) RemoteAddr() string {
-	return c.ws.RemoteAddr().String()
+func (c *conn) RemoteAddr() net.Addr {
+	return c.ws.RemoteAddr()
 }
 
 func (c *conn) SetReadDeadline(t time.Time) error {

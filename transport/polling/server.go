@@ -3,6 +3,7 @@ package polling
 import (
 	"bytes"
 	"html/template"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -15,8 +16,8 @@ type serverConn struct {
 	supportBinary bool
 
 	remoteHeader http.Header
-	localAddr    string
-	remoteAddr   string
+	localAddr    Addr
+	remoteAddr   Addr
 	url          url.URL
 	jsonp        string
 }
@@ -32,8 +33,8 @@ func newServerConn(r *http.Request) base.Conn {
 		Payload:       payload.New(supportBinary),
 		supportBinary: supportBinary,
 		remoteHeader:  r.Header,
-		localAddr:     r.Host,
-		remoteAddr:    r.RemoteAddr,
+		localAddr:     Addr{r.Host},
+		remoteAddr:    Addr{r.RemoteAddr},
 		url:           *r.URL,
 		jsonp:         jsonp,
 	}
@@ -43,11 +44,11 @@ func (c *serverConn) URL() url.URL {
 	return c.url
 }
 
-func (c *serverConn) LocalAddr() string {
+func (c *serverConn) LocalAddr() net.Addr {
 	return c.localAddr
 }
 
-func (c *serverConn) RemoteAddr() string {
+func (c *serverConn) RemoteAddr() net.Addr {
 	return c.remoteAddr
 }
 

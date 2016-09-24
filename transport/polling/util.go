@@ -23,3 +23,15 @@ func mimeSupportBinary(m string) (bool, error) {
 	}
 	return false, errors.New("invalid content-type")
 }
+
+type Addr struct {
+	Host string
+}
+
+func (a Addr) Network() string {
+	return "tcp"
+}
+
+func (a Addr) String() string {
+	return a.Host
+}

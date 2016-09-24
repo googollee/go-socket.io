@@ -108,8 +108,8 @@ func TestPollingBinary(t *testing.T) {
 	wg.Wait()
 
 	should.Equal(sc.LocalAddr(), cc.RemoteAddr())
-	should.Equal(cc.LocalAddr(), "")
-	should.NotEqual(sc.RemoteAddr(), "")
+	should.Empty(cc.LocalAddr().String())
+	should.NotEmpty(sc.RemoteAddr().String())
 	should.Equal("server", cc.RemoteHeader().Get("X-Eio-Test"))
 	should.Equal("client", sc.RemoteHeader().Get("X-Eio-Test"))
 }
@@ -154,8 +154,9 @@ func TestPollingString(t *testing.T) {
 	defer sc.Close()
 
 	should.Equal(sc.LocalAddr(), cc.RemoteAddr())
-	should.Equal(cc.LocalAddr(), "")
-	should.NotEqual(sc.RemoteAddr(), "")
+	should.Equal("tcp", sc.LocalAddr().Network())
+	should.Empty(cc.LocalAddr().String())
+	should.NotEmpty(sc.RemoteAddr().String())
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
