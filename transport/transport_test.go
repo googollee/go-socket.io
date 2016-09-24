@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/googollee/go-engine.io/base"
@@ -16,7 +17,7 @@ func (f fakeTransport) Name() string {
 	return f.name
 }
 
-func (f fakeTransport) Dial(url string, header http.Header) (base.Conn, error) {
+func (f fakeTransport) Dial(url *url.URL, header http.Header) (base.Conn, error) {
 	return nil, nil
 }
 
