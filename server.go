@@ -119,7 +119,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		s.connChan <- session
+
+		go func() {
+			w, err := session.nextWriter(base.FrameString, base.OPEN)
+			if err != nil {
+				session.Close()
+				return
+			}
+			if _, err := session.params.WriteTo(w); err != nil {
+				w.Close()
+				session.Close()
+				return
+			}
+			if err := w.Close(); err != nil {
+				session.Close()
+				return
+			}
+			s.connChan <- session
+		}()
 	}
 	if session.Transport() != t {
 		header, err := s.requestChecker(r)

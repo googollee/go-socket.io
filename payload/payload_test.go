@@ -310,10 +310,11 @@ func TestPayloadNextPause(t *testing.T) {
 	op, ok = err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
-	err = p.FlushOut(ioutil.Discard)
-	op, ok = err.(Error)
-	should.True(ok)
-	should.True(op.Temporary())
+
+	b := bytes.NewBuffer(nil)
+	err = p.FlushOut(b)
+	should.Nil(err)
+	should.Equal([]byte{0x0, 0x1, 0xff, '6'}, b.Bytes())
 }
 
 func TestPayloadInOutPause(t *testing.T) {
@@ -338,10 +339,11 @@ func TestPayloadInOutPause(t *testing.T) {
 		should := assert.New(t)
 		must := require.New(t)
 		defer wg.Done()
-		err := p.FlushOut(ioutil.Discard)
-		op, ok := err.(Error)
-		must.True(ok)
-		should.True(op.Temporary())
+
+		b := bytes.NewBuffer(nil)
+		err := p.FlushOut(b)
+		must.Nil(err)
+		should.Equal([]byte{0x0, 0x1, 0xff, '6'}, b.Bytes())
 	}()
 
 	// let next run
@@ -363,10 +365,11 @@ func TestPayloadInOutPause(t *testing.T) {
 	op, ok = err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
-	err = p.FlushOut(ioutil.Discard)
-	op, ok = err.(Error)
-	should.True(ok)
-	should.True(op.Temporary())
+
+	b := bytes.NewBuffer(nil)
+	err = p.FlushOut(b)
+	should.Nil(err)
+	should.Equal([]byte{0x0, 0x1, 0xff, '6'}, b.Bytes())
 }
 
 func TestPayloadNextClosePause(t *testing.T) {
@@ -447,8 +450,9 @@ func TestPayloadNextClosePause(t *testing.T) {
 	op, ok = err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
-	err = p.FlushOut(ioutil.Discard)
-	op, ok = err.(Error)
-	should.True(ok)
-	should.True(op.Temporary())
+
+	b := bytes.NewBuffer(nil)
+	err = p.FlushOut(b)
+	should.Nil(err)
+	should.Equal([]byte{0x0, 0x1, 0xff, '6'}, b.Bytes())
 }

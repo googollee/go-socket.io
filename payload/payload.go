@@ -150,7 +150,8 @@ func (p *Payload) FlushOut(w io.Writer) error {
 	case <-p.close:
 		return p.load()
 	case <-p.pauseChan():
-		return newOpError("payload", errPaused)
+		_, err := w.Write(p.encoder.NOOP())
+		return err
 	default:
 	}
 
@@ -165,8 +166,9 @@ func (p *Payload) FlushOut(w io.Writer) error {
 			p.waiterLocker.RUnlock()
 			return p.load()
 		case <-p.pause:
+			_, err := w.Write(p.encoder.NOOP())
 			p.waiterLocker.RUnlock()
-			return newOpError("payload", errPaused)
+			return err
 		case <-after:
 			p.waiterLocker.RUnlock()
 			continue
@@ -199,7 +201,8 @@ func (p *Payload) FlushOut(w io.Writer) error {
 // Pause doesn't effect to NextReader. NextReader should wait till resumed
 // and next FeedIn.
 func (p *Payload) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
-	return p.decoder.NextReader()
+	ft, pt, r, err := p.decoder.NextReader()
+	return ft, pt, r, err
 }
 
 // SetReadDeadline sets next reader deadline.

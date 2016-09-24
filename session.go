@@ -34,19 +34,6 @@ func newSession(m *manager, t string, conn base.Conn, params base.ConnParameters
 	m.Add(ret)
 	ret.setDeadline()
 
-	go func() {
-		w, err := ret.nextWriter(base.FrameString, base.OPEN)
-		if err != nil {
-			ret.Close()
-			return
-		}
-		defer w.Close()
-		if _, err := ret.params.WriteTo(w); err != nil {
-			ret.Close()
-			return
-		}
-	}()
-
 	return ret, nil
 }
 
