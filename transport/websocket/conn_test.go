@@ -39,11 +39,11 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	defer sc.Close()
 
 	cc.SetReadDeadline(time.Now().Add(time.Second / 10))
-	start := time.Now()
 	_, _, _, err = cc.NextReader()
 	timeout, ok := err.(net.Error)
 	at.True(ok)
 	at.True(timeout.Timeout())
-	end := time.Now()
-	at.True(end.Sub(start) > time.Second/10)
+	op, ok := err.(net.Error)
+	at.True(ok)
+	at.True(op.Timeout())
 }
