@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/googollee/go-engine.io"
+	"gopkg.in/googollee/go-engine.io.v1"
 )
 
 func main() {

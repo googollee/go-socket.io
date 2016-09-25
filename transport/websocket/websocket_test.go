@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/googollee/go-engine.io.v1/base"
 )
 
 var tests = []struct {

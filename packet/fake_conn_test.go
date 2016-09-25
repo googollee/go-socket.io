@@ -5,7 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/googollee/go-engine.io/base"
+	"gopkg.in/googollee/go-engine.io.v1/base"
 )
 
 type fakeConnReader struct {

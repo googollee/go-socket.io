@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/googollee/go-engine.io/base"
+	"gopkg.in/googollee/go-engine.io.v1/base"
 )
 
 // Transport is the transport of polling.

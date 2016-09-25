@@ -6,6 +6,8 @@ go:
   - 1.7.1
   - tip
 install:
+  - mkdir -p $GOPATH/src/gopkg.in/googollee
+  - ln -s $GOPATH/src/github.com/googollee/go-engine.io $GOPATH/src/gopkg.in/googollee/go-engine.io.v1
   - make getdev
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover

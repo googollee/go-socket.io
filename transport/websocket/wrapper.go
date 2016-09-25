@@ -4,9 +4,9 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/googollee/go-engine.io/base"
-	"github.com/googollee/go-engine.io/transport"
 	"github.com/gorilla/websocket"
+	"gopkg.in/googollee/go-engine.io.v1/base"
+	"gopkg.in/googollee/go-engine.io.v1/transport"
 )
 
 type wrapper struct {

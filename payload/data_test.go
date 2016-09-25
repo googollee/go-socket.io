@@ -1,6 +1,6 @@
 package payload
 
-import "github.com/googollee/go-engine.io/base"
+import "gopkg.in/googollee/go-engine.io.v1/base"
 
 type Packet struct {
 	ft   base.FrameType

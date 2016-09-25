@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googollee/go-engine.io/base"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/googollee/go-engine.io.v1/base"
 )
 
 type fakeWriterFeeder struct {
