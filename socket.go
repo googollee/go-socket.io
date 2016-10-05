@@ -3,6 +3,7 @@ package socketio
 import (
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/googollee/go-engine.io"
 )
@@ -33,6 +34,9 @@ type Socket interface {
 
 	// BroadcastTo broadcasts an event to the room with given args.
 	BroadcastTo(room, event string, args ...interface{}) error
+
+	// SetWriteTimeout sets a timeout for writes with SetWriteDeadline
+	SetWriteTimeout(t time.Duration)
 }
 
 type socket struct {
@@ -67,6 +71,10 @@ func (s *socket) Emit(event string, args ...interface{}) error {
 		s.conn.Close()
 	}
 	return nil
+}
+
+func (s *socket) SetWriteTimeout(t time.Duration) {
+	s.conn.SetWriteTimeout(t)
 }
 
 func (s *socket) send(args []interface{}) error {
