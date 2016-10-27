@@ -6,21 +6,39 @@ import (
 	"sync/atomic"
 )
 
-type manager struct {
-	s      map[string]*session
+// SessionIDGenerator generates new session id. Default behavior is simple
+// increasing number.
+// If you need custom session id, for example using local ip as perfix, you can
+// implement SessionIDGenerator and save in Configure. Engine.io will use custom
+// one to generate new session id.
+type SessionIDGenerator interface {
+	NewID() string
+}
+
+type defaultIDGenerator struct {
 	nextID uint64
+}
+
+func (g *defaultIDGenerator) NewID() string {
+	id := atomic.AddUint64(&g.nextID, 1)
+	return strconv.FormatUint(id, 36)
+}
+
+type manager struct {
+	SessionIDGenerator
+
+	s      map[string]*session
 	locker sync.RWMutex
 }
 
-func newManager() *manager {
-	return &manager{
-		s: make(map[string]*session),
+func newManager(g SessionIDGenerator) *manager {
+	if g == nil {
+		g = &defaultIDGenerator{}
 	}
-}
-
-func (m *manager) NewID() string {
-	id := atomic.AddUint64(&m.nextID, 1)
-	return strconv.FormatUint(id, 36)
+	return &manager{
+		SessionIDGenerator: g,
+		s:                  make(map[string]*session),
+	}
 }
 
 func (m *manager) Add(s *session) {

@@ -18,10 +18,11 @@ func defaultChecker(*http.Request) (http.Header, error) {
 
 // Config is server configure.
 type Config struct {
-	RequestChecker func(*http.Request) (http.Header, error)
-	PingTimeout    time.Duration
-	PingInterval   time.Duration
-	Transports     []transport.Transport
+	RequestChecker     func(*http.Request) (http.Header, error)
+	PingTimeout        time.Duration
+	PingInterval       time.Duration
+	Transports         []transport.Transport
+	SessionIDGenerator SessionIDGenerator
 }
 
 func (c *Config) fillNil() {
@@ -39,6 +40,9 @@ func (c *Config) fillNil() {
 			polling.Default,
 			websocket.Default,
 		}
+	}
+	if c.SessionIDGenerator == nil {
+		c.SessionIDGenerator = &defaultIDGenerator{}
 	}
 }
 
@@ -66,7 +70,7 @@ func NewServer(c *Config) (*Server, error) {
 		pingInterval:   conf.PingInterval,
 		pingTimeout:    conf.PingTimeout,
 		requestChecker: conf.RequestChecker,
-		sessions:       newManager(),
+		sessions:       newManager(c.SessionIDGenerator),
 		connChan:       make(chan Conn, 1),
 	}, nil
 }
