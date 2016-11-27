@@ -220,19 +220,6 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 
-	_, pt, r, err = conn.NextReader()
-	if err != nil {
-		conn.Close()
-		return
-	}
-	if pt != base.UPGRADE {
-		return
-	}
-	if err := r.Close(); err != nil {
-		conn.Close()
-		return
-	}
-
 	func() {
 		s.upgradeLocker.RLock()
 		old := s.conn
@@ -246,5 +233,18 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		s.transport = t
 
 		old.Close()
+
+		_, pt, r, err = conn.NextReader()
+		if err != nil {
+			conn.Close()
+			return
+		}
+		if pt != base.UPGRADE {
+			return
+		}
+		if err := r.Close(); err != nil {
+			conn.Close()
+			return
+		}
 	}()
 }
