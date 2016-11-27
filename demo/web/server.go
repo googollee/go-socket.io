@@ -55,14 +55,14 @@ func main() {
 	}()
 
 	http.Handle("/engine.io/", server)
-	dir := http.Dir("./")
-	f, err := dir.Open("jquery.js")
+	dir := http.Dir("./asset")
+	f, err := dir.Open("index.html")
 	if err != nil {
 		fmt.Println("need run under go-engine.io /demo/web directory.")
 		return
 	}
 	f.Close()
 	http.Handle("/", http.FileServer(dir))
-	fmt.Println("Serving at localhost:8080...")
-	log.Fatal(http.ListenAndServe("localhost:8080", nil))
+	fmt.Println("Serving at localhost:5000...")
+	log.Fatal(http.ListenAndServe("localhost:5000", nil))
 }
