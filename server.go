@@ -55,6 +55,7 @@ type Server struct {
 	requestChecker func(*http.Request) (http.Header, error)
 	locker         sync.RWMutex
 	connChan       chan Conn
+	closeOnce      sync.Once
 }
 
 // NewServer returns a server.
@@ -73,6 +74,14 @@ func NewServer(c *Config) (*Server, error) {
 		sessions:       newManager(c.SessionIDGenerator),
 		connChan:       make(chan Conn, 1),
 	}, nil
+}
+
+// Close closes server.
+func (s *Server) Close() error {
+	s.closeOnce.Do(func() {
+		close(s.connChan)
+	})
+	return nil
 }
 
 // Accept accepts a connection.

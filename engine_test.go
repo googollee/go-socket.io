@@ -24,6 +24,7 @@ func TestEnginePolling(t *testing.T) {
 
 	svr, err := NewServer(nil)
 	must.Nil(err)
+	defer svr.Close()
 	httpSvr := httptest.NewServer(svr)
 	defer httpSvr.Close()
 
@@ -92,6 +93,7 @@ func TestEngineWebsocket(t *testing.T) {
 
 	svr, err := NewServer(nil)
 	must.Nil(err)
+	defer svr.Close()
 	httpSvr := httptest.NewServer(svr)
 	defer httpSvr.Close()
 
@@ -174,6 +176,7 @@ func TestEngineUpgrade(t *testing.T) {
 
 	svr, err := NewServer(nil)
 	must.Nil(err)
+	defer svr.Close()
 	httpSvr := httptest.NewServer(svr)
 	defer httpSvr.Close()
 
