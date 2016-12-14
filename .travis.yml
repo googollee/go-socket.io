@@ -6,4 +6,6 @@ go:
  - 1.7.3
  - tips
 install:
- - go get -v .
+ - make getdev
+script:
+ - make test
