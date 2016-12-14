@@ -1,7 +1,6 @@
 package socketio
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -68,7 +67,6 @@ func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) (*conn, err
 	go ret.serveError()
 	go ret.serveWrite()
 	go ret.serveRead()
-	fmt.Println("conn ok")
 	return ret, nil
 }
 
@@ -85,7 +83,6 @@ func (c *conn) connect() error {
 	header := parser.Header{
 		Type: parser.Connect,
 	}
-	fmt.Println("connecing")
 	if err := c.encoder.Encode(header, nil); err != nil {
 		return err
 	}
@@ -165,12 +162,10 @@ func (c *conn) serveRead() {
 	var header parser.Header
 	var event string
 	for {
-		fmt.Println("decoding")
 		if err := c.decoder.DecodeHeader(&header, &event); err != nil {
 			c.onError("", err)
 			return
 		}
-		fmt.Println("decode:", header, event)
 		if header.Namespace == "/" {
 			header.Namespace = ""
 		}

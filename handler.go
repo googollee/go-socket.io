@@ -52,7 +52,6 @@ func newAckFunc(f interface{}) *funcHandler {
 }
 
 func (h *funcHandler) Call(args []reflect.Value) (ret []reflect.Value, err error) {
-	fmt.Println("call:", h.f.String(), h.argTypes, args)
 	defer func() {
 		if r := recover(); r != nil {
 			var ok bool

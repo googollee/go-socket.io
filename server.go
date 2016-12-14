@@ -1,7 +1,6 @@
 package socketio
 
 import (
-	"fmt"
 	"net/http"
 
 	"gopkg.in/googollee/go-engine.io.v1"
@@ -28,7 +27,6 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("serve:", r.Method, r.URL.String())
 	s.eio.ServeHTTP(w, r)
 }
 
