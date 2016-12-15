@@ -220,31 +220,35 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 
-	func() {
-		s.upgradeLocker.RLock()
-		old := s.conn
-		old.(transport.Pauser).Pause()
-		s.upgradeLocker.RUnlock()
+	s.upgradeLocker.RLock()
+	old := s.conn
+	s.upgradeLocker.RUnlock()
+	p, ok := old.(transport.Pauser)
+	if !ok {
+		// old transport doesn't support upgrading
+		conn.Close()
+		return
+	}
+	p.Pause()
 
-		s.upgradeLocker.Lock()
-		defer s.upgradeLocker.Unlock()
+	_, pt, r, err = conn.NextReader()
+	if err != nil {
+		conn.Close()
+		return
+	}
+	if pt != base.UPGRADE {
+		conn.Close()
+		return
+	}
+	if err := r.Close(); err != nil {
+		conn.Close()
+		return
+	}
 
-		s.conn = conn
-		s.transport = t
+	s.upgradeLocker.Lock()
+	s.conn = conn
+	s.transport = t
+	s.upgradeLocker.Unlock()
 
-		old.Close()
-
-		_, pt, r, err = conn.NextReader()
-		if err != nil {
-			conn.Close()
-			return
-		}
-		if pt != base.UPGRADE {
-			return
-		}
-		if err := r.Close(); err != nil {
-			conn.Close()
-			return
-		}
-	}()
+	old.Close()
 }
