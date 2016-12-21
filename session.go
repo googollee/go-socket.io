@@ -230,6 +230,11 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 	p.Pause()
+	defer func() {
+		if p != nil {
+			p.Resume()
+		}
+	}()
 
 	_, pt, r, err = conn.NextReader()
 	if err != nil {
@@ -249,6 +254,7 @@ func (s *session) upgrading(t string, conn base.Conn) {
 	s.conn = conn
 	s.transport = t
 	s.upgradeLocker.Unlock()
+	p = nil
 
 	old.Close()
 }
