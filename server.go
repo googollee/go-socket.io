@@ -11,7 +11,7 @@ type Server struct {
 	eio      *engineio.Server
 }
 
-func NewServer(c *engineio.Config) (*Server, error) {
+func NewServer(c *engineio.Options) (*Server, error) {
 	eio, err := engineio.NewServer(c)
 	if err != nil {
 		return nil, err
