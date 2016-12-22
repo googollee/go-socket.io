@@ -81,8 +81,17 @@ type client struct {
 	conn      base.Conn
 	params    base.ConnParameters
 	transport string
+	context   interface{}
 	close     chan struct{}
 	closeOnce sync.Once
+}
+
+func (c *client) SetContext(v interface{}) {
+	c.context = v
+}
+
+func (c *client) Context() interface{} {
+	return c.context
 }
 
 func (c *client) ID() string {

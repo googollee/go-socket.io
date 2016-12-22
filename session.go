@@ -17,6 +17,7 @@ type session struct {
 	params    base.ConnParameters
 	manager   *manager
 	closeOnce sync.Once
+	context   interface{}
 
 	upgradeLocker sync.RWMutex
 	transport     string
@@ -35,6 +36,14 @@ func newSession(m *manager, t string, conn base.Conn, params base.ConnParameters
 	ret.setDeadline()
 
 	return ret, nil
+}
+
+func (s *session) SetContext(v interface{}) {
+	s.context = v
+}
+
+func (s *session) Context() interface{} {
+	return s.context
 }
 
 func (s *session) ID() string {

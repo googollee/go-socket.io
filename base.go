@@ -29,4 +29,6 @@ type Conn interface {
 	LocalAddr() net.Addr
 	RemoteAddr() net.Addr
 	RemoteHeader() http.Header
+	SetContext(v interface{})
+	Context() interface{}
 }
