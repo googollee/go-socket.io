@@ -150,6 +150,7 @@ func TestPauserOnlyOnePauseAfterWaiting(t *testing.T) {
 		}()
 	}
 
+	time.Sleep(time.Second / 10)
 	p.Done()
 	wg.Wait()
 	should.Equal(int64(1), count)

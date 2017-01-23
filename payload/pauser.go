@@ -24,6 +24,10 @@ func (p *pauser) Pause() bool {
 	for p.worker != 0 {
 		p.c.Wait()
 	}
+
+	// trigger other pausing call
+	p.c.Broadcast()
+
 	if p.paused {
 		return false
 	}
