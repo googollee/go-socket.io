@@ -3,14 +3,18 @@ package payload
 import "sync"
 
 type pauser struct {
-	l      sync.Mutex
-	c      *sync.Cond
-	paused bool
-	worker int
+	l       sync.Mutex
+	c       *sync.Cond
+	worker  int
+	pausing chan struct{}
+	paused  chan struct{}
 }
 
 func newPauser() *pauser {
-	ret := &pauser{}
+	ret := &pauser{
+		pausing: make(chan struct{}),
+		paused:  make(chan struct{}),
+	}
 	ret.c = sync.NewCond(&ret.l)
 	return ret
 }
@@ -18,34 +22,40 @@ func newPauser() *pauser {
 func (p *pauser) Pause() bool {
 	p.l.Lock()
 	defer p.l.Unlock()
-	if p.paused {
+
+	if p.paused == nil {
 		return false
 	}
+	if p.pausing != nil {
+		close(p.pausing)
+		p.pausing = nil
+	}
+
 	for p.worker != 0 {
 		p.c.Wait()
 	}
 
-	// trigger other pausing call
-	p.c.Broadcast()
-
-	if p.paused {
+	if p.paused == nil {
 		return false
 	}
-	p.paused = true
+	close(p.paused)
+	p.paused = nil
+	p.c.Broadcast()
+
 	return true
 }
 
 func (p *pauser) Resume() {
 	p.l.Lock()
 	defer p.l.Unlock()
-	p.paused = false
-	p.c.Signal()
+	p.paused = make(chan struct{})
+	p.pausing = make(chan struct{})
 }
 
 func (p *pauser) Working() bool {
 	p.l.Lock()
 	defer p.l.Unlock()
-	if p.paused {
+	if p.paused == nil {
 		return false
 	}
 	p.worker++
@@ -55,6 +65,21 @@ func (p *pauser) Working() bool {
 func (p *pauser) Done() {
 	p.l.Lock()
 	defer p.l.Unlock()
+	if p.paused == nil || p.worker == 0 {
+		return
+	}
 	p.worker--
-	p.c.Signal()
+	p.c.Broadcast()
+}
+
+func (p *pauser) PausingTrigger() <-chan struct{} {
+	p.l.Lock()
+	defer p.l.Unlock()
+	return p.pausing
+}
+
+func (p *pauser) PausedTrigger() <-chan struct{} {
+	p.l.Lock()
+	defer p.l.Unlock()
+	return p.paused
 }
