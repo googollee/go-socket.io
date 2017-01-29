@@ -1,6 +1,7 @@
 package payload
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"sync"
@@ -21,10 +22,7 @@ type Payload struct {
 	closeOnce sync.Once
 	err       atomic.Value
 
-	pause        chan struct{}
-	pauseLocker  sync.RWMutex
-	pauseWaiter  sync.WaitGroup
-	waiterLocker sync.RWMutex
+	pauser *pauser
 
 	readerChan   chan readArg
 	feeding      int64
@@ -43,7 +41,7 @@ type Payload struct {
 func New(supportBinary bool) *Payload {
 	ret := &Payload{
 		close:      make(chan struct{}),
-		pause:      make(chan struct{}),
+		pauser:     newPauser(),
 		readerChan: make(chan readArg),
 		readError:  make(chan error),
 		writerChan: make(chan io.Writer),
@@ -61,7 +59,7 @@ func New(supportBinary bool) *Payload {
 // Multi-FeedIn needs be called sync.
 //
 // If Close called when FeedIn, it returns io.EOF.
-// If Pause called when FeedIn, it returns ErrPaused.
+// If have Pause-ed when FeedIn, it returns ErrPaused.
 // If NextReader has timeout, it returns ErrTimeout.
 // If read error while FeedIn, it returns read error.
 func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
@@ -75,42 +73,29 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 		return newOpError("read", errOverlap)
 	}
 	defer atomic.StoreInt64(&p.feeding, 0)
-
-	select {
-	case <-p.close:
-		return p.load()
-	case <-p.pauseChan():
+	if ok := p.pauser.Working(); !ok {
 		return newOpError("payload", errPaused)
-	default:
 	}
+	defer p.pauser.Done()
 
 	for {
 		after, ok := p.readTimeout()
 		if !ok {
 			return p.Store("read", errTimeout)
 		}
-		p.waiterLocker.RLock()
 		select {
 		case <-p.close:
-			p.waiterLocker.RUnlock()
 			return p.load()
 		case <-after:
 			// it may changed during wait, need check again
-			p.waiterLocker.RUnlock()
 			continue
-		case <-p.pause:
-			p.waiterLocker.RUnlock()
-			return newOpError("payload", errPaused)
 		case p.readerChan <- readArg{
 			r:             r,
 			supportBinary: supportBinary,
 		}:
-			p.pauseWaiter.Add(1)
-			p.waiterLocker.RUnlock()
 		}
 		break
 	}
-	defer p.pauseWaiter.Done()
 
 	for {
 		after, ok := p.readTimeout()
@@ -146,39 +131,29 @@ func (p *Payload) FlushOut(w io.Writer) error {
 	}
 	defer atomic.StoreInt64(&p.flushing, 0)
 
-	select {
-	case <-p.close:
-		return p.load()
-	case <-p.pauseChan():
+	if ok := p.pauser.Working(); !ok {
 		_, err := w.Write(p.encoder.NOOP())
 		return err
-	default:
 	}
+	defer p.pauser.Done()
 
 	for {
 		after, ok := p.writeTimeout()
 		if !ok {
 			return p.Store("write", errTimeout)
 		}
-		p.waiterLocker.RLock()
 		select {
 		case <-p.close:
-			p.waiterLocker.RUnlock()
 			return p.load()
-		case <-p.pause:
-			_, err := w.Write(p.encoder.NOOP())
-			p.waiterLocker.RUnlock()
-			return err
 		case <-after:
-			p.waiterLocker.RUnlock()
 			continue
+		case <-p.pauser.PausingTrigger():
+			_, err := w.Write(p.encoder.NOOP())
+			return err
 		case p.writerChan <- w:
-			p.pauseWaiter.Add(1)
-			p.waiterLocker.RUnlock()
 		}
 		break
 	}
-	defer p.pauseWaiter.Done()
 
 	for {
 		after, ok := p.writeTimeout()
@@ -244,19 +219,14 @@ func (p *Payload) SetWriteDeadline(t time.Time) error {
 // created from NextReader or NextWriter.
 // It can call in multi-goroutine.
 func (p *Payload) Pause() {
-	close(p.pauseChan())
-
-	p.waiterLocker.Lock()
-	p.pauseWaiter.Wait()
-	p.waiterLocker.Unlock()
+	p.pauser.Pause()
 }
 
 // Resume resumes the payload.
 // It can call in multi-goroutine.
 func (p *Payload) Resume() {
-	p.pauseLocker.Lock()
-	p.pause = make(chan struct{})
-	p.pauseLocker.Unlock()
+	fmt.Println("resume")
+	p.pauser.Resume()
 }
 
 // Close closes the payload.
@@ -280,12 +250,6 @@ func (p *Payload) Store(op string, err error) error {
 		return op
 	}
 	return old.(error)
-}
-
-func (p *Payload) pauseChan() chan struct{} {
-	p.pauseLocker.RLock()
-	defer p.pauseLocker.RUnlock()
-	return p.pause
 }
 
 func (p *Payload) readTimeout() (<-chan time.Time, bool) {
@@ -321,13 +285,10 @@ func (p *Payload) getReader() (io.Reader, bool, error) {
 	default:
 	}
 
-	select {
-	case <-p.close:
-		return nil, false, p.load()
-	case <-p.pauseChan():
+	if ok := p.pauser.Working(); !ok {
 		return nil, false, newOpError("payload", errPaused)
-	default:
 	}
+	p.pauser.Done()
 
 	for {
 		after, ok := p.readTimeout()
@@ -337,7 +298,7 @@ func (p *Payload) getReader() (io.Reader, bool, error) {
 		select {
 		case <-p.close:
 			return nil, false, p.load()
-		case <-p.pauseChan():
+		case <-p.pauser.PausedTrigger():
 			return nil, false, newOpError("payload", errPaused)
 		case <-after:
 			continue
@@ -375,13 +336,11 @@ func (p *Payload) getWriter() (io.Writer, error) {
 		return nil, p.load()
 	default:
 	}
-	select {
-	case <-p.close:
-		return nil, p.load()
-	case <-p.pauseChan():
+
+	if ok := p.pauser.Working(); !ok {
 		return nil, newOpError("payload", errPaused)
-	default:
 	}
+	p.pauser.Done()
 
 	for {
 		after, ok := p.writeTimeout()
@@ -391,7 +350,7 @@ func (p *Payload) getWriter() (io.Writer, error) {
 		select {
 		case <-p.close:
 			return nil, p.load()
-		case <-p.pauseChan():
+		case <-p.pauser.PausedTrigger():
 			return nil, newOpError("payload", errPaused)
 		case <-after:
 			continue

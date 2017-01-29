@@ -325,13 +325,10 @@ func TestPayloadInOutPause(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		should := assert.New(t)
 		must := require.New(t)
 		defer wg.Done()
 		err := p.FeedIn(bytes.NewReader([]byte("1:0")), false)
-		op, ok := err.(Error)
-		must.True(ok)
-		should.True(op.Temporary())
+		must.Nil(err)
 	}()
 
 	wg.Add(1)
@@ -346,9 +343,21 @@ func TestPayloadInOutPause(t *testing.T) {
 		should.Equal([]byte{0x0, 0x1, 0xff, '6'}, b.Bytes())
 	}()
 
-	// let next run
+	go func() {
+		must := require.New(t)
+		time.Sleep(time.Second / 10 * 3)
+		_, _, r, err := p.NextReader()
+		must.Nil(err)
+		defer r.Close()
+		io.Copy(ioutil.Discard, r)
+	}()
+
+	//wait other run
 	time.Sleep(time.Second / 10)
+	start := time.Now()
 	p.Pause()
+	end := time.Now()
+	should.True(end.Sub(start) >= time.Second/10)
 
 	wg.Wait()
 

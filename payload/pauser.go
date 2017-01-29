@@ -2,18 +2,28 @@ package payload
 
 import "sync"
 
+type pauserStatus int
+
+const (
+	statusNormal pauserStatus = iota
+	statusPausing
+	statusPaused
+)
+
 type pauser struct {
 	l       sync.Mutex
 	c       *sync.Cond
 	worker  int
 	pausing chan struct{}
 	paused  chan struct{}
+	status  pauserStatus
 }
 
 func newPauser() *pauser {
 	ret := &pauser{
 		pausing: make(chan struct{}),
 		paused:  make(chan struct{}),
+		status:  statusNormal,
 	}
 	ret.c = sync.NewCond(&ret.l)
 	return ret
@@ -23,23 +33,23 @@ func (p *pauser) Pause() bool {
 	p.l.Lock()
 	defer p.l.Unlock()
 
-	if p.paused == nil {
+	switch p.status {
+	case statusPaused:
 		return false
-	}
-	if p.pausing != nil {
+	case statusNormal:
 		close(p.pausing)
-		p.pausing = nil
+		p.status = statusPausing
 	}
 
 	for p.worker != 0 {
 		p.c.Wait()
 	}
 
-	if p.paused == nil {
+	if p.status == statusPaused {
 		return false
 	}
 	close(p.paused)
-	p.paused = nil
+	p.status = statusPaused
 	p.c.Broadcast()
 
 	return true
@@ -48,6 +58,7 @@ func (p *pauser) Pause() bool {
 func (p *pauser) Resume() {
 	p.l.Lock()
 	defer p.l.Unlock()
+	p.status = statusNormal
 	p.paused = make(chan struct{})
 	p.pausing = make(chan struct{})
 }
@@ -55,7 +66,7 @@ func (p *pauser) Resume() {
 func (p *pauser) Working() bool {
 	p.l.Lock()
 	defer p.l.Unlock()
-	if p.paused == nil {
+	if p.status == statusPaused {
 		return false
 	}
 	p.worker++
@@ -65,7 +76,7 @@ func (p *pauser) Working() bool {
 func (p *pauser) Done() {
 	p.l.Lock()
 	defer p.l.Unlock()
-	if p.paused == nil || p.worker == 0 {
+	if p.status == statusPaused || p.worker == 0 {
 		return
 	}
 	p.worker--
