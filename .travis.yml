@@ -1,11 +1,14 @@
 sudo: false
+language: go
 env:
   CI_SERVICE: travis-ci
-language: go
 go:
- - 1.7.3
- - tip
+  - master
+  - tip
 install:
- - make getdev
+  - make getdev
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
 script:
- - make test
+  - make test
+  - ./gosweep.sh

@@ -6,11 +6,13 @@ import (
 	"gopkg.in/googollee/go-engine.io.v1"
 )
 
+// Server is a go-socket.io server.
 type Server struct {
 	handlers map[string]*namespaceHandler
 	eio      *engineio.Server
 }
 
+// NewServer returns a server.
 func NewServer(c *engineio.Options) (*Server, error) {
 	eio, err := engineio.NewServer(c)
 	if err != nil {
@@ -22,6 +24,7 @@ func NewServer(c *engineio.Options) (*Server, error) {
 	}, nil
 }
 
+// Close closes server.
 func (s *Server) Close() error {
 	return s.eio.Close()
 }
@@ -30,26 +33,33 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.eio.ServeHTTP(w, r)
 }
 
+// OnConnect set a handler function f to handle open event for
+// namespace nsp.
 func (s *Server) OnConnect(nsp string, f func(Conn) error) {
 	h := s.getNamespace(nsp)
 	h.OnConnect(f)
 }
 
+// OnDisconnect set a handler function f to handle disconnect event for
+// namespace nsp.
 func (s *Server) OnDisconnect(nsp string, f func(Conn, string)) {
 	h := s.getNamespace(nsp)
 	h.OnDisconnect(f)
 }
 
+// OnError set a handler function f to handle error for namespace nsp.
 func (s *Server) OnError(nsp string, f func(error)) {
 	h := s.getNamespace(nsp)
 	h.OnError(f)
 }
 
+// OnEvent set a handler function f to handle event for namespace nsp.
 func (s *Server) OnEvent(nsp, event string, f interface{}) {
 	h := s.getNamespace(nsp)
 	h.OnEvent(event, f)
 }
 
+// Serve serves go-socket.io server
 func (s *Server) Serve() error {
 	for {
 		conn, err := s.eio.Accept()

@@ -12,7 +12,9 @@ import (
 	"gopkg.in/googollee/go-engine.io.v1"
 )
 
+// Conn is a connection in go-socket.io
 type Conn interface {
+	// ID returns session id
 	ID() string
 	Close() error
 	URL() url.URL
@@ -20,8 +22,12 @@ type Conn interface {
 	RemoteAddr() net.Addr
 	RemoteHeader() http.Header
 
-	SetContext(v interface{})
+	// Context of this connection. You can save one context for one
+	// connection, and share it between all handlers. The handlers
+	// is called in one goroutine, so no need to lock context if it
+	// only be accessed in one connection.
 	Context() interface{}
+	SetContext(v interface{})
 	Namespace() string
 	Emit(msg string, v ...interface{})
 }
@@ -159,9 +165,9 @@ func (c *conn) serveWrite() {
 
 func (c *conn) serveRead() {
 	defer c.Close()
-	var header parser.Header
 	var event string
 	for {
+		var header parser.Header
 		if err := c.decoder.DecodeHeader(&header, &event); err != nil {
 			c.onError("", err)
 			return
