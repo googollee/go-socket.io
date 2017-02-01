@@ -3,7 +3,7 @@ language: go
 env:
   CI_SERVICE: travis-ci
 go:
-  - 1.7.2
+  - master
   - tip
 install:
   - mkdir -p $GOPATH/src/gopkg.in/googollee
