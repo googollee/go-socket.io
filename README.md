@@ -1,6 +1,6 @@
 # socket.io
 
-[![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
+[![GoDoc](http://godoc.org/github.com/goguardian/go-socket.io?status.svg)](http://godoc.org/github.com/goguardian/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
 
 go-socket.io is an implementation of [socket.io](http://socket.io) in golang, which is a realtime application framework.
 
@@ -13,13 +13,13 @@ It is compatible with latest implementation of socket.io in node.js, and support
 Install the package with:
 
 ```bash
-go get github.com/googollee/go-socket.io
+go get github.com/goguardian/go-socket.io
 ```
 
 Import it with:
 
 ```go
-import "github.com/googollee/go-socket.io"
+import "github.com/goguardian/go-socket.io"
 ```
 
 and use `socketio` as the package name inside the code.
@@ -35,7 +35,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/googollee/go-socket.io"
+	"github.com/goguardian/go-socket.io"
 )
 
 func main() {
@@ -75,7 +75,7 @@ func main() {
 
 ```javascript
  //using client-side socket.io-1.X.X.js
- socket.emit('some:event', JSON.stringify(someData), function(data){
+ socket.emit('some:event', someData, function(data){
        console.log('ACK from server wtih data: ', data));
  });
 ```
@@ -100,7 +100,7 @@ so.On("some:event", func(msg string) string {
 //last parameter of "on" handler is callback for sending ack to server with data or without data
 socket.on('some:event', function (msg, sendAckCb) {
     //Sending ACK with data to server after receiving some:event from server
-    sendAckCb(JSON.stringify(data)); // for example used serializing to JSON
+    sendAckCb(data); // for example used serializing to JSON
 }
 ```
 
