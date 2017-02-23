@@ -1,9 +1,6 @@
 package socketio
 
 import (
-	"net"
-	"net/http"
-	"net/url"
 	"reflect"
 	"testing"
 
@@ -11,19 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-type fakeConn struct{}
-
-func (f fakeConn) ID() string                        { return "" }
-func (f fakeConn) Close() error                      { return nil }
-func (f fakeConn) URL() url.URL                      { return url.URL{} }
-func (f fakeConn) LocalAddr() net.Addr               { return nil }
-func (f fakeConn) RemoteAddr() net.Addr              { return nil }
-func (f fakeConn) RemoteHeader() http.Header         { return http.Header{} }
-func (f fakeConn) Context() interface{}              { return nil }
-func (f fakeConn) SetContext(v interface{})          {}
-func (f fakeConn) Namespace() string                 { return "" }
-func (f fakeConn) Emit(msg string, v ...interface{}) {}
 
 func TestNamespaceHandler(t *testing.T) {
 	should := assert.New(t)
@@ -51,25 +35,25 @@ func TestNamespaceHandler(t *testing.T) {
 	header.Type = parser.Connect
 	args := h.getTypes(header, "")
 	should.Nil(args)
-	h.dispatch(fakeConn{}, header, "", nil)
+	h.dispatch(&namespaceConn{}, header, "", nil)
 	should.True(onConnectCalled)
 
 	header.Type = parser.Disconnect
 	args = h.getTypes(header, "")
 	should.Equal([]reflect.Type{reflect.TypeOf("")}, args)
-	h.dispatch(fakeConn{}, header, "", []reflect.Value{reflect.ValueOf("disconn")})
+	h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("disconn")})
 	should.Equal("disconn", disconnectMsg)
 
 	header.Type = parser.Error
 	args = h.getTypes(header, "")
 	should.Equal([]reflect.Type{reflect.TypeOf("")}, args)
-	h.dispatch(fakeConn{}, header, "", []reflect.Value{reflect.ValueOf("failed")})
+	h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("failed")})
 	should.Equal(onerror.Error(), "failed")
 
 	header.Type = parser.Event
 	args = h.getTypes(header, "nonexist")
 	should.Nil(args)
-	ret, err := h.dispatch(fakeConn{}, header, "nonexist", nil)
+	ret, err := h.dispatch(&namespaceConn{}, header, "nonexist", nil)
 	must.Nil(err)
 	should.Nil(ret)
 }
@@ -127,7 +111,7 @@ func TestNamespaceHandlerEvent(t *testing.T) {
 			}
 			types := h.getTypes(header, test.event)
 			should.Equal(target, types)
-			ret, err := h.dispatch(fakeConn{}, header, test.event, args)
+			ret, err := h.dispatch(&namespaceConn{}, header, test.event, args)
 			must.Nil(err)
 
 			rets := make([]interface{}, len(ret))

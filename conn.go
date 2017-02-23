@@ -86,14 +86,18 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) connect() error {
+	root := newNamespaceConn(c, "/")
+	c.namespaces[""] = root
 	header := parser.Header{
 		Type: parser.Connect,
+	}
+	handler, ok := c.handlers[header.Namespace]
+	if ok {
+		handler.dispatch(root, header, "", nil)
 	}
 	if err := c.encoder.Encode(header, nil); err != nil {
 		return err
 	}
-
-	c.namespaces[""] = newNamespaceConn(c, "/")
 
 	return nil
 }
@@ -214,8 +218,14 @@ func (c *conn) serveRead() {
 				c.onError(header.Namespace, err)
 				return
 			}
-			if _, ok := c.namespaces[header.Namespace]; !ok {
-				c.namespaces[header.Namespace] = newNamespaceConn(c, header.Namespace)
+			conn, ok := c.namespaces[header.Namespace]
+			if !ok {
+				conn = newNamespaceConn(c, header.Namespace)
+				c.namespaces[header.Namespace] = conn
+			}
+			handler, ok := c.handlers[header.Namespace]
+			if ok {
+				handler.dispatch(conn, header, "", nil)
 			}
 			c.write(header, nil)
 		case parser.Disconnect:

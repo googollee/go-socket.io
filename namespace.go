@@ -55,21 +55,28 @@ func (h *namespaceHandler) getTypes(header parser.Header, event string) []reflec
 func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, args []reflect.Value) ([]reflect.Value, error) {
 	switch header.Type {
 	case parser.Connect:
-		err := h.onConnect(c)
+		var err error
+		if h.onConnect != nil {
+			err = h.onConnect(c)
+		}
 		return nil, err
 	case parser.Disconnect:
 		msg := ""
 		if len(args) > 0 {
 			msg = args[0].Interface().(string)
 		}
-		h.onDisconnect(c, msg)
+		if h.onDisconnect != nil {
+			h.onDisconnect(c, msg)
+		}
 		return nil, nil
 	case parser.Error:
 		msg := ""
 		if len(args) > 0 {
 			msg = args[0].Interface().(string)
 		}
-		h.onError(errors.New(msg))
+		if h.onError != nil {
+			h.onError(errors.New(msg))
+		}
 	case parser.Event:
 		namespaceHandler := h.events[event]
 		if namespaceHandler == nil {
