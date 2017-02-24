@@ -259,7 +259,9 @@ func (c *serverConn) OnClose(server transport.Server) {
 	}
 	c.setState(stateClosed)
 	close(c.readerChan)
+	c.pingLocker.Lock()
 	close(c.pingChan)
+	c.pingLocker.Unlock()
 	c.callback.onClose(c.id)
 }
 
