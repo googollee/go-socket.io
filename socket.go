@@ -33,6 +33,9 @@ type Socket interface {
 
 	// BroadcastTo broadcasts an event to the room with given args.
 	BroadcastTo(room, event string, args ...interface{}) error
+
+	// SendRawText sends encoded raw msg for broadcasting
+	SendRawText(b []byte) error
 }
 
 type socket struct {
@@ -65,6 +68,35 @@ func (s *socket) Emit(event string, args ...interface{}) error {
 	}
 	if event == "disconnect" {
 		s.conn.Close()
+	}
+	return nil
+}
+
+func (s *socket) SendRawText(b []byte) error {
+	writer, err := s.conn.NextWriter(engineio.MessageText)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	w := newTrimWriter(writer, "\n")
+	wh := newWriterHelper(w)
+	wh.Write([]byte{byte(_EVENT) + '0'})
+	needEnd := false
+	if s.namespace != "" {
+		wh.Write([]byte(s.namespace))
+		needEnd = true
+	}
+	if len(b) > 0 {
+		if needEnd {
+			wh.Write([]byte{','})
+			needEnd = false
+		}
+		if wh.Error() != nil {
+			return wh.Error()
+		}
+		_, err := w.Write(b)
+		return err
 	}
 	return nil
 }
