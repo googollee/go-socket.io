@@ -10,6 +10,7 @@ type baseHandler struct {
 	events    map[string]*caller
 	name      string
 	broadcast BroadcastAdaptor
+	evMu      sync.Mutex
 }
 
 func newBaseHandler(name string, broadcast BroadcastAdaptor) *baseHandler {
@@ -17,6 +18,7 @@ func newBaseHandler(name string, broadcast BroadcastAdaptor) *baseHandler {
 		events:    make(map[string]*caller),
 		name:      name,
 		broadcast: broadcast,
+		evMu:      sync.Mutex{},
 	}
 }
 
@@ -26,7 +28,9 @@ func (h *baseHandler) On(event string, f interface{}) error {
 	if err != nil {
 		return err
 	}
+	h.evMu.Lock()
 	h.events[event] = c
+	h.evMu.Unlock()
 	return nil
 }
 
@@ -40,13 +44,16 @@ type socketHandler struct {
 
 func newSocketHandler(s *socket, base *baseHandler) *socketHandler {
 	events := make(map[string]*caller)
+	base.evMu.Lock()
 	for k, v := range base.events {
 		events[k] = v
 	}
+	base.evMu.Unlock()
 	return &socketHandler{
 		baseHandler: &baseHandler{
 			events:    events,
 			broadcast: base.broadcast,
+			evMu:      base.evMu,
 		},
 		acks:   make(map[int]*caller),
 		socket: s,
@@ -146,7 +153,9 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 			message = decoder.Message()
 		}
 	}
+	h.evMu.Lock()
 	c, ok := h.events[message]
+	h.evMu.Unlock()
 	if !ok {
 		// If the message is not recognized by the server, the decoder.currentCloser
 		// needs to be closed otherwise the server will be stuck until the e
