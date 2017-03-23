@@ -244,7 +244,7 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 		return bufferCount, err
 	}
 	if !header.NeedAck {
-		// 313["data"], id has beed read at beginning, need add back.
+		// 313["data"], id has been read at beginning, need add back.
 		header.ID = num
 		header.NeedAck = hasNum
 	}
