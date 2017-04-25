@@ -1,5 +1,14 @@
+sudo: false
 language: go
-go: 1.5
+env:
+  CI_SERVICE: travis-ci
+go:
+  - master
+  - tip
 install:
-  - go get "github.com/smartystreets/goconvey/convey"
-  - go get -v .
+  - make getdev
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+script:
+  - make test
+  - ./gosweep.sh
