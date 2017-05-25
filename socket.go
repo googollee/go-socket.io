@@ -31,6 +31,9 @@ type Socket interface {
 	// Leave leaves the room.
 	Leave(room string) error
 
+	// Disconnect disconnect the socket.
+	Disconnect()
+
 	// BroadcastTo broadcasts an event to the room with given args.
 	BroadcastTo(room, event string, args ...interface{}) error
 }
@@ -67,6 +70,10 @@ func (s *socket) Emit(event string, args ...interface{}) error {
 		s.conn.Close()
 	}
 	return nil
+}
+
+func (s *socket) Disconnect() {
+	s.conn.Close()
 }
 
 func (s *socket) send(args []interface{}) error {
