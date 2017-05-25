@@ -2,6 +2,8 @@
 
 [![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
 
+**Please use v1.4 branch, or import "gopkg.in/googollee/go-socket.io.v1". I have no time to maintain master branch now**
+
 go-socket.io is an implementation of [socket.io](http://socket.io) in golang, which is a realtime application framework.
 
 It is compatible with latest implementation of socket.io in node.js, and supports room and namespace.
