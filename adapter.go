@@ -63,7 +63,7 @@ func (b *broadcast) Send(ignore Socket, room, event string, args ...interface{})
 		if ignore != nil && ignore.Id() == id {
 			continue
 		}
-		s.Emit(event, args...)
+		go s.Emit(event, args...)
 	}
 	b.RUnlock()
 	return nil
