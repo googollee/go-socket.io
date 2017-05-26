@@ -299,10 +299,17 @@ func (d *decoder) DecodeData(v *packet) error {
 	defer func() {
 		d.Close()
 	}()
-	decoder := json.NewDecoder(d.current)
-	if err := decoder.Decode(v.Data); err != nil {
+
+	buf, err := ioutil.ReadAll(d.current)
+	if err != nil {
 		return err
 	}
+
+	buffer := bytes.NewBuffer(buf)
+
+	// Ignore decode errors
+	json.NewDecoder(buffer).Decode(v.Data)
+
 	if v.Type == _BINARY_EVENT || v.Type == _BINARY_ACK {
 		binary, err := d.decodeBinary(v.attachNumber)
 		if err != nil {
@@ -313,6 +320,35 @@ func (d *decoder) DecodeData(v *packet) error {
 		}
 		v.Type -= _BINARY_EVENT - _EVENT
 	}
+
+	buffer = bytes.NewBuffer(buf)
+	var data interface{}
+	if err := json.Unmarshal(buffer.Bytes(), &data); err != nil {
+		return err
+	}
+
+	// Support complex object slice in addition to string slice by serializing
+	// complex objects into strings
+	if _, ok := v.Data.(*[]interface{}); ok {
+		dInterface, ok := data.([]interface{})
+		if !ok {
+			return nil
+		}
+
+		vdataIface := *v.Data.(*[]interface{})
+		for i, arg := range dInterface {
+			switch arg.(type) {
+			case map[string]interface{}:
+				body, err := json.Marshal(arg)
+				if err != nil {
+					return err
+				}
+				val := string(body)
+				vdataIface[i] = &val
+			}
+		}
+	}
+
 	return nil
 }
 
