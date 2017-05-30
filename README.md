@@ -125,3 +125,7 @@ so.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
 ## License
 
 The 3-clause BSD License  - see LICENSE for more details
+
+## Similar Go Projects
+
+- [Glue](https://github.com/desertbit/glue) - Robust Go and Javascript Socket Library (Alternative to socket.io)
