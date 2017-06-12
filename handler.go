@@ -130,7 +130,9 @@ func (h *baseHandler) broadcastName(room string) string {
 
 func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{}, error) {
 	defer func() {
-		decoder.Close()
+		if decoder != nil {
+			decoder.Close()
+		}
 	}()
 
 	var message string
