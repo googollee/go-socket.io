@@ -4,7 +4,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/googollee/go-socket.io/parser"
+	"gopkg.in/googollee/go-socket.io.v1"
 )
 
 type namespaceHandler struct {
