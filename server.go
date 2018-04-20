@@ -51,8 +51,9 @@ func (s *Server) GetMaxConnection() int {
 func (s *Server) Count() int {
 	return s.eio.Count()
 }
+
 // LenRoom returns the current number of connected clients in room
-func (s *Server) LenRoom(room string) int  {
+func (s *Server) LenRoom(room string) int {
 	return s.namespace.broadcast.Len(room)
 }
 
