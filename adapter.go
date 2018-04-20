@@ -13,6 +13,9 @@ type BroadcastAdaptor interface {
 
 	// Send will send an event with args to the room. If "ignore" is not nil, the event will be excluded from being sent to "ignore".
 	Send(ignore Socket, room, event string, args ...interface{}) error
+
+	//Len socket in room
+	Len(room string) int
 }
 
 var newBroadcast = newBroadcastDefault
@@ -67,4 +70,8 @@ func (b *broadcast) Send(ignore Socket, room, event string, args ...interface{})
 	}
 	b.RUnlock()
 	return nil
+}
+
+func (b *broadcast) Len(room string) int {
+	return len(b.m[room])
 }
