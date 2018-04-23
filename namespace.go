@@ -5,6 +5,9 @@ import (
 	"reflect"
 
 	"github.com/googollee/go-socket.io/parser"
+	"golang.org/x/oauth2/github"
+	"golang.org/x/tools/playground/socket"
+	"github.com/coreos/etcd/clientv3/namespace"
 )
 
 type namespaceHandler struct {
@@ -128,6 +131,7 @@ func (c *namespaceConn) Emit(event string, v ...interface{}) {
 		if lastV.Kind() == reflect.Func {
 			f := newAckFunc(last)
 			header.ID = c.conn.nextID()
+			header.NeedAck = true
 			c.acks[header.ID] = f
 			v = v[:l-1]
 		}
