@@ -5,9 +5,6 @@ import (
 	"reflect"
 
 	"github.com/googollee/go-socket.io/parser"
-	"golang.org/x/oauth2/github"
-	"golang.org/x/tools/playground/socket"
-	"github.com/coreos/etcd/clientv3/namespace"
 )
 
 type namespaceHandler struct {
