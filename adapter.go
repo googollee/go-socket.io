@@ -73,5 +73,7 @@ func (b *broadcast) Send(ignore Socket, room, event string, args ...interface{})
 }
 
 func (b *broadcast) Len(room string) int {
+	b.RLock()
+	defer b.RUnlock()
 	return len(b.m[room])
 }
