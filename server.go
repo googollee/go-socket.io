@@ -143,6 +143,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var err error
 		conn, err = newServerConn(sid, w, r, s)
 		if err != nil {
+			atomic.AddInt32(&s.currentConnection, -1)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
