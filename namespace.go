@@ -2,7 +2,9 @@ package socketio
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/googollee/go-socket.io/parser"
 )
@@ -90,7 +92,7 @@ func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, 
 type namespaceConn struct {
 	*conn
 	namespace string
-	acks      map[uint64]*funcHandler
+	acks      sync.Map
 	context   interface{}
 }
 
@@ -98,7 +100,7 @@ func newNamespaceConn(conn *conn, namespace string) *namespaceConn {
 	return &namespaceConn{
 		conn:      conn,
 		namespace: namespace,
-		acks:      make(map[uint64]*funcHandler),
+		acks:      sync.Map{},
 	}
 }
 
@@ -129,7 +131,7 @@ func (c *namespaceConn) Emit(event string, v ...interface{}) {
 			f := newAckFunc(last)
 			header.ID = c.conn.nextID()
 			header.NeedAck = true
-			c.acks[header.ID] = f
+			c.acks.Store(header.ID, f)
 			v = v[:l-1]
 		}
 	}
@@ -147,9 +149,14 @@ func (c *namespaceConn) dispatch(header parser.Header) {
 		return
 	}
 
-	f, ok := c.acks[header.ID]
+	rawFunc, ok := c.acks.Load(header.ID)
 	if ok {
-		delete(c.acks, header.ID)
+		f, ok := rawFunc.(*funcHandler)
+		if !ok {
+			c.conn.onError(c.namespace, errors.New(fmt.Sprintf("incorrect data stored for header %d", header.ID)))
+			return
+		}
+		c.acks.Delete(header.ID)
 		args, err := c.conn.parseArgs(f.argTypes)
 		if err != nil {
 			c.conn.onError(c.namespace, err)
