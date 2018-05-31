@@ -143,6 +143,7 @@ func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, 
 			}
 			return 0, 0, nil, err
 		}
+		s.upgradeLocker.RUnlock()
 		return ft, pt, newReader(r, &s.upgradeLocker), nil
 	}
 }
@@ -160,6 +161,7 @@ func (s *session) nextWriter(ft base.FrameType, pt base.PacketType) (io.WriteClo
 			}
 			return nil, err
 		}
+		s.upgradeLocker.RUnlock()
 		return newWriter(w, &s.upgradeLocker), nil
 	}
 }

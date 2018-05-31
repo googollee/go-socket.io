@@ -23,7 +23,6 @@ func (w *writer) Close() (err error) {
 	w.closeOnce.Do(func() {
 		w.locker.Lock()
 		defer w.locker.Unlock()
-		defer w.locker.RUnlock()
 		err = w.WriteCloser.Close()
 	})
 
@@ -63,6 +62,6 @@ func (r *reader) Close() (err error) {
 func (r *reader) Read(p []byte) (n int, err error) {
 	r.locker.RLock()
 	defer r.locker.RUnlock()
-	n, err = r.Read(p)
+	n, err = r.ReadCloser.Read(p)
 	return
 }
