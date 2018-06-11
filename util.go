@@ -19,12 +19,20 @@ func newWriter(w io.WriteCloser, locker *sync.RWMutex) *writer {
 	}
 }
 
-func (w *writer) Close() error {
-	err := w.WriteCloser.Close()
+func (w *writer) Close() (err error) {
 	w.closeOnce.Do(func() {
-		w.locker.RUnlock()
+		w.locker.Lock()
+		defer w.locker.Unlock()
+		err = w.WriteCloser.Close()
 	})
-	return err
+
+	return
+}
+
+func (w *writer) Write(p []byte) (int, error) {
+	w.locker.Lock()
+	defer w.locker.Unlock()
+	return w.WriteCloser.Write(p)
 }
 
 type reader struct {
@@ -40,11 +48,20 @@ func newReader(r io.ReadCloser, locker *sync.RWMutex) *reader {
 	}
 }
 
-func (r *reader) Close() error {
-	io.Copy(ioutil.Discard, r.ReadCloser)
-	err := r.ReadCloser.Close()
+func (r *reader) Close() (err error) {
 	r.closeOnce.Do(func() {
+		r.locker.RLock()
+		io.Copy(ioutil.Discard, r.ReadCloser)
+		err = r.ReadCloser.Close()
 		r.locker.RUnlock()
 	})
-	return err
+
+	return
+}
+
+func (r *reader) Read(p []byte) (n int, err error) {
+	r.locker.RLock()
+	defer r.locker.RUnlock()
+	n, err = r.ReadCloser.Read(p)
+	return
 }
