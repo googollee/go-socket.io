@@ -60,8 +60,8 @@ func (p *Polling) Close() error {
 	if p.getState() != stateNormal {
 		return nil
 	}
-	close(p.sendChan)
 	p.setState(stateClosing)
+	close(p.sendChan)
 	if p.getLocker.TryLock() {
 		if p.postLocker.TryLock() {
 			p.callback.OnClose(p)
