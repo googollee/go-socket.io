@@ -52,6 +52,11 @@ func (s *Server) Count() int {
 	return s.eio.Count()
 }
 
+// LenRoom returns the current number of connected clients in room
+func (s *Server) LenRoom(room string) int {
+	return s.namespace.broadcast.Len(room)
+}
+
 // SetAllowRequest sets the middleware function when a connection is established. If a non-nil value is returned, the connection won't be established. Default will allow all connections.
 func (s *Server) SetAllowRequest(f func(*http.Request) error) {
 	s.eio.SetAllowRequest(f)
