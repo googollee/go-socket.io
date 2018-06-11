@@ -296,9 +296,7 @@ func (d *decoder) DecodeData(v *packet) error {
 	if d.current == nil {
 		return nil
 	}
-	defer func() {
-		d.Close()
-	}()
+
 	decoder := json.NewDecoder(d.current)
 	if err := decoder.Decode(v.Data); err != nil {
 		return err

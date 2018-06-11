@@ -83,13 +83,16 @@ func TestHandler(t *testing.T) {
 		var handlerCalled bool
 		baseHandlerInstance := newBaseHandler("some:event", &FakeBroadcastAdaptor{})
 		socketInstance := newSocket(&FakeSockConnection{}, baseHandlerInstance)
-		c, _ := newCaller(func() { handlerCalled = true })
+		c, _ := newCaller(func () { handlerCalled = true })
+		decoder := newDecoder(saver)
 
 		socketInstance.acks[0] = c
-		socketInstance.onPacket(newDecoder(saver), &packet{Type: _ACK, Id: 0, Data: "[]", NSP: "/"})
+		socketInstance.onPacket(decoder, &packet{Type:_ACK, Id:0, Data:"[]", NSP:"/"})
+
 
 		So(len(socketInstance.acks), ShouldEqual, 0)
 		So(handlerCalled, ShouldBeTrue)
+		So(decoder.current, ShouldBeNil)
 	})
 
 	Convey("Call BINARY ACK handler by BINARY ACK id received from client", t, func() {
@@ -97,12 +100,14 @@ func TestHandler(t *testing.T) {
 		var handlerCalled bool
 		baseHandlerInstance := newBaseHandler("some:event", &FakeBroadcastAdaptor{})
 		socketInstance := newSocket(&FakeSockConnection{}, baseHandlerInstance)
-		c, _ := newCaller(func() { handlerCalled = true })
+		c, _ := newCaller(func () { handlerCalled = true })
+		decoder := newDecoder(saver)
 
 		socketInstance.acks[0] = c
-		socketInstance.onPacket(newDecoder(saver), &packet{Type: _BINARY_ACK, Id: 0, Data: "[]", NSP: "/"})
+		socketInstance.onPacket(decoder, &packet{Type:_BINARY_ACK, Id:0, Data:"[]", NSP:"/"})
 
 		So(len(socketInstance.acks), ShouldEqual, 0)
 		So(handlerCalled, ShouldBeTrue)
+		So(decoder.current, ShouldBeNil)
 	})
 }

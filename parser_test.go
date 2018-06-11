@@ -61,7 +61,9 @@ func TestParser(t *testing.T) {
 		err = decoder.DecodeData(&d)
 		So(err, ShouldBeNil)
 		So(d.Type, ShouldEqual, p.Type)
-		So(decoder.current, ShouldBeNil)
+		if decoder.current != nil {
+			So(decoder.current, ShouldNotBeNil)
+		}
 	}
 
 	Convey("Only type", t, func() {
