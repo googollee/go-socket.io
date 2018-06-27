@@ -153,7 +153,7 @@ func (c *namespaceConn) dispatch(header parser.Header) {
 	if ok {
 		f, ok := rawFunc.(*funcHandler)
 		if !ok {
-			c.conn.onError(c.namespace, errors.New(fmt.Sprintf("incorrect data stored for header %d", header.ID)))
+			c.conn.onError(c.namespace, fmt.Errorf("incorrect data stored for header %d", header.ID))
 			return
 		}
 		c.acks.Delete(header.ID)
