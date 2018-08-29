@@ -73,12 +73,33 @@ func TestServer(t *testing.T) {
 		So(res3.Code, ShouldEqual, 200)
 
 	})
+
+	Convey("error upgrade connections nums", t, func() {
+		server, _ := NewServer(nil)
+
+		go func() {
+			server.Accept()
+		}()
+
+		req1 := newPostReq()
+		res1 := httptest.NewRecorder()
+		server.ServeHTTP(res1, req1)
+		So(server.Count(), ShouldEqual, 0)
+	})
 }
 
 func newOpenReq() *http.Request {
 	openReq, _ := http.NewRequest("GET", "/", bytes.NewBuffer([]byte{}))
 	q := openReq.URL.Query()
 	q.Set("transport", "polling")
+	openReq.URL.RawQuery = q.Encode()
+	return openReq
+}
+
+func newPostReq() *http.Request {
+	openReq, _ := http.NewRequest("POST", "/", bytes.NewBuffer([]byte{}))
+	q := openReq.URL.Query()
+	q.Set("transport", "websocket")
 	openReq.URL.RawQuery = q.Encode()
 	return openReq
 }
