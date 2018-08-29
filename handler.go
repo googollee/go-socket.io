@@ -159,8 +159,16 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 			message = decoder.Message()
 		}
 	}
+
+	var useDefaultHandler bool
 	h.evMu.Lock()
 	c, ok := h.events[message]
+	if !ok {
+		// By registering a "default" handler, you can deal with all the events
+		if c, ok = h.events["default"]; ok {
+			useDefaultHandler = true
+		}
+	}
 	h.evMu.Unlock()
 	if !ok {
 		// If the message is not recognized by the server, the decoder.currentCloser
@@ -182,6 +190,10 @@ func (h *socketHandler) onPacket(decoder *decoder, packet *packet) ([]interface{
 		args = append(args, nil)
 	}
 
+	if useDefaultHandler {
+		// Pass eventName to handler
+		args = append([]interface{}{&message}, args[:len(args)-1]...)
+	}
 	retV := c.Call(h.socket, args)
 	if len(retV) == 0 {
 		return nil, nil

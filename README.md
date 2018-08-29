@@ -55,6 +55,10 @@ func main() {
 		so.On("disconnection", func() {
 			log.Println("on disconnect")
 		})
+        // handling all the unregistred events with registering a "default" event
+		so.On("default", func(eventname, msg string) {
+			log.Println("get some unregisted events: ", eventname, msg)
+		})
 	})
 	server.On("error", func(so socketio.Socket, err error) {
 		log.Println("error:", err)
