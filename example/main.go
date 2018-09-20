@@ -30,7 +30,7 @@ func main() {
 			log.Println(e)
 
 			log.Println("emit:", so.Emit("chat message", msg))
-			so.BroadcastTo("chat", "chat message", msg)
+			server.BroadcastTo("chat", "chat message", msg)
 		})
 		// Socket.io acknowledgement example
 		// The return type may vary depending on whether you will return

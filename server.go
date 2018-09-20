@@ -93,8 +93,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // BroadcastTo is a server level broadcast function.
-func (s *Server) BroadcastTo(room, message string, args ...interface{}) {
-	s.namespace.BroadcastTo(room, message, args...)
+func (s *Server) BroadcastTo(room, event string, args ...interface{}) {
+	s.namespace.BroadcastTo(room, event, args...)
 }
 
 func (s *Server) loop() {
