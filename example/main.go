@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -20,8 +19,6 @@ func main() {
 			m := make(map[string]interface{})
 			m["a"] = "你好"
 			e := so.Emit("cn1111", m)
-			//这个没有问题
-			fmt.Println("\n\n")
 
 			b := make(map[string]string)
 			b["u-a"] = "中文内容" //这个不能是中文
@@ -30,7 +27,7 @@ func main() {
 			log.Println(e)
 
 			log.Println("emit:", so.Emit("chat message", msg))
-			so.BroadcastTo("chat", "chat message", msg)
+			server.BroadcastTo("chat", "chat message", msg)
 		})
 		// Socket.io acknowledgement example
 		// The return type may vary depending on whether you will return

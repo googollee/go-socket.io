@@ -1,5 +1,7 @@
 language: go
-go: 1.5
+go:
+- 1.7
+- 1.11
 install:
   - go get "github.com/smartystreets/goconvey/convey"
   - go get -v .
