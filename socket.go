@@ -33,6 +33,9 @@ type Socket interface {
 
 	// Disconnect disconnect the socket.
 	Disconnect()
+
+	// BroadcastTo broadcasts an event to the room with given args.
+	BroadcastTo(room, event string, args ...interface{}) error
 }
 
 type socket struct {
