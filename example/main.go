@@ -20,8 +20,6 @@ func main() {
 			m := make(map[string]interface{})
 			m["a"] = "你好"
 			e := so.Emit("cn1111", m)
-			//这个没有问题
-			fmt.Println("\n\n")
 
 			b := make(map[string]string)
 			b["u-a"] = "中文内容" //这个不能是中文
