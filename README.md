@@ -50,7 +50,7 @@ func main() {
 		so.Join("chat")
 		so.On("chat message", func(msg string) {
 			log.Println("emit:", so.Emit("chat message", msg))
-			so.BroadcastTo("chat", "chat message", msg)
+			server.BroadcastTo("chat", "chat message", msg)
 		})
 		so.On("disconnection", func() {
 			log.Println("on disconnect")
