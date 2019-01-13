@@ -27,6 +27,7 @@ type Transport struct {
 	TLSClientConfig  *tls.Config
 	HandshakeTimeout time.Duration
 	Subprotocols     []string
+	CheckOrigin      func(r *http.Request) bool
 }
 
 // Default is default transport.
@@ -74,6 +75,7 @@ func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, e
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  t.ReadBufferSize,
 		WriteBufferSize: t.WriteBufferSize,
+		CheckOrigin:     t.CheckOrigin,
 	}
 	c, err := upgrader.Upgrade(w, r, w.Header())
 	if err != nil {
