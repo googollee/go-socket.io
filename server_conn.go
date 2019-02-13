@@ -133,6 +133,9 @@ func (c *serverConn) NextReader() (MessageType, io.ReadCloser, error) {
 }
 
 func (c *serverConn) NextWriter(t MessageType) (io.WriteCloser, error) {
+	if c == nil {
+		return nil, errors.New("serverConn.NextWriter() on nil serverConn")
+	}
 	switch c.getState() {
 	case stateUpgrading:
 		for i := 0; i < 30; i++ {
@@ -300,6 +303,9 @@ func (s *serverConn) onOpen() error {
 }
 
 func (c *serverConn) getCurrent() transport.Server {
+	if c == nil {
+		return nil
+	}
 	c.transportLocker.RLock()
 	defer c.transportLocker.RUnlock()
 
@@ -331,8 +337,11 @@ func (c *serverConn) setUpgrading(name string, s transport.Server) {
 }
 
 func (c *serverConn) upgraded() {
-	c.transportLocker.Lock()
+	if c.upgrading == nil {
+		return
+	}
 
+	c.transportLocker.Lock()
 	current := c.current
 	c.current = c.upgrading
 	c.currentName = c.upgradingName
