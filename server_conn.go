@@ -337,13 +337,12 @@ func (c *serverConn) setUpgrading(name string, s transport.Server) {
 }
 
 func (c *serverConn) upgraded() {
-	c.transportLocker.Lock()
-
 	if c.upgrading == nil {
 		fmt.Println("Bypass double upgrade from IP", c.request.RemoteAddr)
 		return
 	}
 
+	c.transportLocker.Lock()
 	current := c.current
 	c.current = c.upgrading
 	c.currentName = c.upgradingName
