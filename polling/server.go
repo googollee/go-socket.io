@@ -2,6 +2,7 @@ package polling
 
 import (
 	"bytes"
+	"errors"
 	"html/template"
 	"io"
 	"net/http"
@@ -74,6 +75,9 @@ func (p *Polling) Close() error {
 }
 
 func (p *Polling) NextWriter(msgType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error) {
+	if p == nil {
+		return nil, errors.New("polling.NextWriter() on nil polling")
+	}
 	if p.getState() != stateNormal {
 		return nil, io.EOF
 	}

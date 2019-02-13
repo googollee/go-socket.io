@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
@@ -51,6 +52,9 @@ func (c *client) NextReader() (*parser.PacketDecoder, error) {
 }
 
 func (c *client) NextWriter(msgType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error) {
+	if c == nil {
+		return nil, errors.New("client.NextWriter() on nil client")
+	}
 	wsType, newEncoder := websocket.TextMessage, parser.NewStringEncoder
 	if msgType == message.MessageBinary {
 		wsType, newEncoder = websocket.BinaryMessage, parser.NewBinaryEncoder
