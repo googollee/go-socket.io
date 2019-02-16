@@ -5,6 +5,8 @@ env:
 go:
   - master
   - tip
+install:
+  - go get
 script:
   - make test
   - ./gosweep.sh
