@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/googollee/go-engine.io.v1/base"
-	"gopkg.in/googollee/go-engine.io.v1/transport"
-	"gopkg.in/googollee/go-engine.io.v1/transport/polling"
-	"gopkg.in/googollee/go-engine.io.v1/transport/websocket"
+	"github.com/googollee/go-engine.io/base"
+	"github.com/googollee/go-engine.io/transport"
+	"github.com/googollee/go-engine.io/transport/polling"
+	"github.com/googollee/go-engine.io/transport/websocket"
 )
 
 func defaultChecker(*http.Request) (http.Header, error) {

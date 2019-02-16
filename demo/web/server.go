@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"gopkg.in/googollee/go-engine.io.v1"
+	engineio "github.com/googollee/go-engine.io"
 )
 
 func main() {

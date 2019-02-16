@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"gopkg.in/googollee/go-engine.io.v1/base"
+	"github.com/googollee/go-engine.io/base"
 )
 
 type byteReader interface {
