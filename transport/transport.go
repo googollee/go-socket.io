@@ -1,50 +1,67 @@
 package transport
 
 import (
-	"io"
 	"net/http"
+	"net/url"
 
-	"github.com/googollee/go-engine.io/message"
-	"github.com/googollee/go-engine.io/parser"
+	"github.com/googollee/go-engine.io/base"
 )
 
-type Callback interface {
-	OnPacket(r *parser.PacketDecoder)
-	OnClose(server Server)
+// HTTPError is error which has http response code
+type HTTPError interface {
+	Code() int
 }
 
-type Creater struct {
-	Name      string
-	Upgrading bool
-	Server    func(w http.ResponseWriter, r *http.Request, callback Callback) (Server, error)
-	Client    func(r *http.Request) (Client, error)
+// Transport is a transport which can creates base.Conn
+type Transport interface {
+	Name() string
+	Accept(w http.ResponseWriter, r *http.Request) (base.Conn, error)
+	Dial(u *url.URL, requestHeader http.Header) (base.Conn, error)
 }
 
-// Server is a transport layer in server to connect client.
-type Server interface {
-
-	// ServeHTTP handles the http request. It will call conn.onPacket when receive packet.
-	ServeHTTP(http.ResponseWriter, *http.Request)
-
-	// Close closes the transport.
-	Close() error
-
-	// NextWriter returns packet writer. This function call should be synced.
-	NextWriter(messageType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error)
+// Pauser is connection which can be paused and resumes.
+type Pauser interface {
+	Pause()
+	Resume()
 }
 
-// Client is a transport layer in client to connect server.
-type Client interface {
+// Opener is client connection which need receive open message first.
+type Opener interface {
+	Open() (base.ConnParameters, error)
+}
 
-	// Response returns the response of last http request.
-	Response() *http.Response
+// Manager is a manager of transports.
+type Manager struct {
+	order      []string
+	transports map[string]Transport
+}
 
-	// NextReader returns packet decoder. This function call should be synced.
-	NextReader() (*parser.PacketDecoder, error)
+// NewManager creates a new manager.
+func NewManager(transports []Transport) *Manager {
+	tranMap := make(map[string]Transport)
+	names := make([]string, len(transports))
+	for i, t := range transports {
+		names[i] = t.Name()
+		tranMap[t.Name()] = t
+	}
+	return &Manager{
+		order:      names,
+		transports: tranMap,
+	}
+}
 
-	// NextWriter returns packet writer. This function call should be synced.
-	NextWriter(messageType message.MessageType, packetType parser.PacketType) (io.WriteCloser, error)
+// UpgradeFrom returns a name list of transports which can upgrade from given
+// name.
+func (m *Manager) UpgradeFrom(name string) []string {
+	for i, n := range m.order {
+		if n == name {
+			return m.order[i+1:]
+		}
+	}
+	return nil
+}
 
-	// Close closes the transport.
-	Close() error
+// Get returns the transport with given name.
+func (m *Manager) Get(name string) Transport {
+	return m.transports[name]
 }
