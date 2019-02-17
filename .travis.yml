@@ -1,7 +1,7 @@
 sudo: false
 language: go
 env:
-  CI_SERVICE: travis-ci
+  - GO111MODULE=on
 go:
   - master
   - tip
