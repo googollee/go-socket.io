@@ -1,9 +1,10 @@
 package socketio
 
 import (
-	"github.com/googollee/go-engine.io"
 	"net/http"
 	"time"
+
+	engineio "github.com/googollee/go-engine.io"
 )
 
 // Server is the server of socket.io.
@@ -77,7 +78,7 @@ func (s *Server) SetNewId(f func(*http.Request) string) {
 	s.eio.SetNewId(f)
 }
 
-// SetSessionsManager sets the sessions as server's session manager. Default sessions is a single process manager. You can customize it as a load balancer.
+// SetSessionManager sets the sessions as server's session manager. Default sessions is a single process manager. You can customize it as a load balancer.
 func (s *Server) SetSessionManager(sessions engineio.Sessions) {
 	s.eio.SetSessionManager(sessions)
 }
