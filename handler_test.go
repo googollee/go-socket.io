@@ -1,113 +1,114 @@
 package socketio
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 
-	"github.com/googollee/go-engine.io"
-	. "github.com/smartystreets/goconvey/convey"
-	"io"
-	"net/http"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-type FakeBroadcastAdaptor struct{}
+func TestNewEventFunc(t *testing.T) {
+	tests := []struct {
+		f        interface{}
+		ok       bool
+		argTypes []interface{}
+	}{
+		{1, false, []interface{}{}},
+		{func() {}, false, []interface{}{}},
+		{func(int) {}, false, []interface{}{}},
+		{func() error { return nil }, false, []interface{}{}},
 
-func (f *FakeBroadcastAdaptor) Join(room string, socket Socket) error {
-	return nil
+		{func(Conn) {}, true, []interface{}{}},
+		{func(Conn, int) {}, true, []interface{}{1}},
+		{func(Conn, int) error { return nil }, true, []interface{}{1}},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%#v", test.argTypes), func(t *testing.T) {
+			should := assert.New(t)
+			must := require.New(t)
+			defer func() {
+				r := recover()
+				must.Equal(test.ok, r == nil)
+			}()
+
+			h := newEventFunc(test.f)
+			must.Equal(len(test.argTypes), len(h.argTypes))
+			for i := range h.argTypes {
+				should.Equal(reflect.TypeOf(test.argTypes[i]), h.argTypes[i])
+			}
+		})
+	}
 }
 
-func (f *FakeBroadcastAdaptor) Leave(room string, socket Socket) error {
-	return nil
+func TestNewAckFunc(t *testing.T) {
+	tests := []struct {
+		f        interface{}
+		ok       bool
+		argTypes []interface{}
+	}{
+		{1, false, []interface{}{}},
+
+		{func() {}, true, []interface{}{}},
+		{func(int) {}, true, []interface{}{1}},
+		{func(int) error { return nil }, true, []interface{}{1}},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%#v", test.argTypes), func(t *testing.T) {
+			should := assert.New(t)
+			must := require.New(t)
+			defer func() {
+				r := recover()
+				must.Equal(test.ok, r == nil)
+			}()
+
+			h := newAckFunc(test.f)
+			must.Equal(len(test.argTypes), len(h.argTypes))
+			for i := range h.argTypes {
+				should.Equal(reflect.TypeOf(test.argTypes[i]), h.argTypes[i])
+			}
+		})
+	}
 }
 
-func (f *FakeBroadcastAdaptor) Send(ignore Socket, room, event string, args ...interface{}) error {
-	return nil
-}
+func TestHandlerCall(t *testing.T) {
+	tests := []struct {
+		f    interface{}
+		args []interface{}
+		ok   bool
+		rets []interface{}
+	}{
+		{func() {}, []interface{}{1}, false, nil},
 
-func (f *FakeBroadcastAdaptor) Len(room string) int {
-	return 0
-}
+		{func() {}, nil, true, nil},
+		{func(int) {}, []interface{}{1}, true, nil},
+		{func() int { return 1 }, nil, true, []interface{}{1}},
+		{func(int) int { return 1 }, []interface{}{1}, true, []interface{}{1}},
+	}
 
-type FakeReadCloser struct{}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%#v", test.f), func(t *testing.T) {
+			should := assert.New(t)
+			must := require.New(t)
 
-func (fr *FakeReadCloser) Read(p []byte) (n int, err error) {
-	p = append(p, byte(128))
-	return 1, nil
-}
-
-func (fr *FakeReadCloser) Close() error {
-	return nil
-}
-
-type FakeWriteCloser struct{}
-
-func (fr *FakeWriteCloser) Write(p []byte) (n int, err error) {
-	return len(p), nil
-}
-
-func (fr *FakeWriteCloser) Close() error {
-	return nil
-}
-
-type FakeSockConnection struct{}
-
-func (f *FakeSockConnection) Id() string {
-	return "test1"
-}
-
-func (f *FakeSockConnection) Request() *http.Request {
-	return &http.Request{}
-}
-
-func (f *FakeSockConnection) Close() error {
-	return nil
-}
-
-func (f *FakeSockConnection) NextReader() (engineio.MessageType, io.ReadCloser, error) {
-	return engineio.MessageText, &FakeReadCloser{}, nil
-}
-
-func (f *FakeSockConnection) NextWriter(messageType engineio.MessageType) (io.WriteCloser, error) {
-	return &FakeWriteCloser{}, nil
-}
-
-func TestHandler(t *testing.T) {
-	//BugFix missed
-	//Method: handler.onPacket
-	//Reason: missed fallthrough after case _ACK:
-	//
-	// 	case _ACK:
-	//		fallthrough   <---- fixed problem
-	//
-	Convey("Call ACK handler by ACK id received from client", t, func() {
-		saver := &FrameSaver{}
-		var handlerCalled bool
-		baseHandlerInstance := newBaseHandler("some:event", &FakeBroadcastAdaptor{})
-		socketInstance := newSocket(&FakeSockConnection{}, baseHandlerInstance)
-		c, _ := newCaller(func () { handlerCalled = true })
-		decoder := newDecoder(saver)
-
-		socketInstance.acks[0] = c
-		socketInstance.onPacket(decoder, &packet{Type:_ACK, Id:0, Data:"[]", NSP:"/"})
-
-
-		So(len(socketInstance.acks), ShouldEqual, 0)
-		So(handlerCalled, ShouldBeTrue)
-		So(decoder.current, ShouldBeNil)
-	})
-
-	Convey("Call BINARY ACK handler by BINARY ACK id received from client", t, func() {
-		saver := &FrameSaver{}
-		var handlerCalled bool
-		baseHandlerInstance := newBaseHandler("some:event", &FakeBroadcastAdaptor{})
-		socketInstance := newSocket(&FakeSockConnection{}, baseHandlerInstance)
-		c, _ := newCaller(func () { handlerCalled = true })
-		decoder := newDecoder(saver)
-
-		socketInstance.acks[0] = c
-		socketInstance.onPacket(decoder, &packet{Type:_BINARY_ACK, Id:0, Data:"[]", NSP:"/"})
-
-		So(len(socketInstance.acks), ShouldEqual, 0)
-		So(handlerCalled, ShouldBeTrue)
-		So(decoder.current, ShouldBeNil)
-	})
+			h := newAckFunc(test.f)
+			args := make([]reflect.Value, len(test.args))
+			for i := range args {
+				args[i] = reflect.ValueOf(test.args[i])
+			}
+			retV, err := h.Call(args)
+			must.Equal(test.ok, err == nil)
+			if len(retV) == len(test.rets) && len(test.rets) == 0 {
+				return
+			}
+			rets := make([]interface{}, len(retV))
+			for i := range rets {
+				rets[i] = retV[i].Interface()
+			}
+			should.Equal(test.rets, rets)
+		})
+	}
 }

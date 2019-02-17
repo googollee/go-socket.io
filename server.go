@@ -2,111 +2,94 @@ package socketio
 
 import (
 	"net/http"
-	"time"
 
 	engineio "github.com/googollee/go-engine.io"
 )
 
-// Server is the server of socket.io.
+// Server is a go-socket.io server.
 type Server struct {
-	*namespace
-	broadcast BroadcastAdaptor
-	eio       *engineio.Server
+	handlers map[string]*namespaceHandler
+	eio      *engineio.Server
 }
 
-// NewServer returns the server supported given transports. If transports is nil, the server will use ["polling", "websocket"] as default.
-func NewServer(transportNames []string) (*Server, error) {
-	eio, err := engineio.NewServer(transportNames)
+// NewServer returns a server.
+func NewServer(c *engineio.Options) (*Server, error) {
+	eio, err := engineio.NewServer(c)
 	if err != nil {
 		return nil, err
 	}
-	ret := &Server{
-		namespace: newNamespace(newBroadcastDefault()),
-		eio:       eio,
-	}
-	go ret.loop()
-	return ret, nil
+	return &Server{
+		handlers: make(map[string]*namespaceHandler),
+		eio:      eio,
+	}, nil
 }
 
-// SetPingTimeout sets the timeout of a connection ping. When it times out, the server will close the connection with the client. Default is 60s.
-func (s *Server) SetPingTimeout(t time.Duration) {
-	s.eio.SetPingTimeout(t)
+// Close closes server.
+func (s *Server) Close() error {
+	return s.eio.Close()
 }
 
-// SetPingInterval sets the interval of pings. Default is 25s.
-func (s *Server) SetPingInterval(t time.Duration) {
-	s.eio.SetPingInterval(t)
-}
-
-// SetMaxConnection sets the maximum number of connections with clients. Default is 1000.
-func (s *Server) SetMaxConnection(n int) {
-	s.eio.SetMaxConnection(n)
-}
-
-// GetMaxConnection returns the current max connection
-func (s *Server) GetMaxConnection() int {
-	return s.eio.GetMaxConnection()
-}
-
-// Count returns the current number of connected clients in session
-func (s *Server) Count() int {
-	return s.eio.Count()
-}
-
-// LenRoom returns the current number of connected clients in room
-func (s *Server) LenRoom(room string) int {
-	return s.namespace.broadcast.Len(room)
-}
-
-// SetAllowRequest sets the middleware function when a connection is established. If a non-nil value is returned, the connection won't be established. Default will allow all connections.
-func (s *Server) SetAllowRequest(f func(*http.Request) error) {
-	s.eio.SetAllowRequest(f)
-}
-
-// SetAllowUpgrades sets whether server allows transport upgrades. Default is true.
-func (s *Server) SetAllowUpgrades(allow bool) {
-	s.eio.SetAllowUpgrades(allow)
-}
-
-// SetCookie sets the name of the cookie used by engine.io. Default is "io".
-func (s *Server) SetCookie(prefix string) {
-	s.eio.SetCookie(prefix)
-}
-
-// SetNewId sets the callback func to generate new connection id. By default, id is generated from remote address + current time stamp
-func (s *Server) SetNewId(f func(*http.Request) string) {
-	s.eio.SetNewId(f)
-}
-
-// SetSessionManager sets the sessions as server's session manager. Default sessions is a single process manager. You can customize it as a load balancer.
-func (s *Server) SetSessionManager(sessions engineio.Sessions) {
-	s.eio.SetSessionManager(sessions)
-}
-
-// SetAdaptor sets the adaptor of broadcast. Default is an in-process broadcast implementation.
-func (s *Server) SetAdaptor(adaptor BroadcastAdaptor) {
-	s.namespace = newNamespace(adaptor)
-}
-
-// ServeHTTP handles http requests.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.eio.ServeHTTP(w, r)
 }
 
-// BroadcastTo is a server level broadcast function.
-func (s *Server) BroadcastTo(room, event string, args ...interface{}) {
-	s.namespace.BroadcastTo(room, event, args...)
+// OnConnect set a handler function f to handle open event for
+// namespace nsp.
+func (s *Server) OnConnect(nsp string, f func(Conn) error) {
+	h := s.getNamespace(nsp)
+	h.OnConnect(f)
 }
 
-func (s *Server) loop() {
+// OnDisconnect set a handler function f to handle disconnect event for
+// namespace nsp.
+func (s *Server) OnDisconnect(nsp string, f func(Conn, string)) {
+	h := s.getNamespace(nsp)
+	h.OnDisconnect(f)
+}
+
+// OnError set a handler function f to handle error for namespace nsp.
+func (s *Server) OnError(nsp string, f func(error)) {
+	h := s.getNamespace(nsp)
+	h.OnError(f)
+}
+
+// OnEvent set a handler function f to handle event for namespace nsp.
+func (s *Server) OnEvent(nsp, event string, f interface{}) {
+	h := s.getNamespace(nsp)
+	h.OnEvent(event, f)
+}
+
+// Serve serves go-socket.io server
+func (s *Server) Serve() error {
 	for {
 		conn, err := s.eio.Accept()
 		if err != nil {
-			return
+			return err
 		}
-		s := newSocket(conn, s.baseHandler)
-		go func(s *socket) {
-			s.loop()
-		}(s)
+		go s.serveConn(conn)
 	}
+}
+
+func (s *Server) serveConn(c engineio.Conn) {
+	_, err := newConn(c, s.handlers)
+	if err != nil {
+		root := s.handlers[""]
+		if root != nil && root.onError != nil {
+			root.onError(err)
+		}
+		return
+	}
+}
+
+func (s *Server) getNamespace(nsp string) *namespaceHandler {
+	if nsp == "/" {
+		nsp = ""
+	}
+	ret, ok := s.handlers[nsp]
+	if ok {
+		return ret
+	}
+	handler := newHandler()
+	s.handlers[nsp] = handler
+	return handler
 }
