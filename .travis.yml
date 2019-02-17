@@ -1,7 +1,6 @@
 language: go
 go:
-- 1.7.x
-- 1.11.x
-install:
-  - go get "github.com/smartystreets/goconvey/convey"
-  - go get -v .
+  - master
+  - tip
+script:
+  - go test -race -v
