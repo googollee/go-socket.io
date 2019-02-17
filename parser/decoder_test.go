@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"testing"
 
+	engineio "github.com/googollee/go-engine.io"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"gopkg.in/googollee/go-engine.io.v1"
 )
 
 type fakeReader struct {

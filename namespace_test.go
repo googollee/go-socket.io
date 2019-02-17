@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gopkg.in/googollee/go-socket.io.v1/parser"
+	"github.com/googollee/go-socket.io/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

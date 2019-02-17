@@ -1,14 +1,7 @@
-sudo: false
 language: go
-env:
-  CI_SERVICE: travis-ci
 go:
   - master
   - tip
-install:
-  - make getdev
-  - go get github.com/mattn/goveralls
-  - go get golang.org/x/tools/cmd/cover
 script:
   - make test
   - ./gosweep.sh
