@@ -2,13 +2,13 @@
 
 [![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
 
-**Please use v1.4 branch.in/googollee/go-socket.io.v1". I have no time to maintain master branch now**
+go-socket.io is an implementation of [Socket.IO](http://socket.io) in Golang, which is a realtime application framework.
 
-go-socket.io is an implementation of [socket.io](http://socket.io) in golang, which is a realtime application framework.
+Currently this library supports 1.4 version of the Socket.IO client. It supports room and namespaces.
 
-It is compatible with latest implementation of socket.io in node.js, and supports room and namespace.
+**Help wanted** This project is looking for contributors to help fix bugs and implement new features. Please check [Issue 192](https://github.com/googollee/go-socket.io/issues/192). All help is much appreciated.
 
-* for compatability with socket.io 0.9.x, please use branch 0.9.x *
+* for compatibility with Socket.IO 0.9.x, please use branch 0.9.x *
 
 ## Install
 
@@ -86,7 +86,7 @@ func main() {
 
 ```go
 // The return type may vary depending on whether you will return
-// In golang implementation of socket.io don't used callbacks for acknowledgement,
+// In golang implementation of Socket.IO don't used callbacks for acknowledgement,
 // but used return value, which wrapped into ack package and returned to the client's callback in JavaScript
 so.On("some:event", func(msg string) string {
 	return msg //Sending ack with data in msg back to client, using "return statement"
