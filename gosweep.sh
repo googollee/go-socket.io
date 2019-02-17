@@ -15,9 +15,13 @@ go get github.com/gordonklaus/ineffassign
 set -e
 
 # Automatic checks
+echo gofmt check...
 test -z "$(gofmt -l -w .     | tee /dev/stderr)"
+echo goimports check...
 test -z "$(goimports -l -w . | tee /dev/stderr)"
+echo golint check...
 test -z "$(golint .          | tee /dev/stderr)"
+echo ineffassign check...
 test -z "$(ineffassign .     | tee /dev/stderr)"
 
 DIR_SOURCE="$(find . -maxdepth 10 -type f -not -path '*/vendor*' -name '*.go' | xargs -I {} dirname {} | sort | uniq)"
