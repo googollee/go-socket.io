@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	socketio "github.com/googollee/go-socket.io"
 )
@@ -16,6 +18,21 @@ func main() {
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
 		fmt.Println("connected:", s.ID())
+		i := 0
+		go func() {
+			fmt.Println("Starting mass messaging goroutine")
+			// this will send lots of message to any connecting clients, problems :
+			// 1 - client receive almost none of these messages (they are not even sent to the websocket)
+			// 2 - sockets with clients tends to disconnect automatically
+			for {
+				// Emmit will block the goroutine if the socket is not responding, is that intended behaviour?
+				mess := "some message :  " + strconv.Itoa(i)
+				fmt.Println("Emitting : " + mess)
+				s.Emit("reply", mess)
+				i++
+				time.Sleep(100 * time.Millisecond)
+			}
+		}()
 		return nil
 	})
 	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
