@@ -147,7 +147,9 @@ func (c *conn) serveError() {
 			return
 		case msg := <-c.errorChan:
 			if handler := c.namespace(msg.namespace); handler != nil {
-				handler.onError(msg.error)
+				if handler.onError != nil {
+					handler.onError(msg.error)
+				}
 			}
 		}
 	}
