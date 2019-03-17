@@ -70,9 +70,6 @@ func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) (*conn, err
 		ret.Close()
 		return nil, err
 	}
-	go ret.serveError()
-	go ret.serveWrite()
-	go ret.serveRead()
 	return ret, nil
 }
 
@@ -91,12 +88,18 @@ func (c *conn) connect() error {
 	header := parser.Header{
 		Type: parser.Connect,
 	}
-	handler, ok := c.handlers[header.Namespace]
-	if ok {
-		handler.dispatch(root, header, "", nil)
-	}
+
 	if err := c.encoder.Encode(header, nil); err != nil {
 		return err
+	}
+	handler, ok := c.handlers[header.Namespace]
+
+	go c.serveError()
+	go c.serveWrite()
+	go c.serveRead()
+
+	if ok {
+		handler.dispatch(root, header, "", nil)
 	}
 
 	return nil
