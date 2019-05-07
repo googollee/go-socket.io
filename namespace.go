@@ -12,7 +12,7 @@ import (
 type namespaceHandler struct {
 	onConnect    func(c Conn) error
 	onDisconnect func(c Conn, msg string)
-	onError      func(err error)
+	onError      func(c Conn, err error)
 	events       map[string]*funcHandler
 }
 
@@ -30,7 +30,7 @@ func (h *namespaceHandler) OnDisconnect(f func(Conn, string)) {
 	h.onDisconnect = f
 }
 
-func (h *namespaceHandler) OnError(f func(error)) {
+func (h *namespaceHandler) OnError(f func(Conn, error)) {
 	h.onError = f
 }
 
@@ -77,7 +77,7 @@ func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, 
 			msg = args[0].Interface().(string)
 		}
 		if h.onError != nil {
-			h.onError(errors.New(msg))
+			h.onError(c, errors.New(msg))
 		}
 	case parser.Event:
 		namespaceHandler := h.events[event]
