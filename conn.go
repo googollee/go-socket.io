@@ -30,6 +30,12 @@ type Conn interface {
 	SetContext(v interface{})
 	Namespace() string
 	Emit(msg string, v ...interface{})
+
+	// Broadcast server side apis
+	Join(room string)
+	Leave(room string)
+	LeaveAll()
+	Rooms() []string
 }
 
 type errorMessage struct {
@@ -44,6 +50,7 @@ type writePacket struct {
 
 type conn struct {
 	engineio.Conn
+	broadcast  Broadcast
 	encoder    *parser.Encoder
 	decoder    *parser.Decoder
 	errorChan  chan errorMessage
@@ -55,9 +62,10 @@ type conn struct {
 	id         uint64
 }
 
-func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) (*conn, error) {
+func newConn(c engineio.Conn, handlers map[string]*namespaceHandler, broadcast Broadcast) (*conn, error) {
 	ret := &conn{
 		Conn:       c,
+		broadcast:  broadcast,
 		encoder:    parser.NewEncoder(c),
 		decoder:    parser.NewDecoder(c),
 		errorChan:  make(chan errorMessage),
@@ -83,7 +91,7 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) connect() error {
-	root := newNamespaceConn(c, "/")
+	root := newNamespaceConn(c, "/", c.broadcast)
 	c.namespaces[""] = root
 	header := parser.Header{
 		Type: parser.Connect,
@@ -225,7 +233,7 @@ func (c *conn) serveRead() {
 			}
 			conn, ok := c.namespaces[header.Namespace]
 			if !ok {
-				conn = newNamespaceConn(c, header.Namespace)
+				conn = newNamespaceConn(c, header.Namespace, c.broadcast)
 				c.namespaces[header.Namespace] = conn
 			}
 			handler, ok := c.handlers[header.Namespace]
