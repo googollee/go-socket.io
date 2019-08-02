@@ -34,6 +34,7 @@ Please check the example folder for details.
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
