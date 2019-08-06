@@ -94,13 +94,15 @@ type namespaceConn struct {
 	namespace string
 	acks      sync.Map
 	context   interface{}
+	broadcast Broadcast
 }
 
-func newNamespaceConn(conn *conn, namespace string) *namespaceConn {
+func newNamespaceConn(conn *conn, namespace string, broadcast Broadcast) *namespaceConn {
 	return &namespaceConn{
 		conn:      conn,
 		namespace: namespace,
 		acks:      sync.Map{},
+		broadcast: broadcast,
 	}
 }
 
@@ -142,6 +144,22 @@ func (c *namespaceConn) Emit(event string, v ...interface{}) {
 		args[i] = reflect.ValueOf(v[i-1])
 	}
 	c.conn.write(header, args)
+}
+
+func (c *namespaceConn) Join(room string) {
+	c.broadcast.Join(room, c)
+}
+
+func (c *namespaceConn) Leave(room string) {
+	c.broadcast.Leave(room, c)
+}
+
+func (c *namespaceConn) LeaveAll() {
+	c.broadcast.LeaveAll(c)
+}
+
+func (c *namespaceConn) Rooms() []string {
+	return c.broadcast.Rooms(c)
 }
 
 func (c *namespaceConn) dispatch(header parser.Header) {

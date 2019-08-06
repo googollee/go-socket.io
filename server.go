@@ -8,8 +8,9 @@ import (
 
 // Server is a go-socket.io server.
 type Server struct {
-	handlers map[string]*namespaceHandler
-	eio      *engineio.Server
+	broadcast Broadcast
+	handlers  map[string]*namespaceHandler
+	eio       *engineio.Server
 }
 
 // NewServer returns a server.
@@ -19,8 +20,9 @@ func NewServer(c *engineio.Options) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		handlers: make(map[string]*namespaceHandler),
-		eio:      eio,
+		handlers:  make(map[string]*namespaceHandler),
+		eio:       eio,
+		broadcast: NewBroadcast(),
 	}, nil
 }
 
@@ -70,8 +72,43 @@ func (s *Server) Serve() error {
 	}
 }
 
+// JoinRoom joins given connection to the room
+func (s *Server) JoinRoom(room string, connection Conn) {
+	s.broadcast.Join(room, connection)
+}
+
+// LeaveRoom leaves given connection from the room
+func (s *Server) LeaveRoom(room string, connection Conn) {
+	s.broadcast.Leave(room, connection)
+}
+
+// LeaveAllRooms leaves the given connection from all rooms
+func (s *Server) LeaveAllRooms(connection Conn) {
+	s.broadcast.LeaveAll(connection)
+}
+
+// ClearRoom clears the room
+func (s *Server) ClearRoom(room string) {
+	s.broadcast.Clear(room)
+}
+
+// BroadcastToRoom broadcasts given event & args to all the connections in the room
+func (s *Server) BroadcastToRoom(room, event string, args ...interface{}) {
+	s.broadcast.Send(room, event, args...)
+}
+
+// RoomLen gives number of connections in the room
+func (s *Server) RoomLen(room string) int {
+	return s.broadcast.Len(room)
+}
+
+//  Rooms gives list of all the rooms
+func (s *Server) Rooms() []string {
+	return s.broadcast.Rooms(nil)
+}
+
 func (s *Server) serveConn(c engineio.Conn) {
-	_, err := newConn(c, s.handlers)
+	_, err := newConn(c, s.handlers, s.broadcast)
 	if err != nil {
 		root := s.handlers[""]
 		if root != nil && root.onError != nil {
