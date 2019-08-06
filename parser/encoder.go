@@ -121,7 +121,7 @@ func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([
 
 func (e *Encoder) writeUint64(w byteWriter, i uint64) error {
 	base := uint64(1)
-	for i/base > 10 {
+	for i/base >= 10 {
 		base *= 10
 	}
 	for base > 0 {
