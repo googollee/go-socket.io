@@ -19,6 +19,7 @@ type session struct {
 	closeOnce sync.Once
 	context   interface{}
 
+	writeLocker   sync.RWMutex
 	upgradeLocker sync.RWMutex
 	transport     string
 	conn          base.Conn
@@ -162,7 +163,7 @@ func (s *session) nextWriter(ft base.FrameType, pt base.PacketType) (io.WriteClo
 			return nil, err
 		}
 		s.upgradeLocker.RUnlock()
-		return newWriter(w, &s.upgradeLocker), nil
+		return newWriter(w, &s.writeLocker), nil
 	}
 }
 
