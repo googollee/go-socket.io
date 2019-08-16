@@ -84,6 +84,11 @@ func newConn(c engineio.Conn, handlers map[string]*namespaceHandler, broadcast B
 func (c *conn) Close() error {
 	var err error
 	c.closeOnce.Do(func() {
+		// For each namespace, leave all rooms, and call the disconnect handler.
+		for ns, nc := range c.namespaces {
+			nc.LeaveAll()
+			c.handlers[ns].onDisconnect(nc, "bye")
+		}
 		err = c.Conn.Close()
 		close(c.quitChan)
 	})
