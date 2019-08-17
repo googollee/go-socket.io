@@ -87,7 +87,9 @@ func (c *conn) Close() error {
 		// For each namespace, leave all rooms, and call the disconnect handler.
 		for ns, nc := range c.namespaces {
 			nc.LeaveAll()
-			c.handlers[ns].onDisconnect(nc, "bye")
+			if nh := c.handlers[ns]; nh != nil {
+				nh.onDisconnect(nc, "bye")
+			}
 		}
 		err = c.Conn.Close()
 		close(c.quitChan)
