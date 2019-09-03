@@ -56,7 +56,10 @@ func (c *conn) SetReadDeadline(t time.Time) error {
 }
 
 func (c *conn) SetWriteDeadline(t time.Time) error {
-	return c.ws.SetWriteDeadline(t)
+	c.ws.writeLocker.Lock()
+	err := c.ws.SetWriteDeadline(t)
+	c.ws.writeLocker.Unlock()
+	return err
 }
 
 func (c *conn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
