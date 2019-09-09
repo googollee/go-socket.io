@@ -102,6 +102,11 @@ func (s *Server) RoomLen(room string) int {
 	return s.broadcast.Len(room)
 }
 
+// RoomLen gives number of connections in the room
+func (s *Server) RoomConnectionIDs(room string) []string {
+	return s.broadcast.ConnectionIDs(room)
+}
+
 //  Rooms gives list of all the rooms
 func (s *Server) Rooms() []string {
 	return s.broadcast.Rooms(nil)

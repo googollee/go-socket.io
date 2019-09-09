@@ -1,12 +1,10 @@
 # go-socket.io
 
-[![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
+[![GoDoc](http://godoc.org/github.com/MathCody/go-socket.io?status.svg)](http://godoc.org/github.com/MathCody/go-socket.io) [![Build Status](https://travis-ci.org/MathCody/go-socket.io.svg)](https://travis-ci.org/MathCody/go-socket.io)
 
 go-socket.io is an implementation of [Socket.IO](http://socket.io) in Golang, which is a realtime application framework.
 
 Currently this library supports 1.4 version of the Socket.IO client. It supports room and namespaces.
-
-**Help wanted** This project is looking for contributors to help fix bugs and implement new features. Please check [Issue 192](https://github.com/googollee/go-socket.io/issues/192). All help is much appreciated.
 
 * for compatibility with Socket.IO 0.9.x, please use branch 0.9.x *
 
@@ -15,13 +13,13 @@ Currently this library supports 1.4 version of the Socket.IO client. It supports
 Install the package with:
 
 ```bash
-go get github.com/googollee/go-socket.io
+go get github.com/MathCody/go-socket.io
 ```
 
 Import it with:
 
 ```go
-import "github.com/googollee/go-socket.io"
+import "github.com/MathCody/go-socket.io"
 ```
 
 and use `socketio` as the package name inside the code.
