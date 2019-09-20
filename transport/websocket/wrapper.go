@@ -17,7 +17,7 @@ type wrapper struct {
 
 func newWrapper(conn *websocket.Conn) wrapper {
 	return wrapper{
-		Conn: conn,
+		Conn:        conn,
 		writeLocker: new(sync.Mutex),
 	}
 }
@@ -47,8 +47,24 @@ func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
 	default:
 		return nil, transport.ErrInvalidFrame
 	}
+
 	w.writeLocker.Lock()
 	writer, err := w.Conn.NextWriter(t)
-	w.writeLocker.Unlock()
-	return writer, err
+	if err != nil {
+		w.writeLocker.Unlock()
+		return nil, err
+	}
+
+	return wcWrapper{w.writeLocker, writer}, nil
+}
+
+type wcWrapper struct {
+	l *sync.Mutex
+	io.WriteCloser
+}
+
+func (w wcWrapper) Close() error {
+	defer w.l.Unlock()
+	return w.WriteCloser.Close()
+
 }
