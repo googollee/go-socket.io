@@ -1,5 +1,7 @@
 module github.com/googollee/go-engine.io
 
+go 1.12
+
 require (
 	github.com/golang/lint v0.0.0-20181217174547-8f45f776aaf1 // indirect
 	github.com/gordonklaus/ineffassign v0.0.0-20180909121442-1003c8bd00dc // indirect

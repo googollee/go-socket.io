@@ -13,28 +13,44 @@ import (
 type wrapper struct {
 	*websocket.Conn
 	writeLocker *sync.Mutex
+	readLocker  *sync.Mutex
 }
 
 func newWrapper(conn *websocket.Conn) wrapper {
 	return wrapper{
 		Conn:        conn,
 		writeLocker: new(sync.Mutex),
+		readLocker:  new(sync.Mutex),
 	}
 }
 
 func (w wrapper) NextReader() (base.FrameType, io.ReadCloser, error) {
+	w.readLocker.Lock()
 	typ, r, err := w.Conn.NextReader()
+	// The wrapper remains locked until the returned ReadCloser is Closed.
 	if err != nil {
+		w.readLocker.Unlock()
 		return 0, nil, err
 	}
-	ret := ioutil.NopCloser(r)
+	rc := rcWrapper{w.readLocker, r}
 	switch typ {
 	case websocket.TextMessage:
-		return base.FrameString, ret, nil
+		return base.FrameString, rc, nil
 	case websocket.BinaryMessage:
-		return base.FrameBinary, ret, nil
+		return base.FrameBinary, rc, nil
 	}
 	return 0, nil, transport.ErrInvalidFrame
+}
+
+type rcWrapper struct {
+	l *sync.Mutex
+	io.Reader
+}
+
+func (r rcWrapper) Close() error {
+	_, err := io.Copy(ioutil.Discard, r)
+	r.l.Unlock()
+	return err
 }
 
 func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
@@ -50,6 +66,7 @@ func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
 
 	w.writeLocker.Lock()
 	writer, err := w.Conn.NextWriter(t)
+	// The wrapper remains locked until the returned WriteCloser is Closed.
 	if err != nil {
 		w.writeLocker.Unlock()
 		return nil, err
@@ -66,5 +83,4 @@ type wcWrapper struct {
 func (w wcWrapper) Close() error {
 	defer w.l.Unlock()
 	return w.WriteCloser.Close()
-
 }

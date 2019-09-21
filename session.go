@@ -19,7 +19,6 @@ type session struct {
 	closeOnce sync.Once
 	context   interface{}
 
-	writeLocker   sync.RWMutex
 	upgradeLocker sync.RWMutex
 	transport     string
 	conn          base.Conn
@@ -27,16 +26,21 @@ type session struct {
 
 func newSession(m *manager, t string, conn base.Conn, params base.ConnParameters) (*session, error) {
 	params.SID = m.NewID()
-	ret := &session{
+	ses := &session{
 		transport: t,
 		conn:      conn,
 		params:    params,
 		manager:   m,
 	}
-	m.Add(ret)
-	ret.setDeadline()
 
-	return ret, nil
+	if err := ses.setDeadline(); err != nil {
+		ses.Close()
+		return nil, err
+	}
+
+	m.Add(ses)
+
+	return ses, nil
 }
 
 func (s *session) SetContext(v interface{}) {
@@ -66,39 +70,56 @@ func (s *session) Close() error {
 	return s.conn.Close()
 }
 
+// NextReader attempts to obtain a ReadCloser from the session's connection.
+// when finished writing, The caller MUST Close the ReadCloser to unlock the
+// connection's FramerReader.
 func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
 	for {
 		ft, pt, r, err := s.nextReader()
 		if err != nil {
+			s.Close()
 			return 0, nil, err
 		}
 		switch pt {
 		case base.PING:
+			// Respond to a ping with a pong.
 			err := func() error {
 				w, err := s.nextWriter(ft, base.PONG)
 				if err != nil {
 					return err
 				}
-				io.Copy(w, r)
-				return w.Close()
+				// echo?
+				_, err = io.Copy(w, r)
+				w.Close() // unlocks the wrapped connection's FrameWriter
+				r.Close() // unlocks the wrapped connection's FrameReader
+				return err
 			}()
-			r.Close()
 			if err != nil {
 				s.Close()
 				return 0, nil, err
 			}
-			s.setDeadline()
+			// Read another frame.
+			if err := s.setDeadline(); err != nil {
+				s.Close()
+				return 0, nil, err
+			}
 		case base.CLOSE:
-			r.Close()
+			r.Close() // unlocks the wrapped connection's FrameReader
 			s.Close()
 			return 0, nil, io.EOF
 		case base.MESSAGE:
+			// Caller must Close the ReadCloser to unlock the connection's
+			// FrameReader when finished reading.
 			return FrameType(ft), r, nil
 		}
+		// Unknown packet type. Close reader and try again.
 		r.Close()
 	}
 }
 
+// NextWriter attempts to obtain a WriteCloser from the session's connection.
+// When finished writing, the caller MUST Close the WriteCloser to unlock the
+// connection's FrameWriter.
 func (s *session) NextWriter(typ FrameType) (io.WriteCloser, error) {
 	return s.nextWriter(base.FrameType(typ), base.MESSAGE)
 }
@@ -128,61 +149,50 @@ func (s *session) RemoteHeader() http.Header {
 }
 
 func (s *session) nextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
-	var ft base.FrameType
-	var pt base.PacketType
-	var r io.ReadCloser
-	var err error
 	for {
 		s.upgradeLocker.RLock()
-		ft, pt, r, err = s.conn.NextReader()
+		conn := s.conn
+		s.upgradeLocker.RUnlock()
+		ft, pt, r, err := conn.NextReader()
 		if err != nil {
-			s.upgradeLocker.RUnlock()
-			if op, ok := err.(payload.Error); ok {
-				if op.Temporary() {
-					continue
-				}
+			if op, ok := err.(payload.Error); ok && op.Temporary() {
+				continue
 			}
 			return 0, 0, nil, err
 		}
-		s.upgradeLocker.RUnlock()
-		return ft, pt, newReader(r, &s.upgradeLocker), nil
+		return ft, pt, r, nil
 	}
 }
 
 func (s *session) nextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
 	for {
 		s.upgradeLocker.RLock()
-		w, err := s.conn.NextWriter(ft, pt)
+		conn := s.conn
+		s.upgradeLocker.RUnlock()
+		w, err := conn.NextWriter(ft, pt)
 		if err != nil {
-			s.upgradeLocker.RUnlock()
-			if op, ok := err.(payload.Error); ok {
-				if op.Temporary() {
-					continue
-				}
+			if op, ok := err.(payload.Error); ok && op.Temporary() {
+				continue
 			}
 			return nil, err
 		}
-		s.upgradeLocker.RUnlock()
-		return newWriter(w, &s.writeLocker), nil
+		// Caller must Close the WriteCloser to unlock the connection's
+		// FrameWriter when finished writing.
+		return w, nil
 	}
 }
 
-func (s *session) setDeadline() {
+func (s *session) setDeadline() error {
+	s.upgradeLocker.RLock()
+	defer s.upgradeLocker.RUnlock()
+
 	deadline := time.Now().Add(s.params.PingTimeout)
-	var conn base.Conn
-	for {
-		s.upgradeLocker.RLock()
-		same := conn == s.conn
-		conn = s.conn
-		s.upgradeLocker.RUnlock()
 
-		if same {
-			return
-		}
-
-		s.conn.SetReadDeadline(deadline)
-		s.conn.SetWriteDeadline(deadline)
+	err := s.conn.SetReadDeadline(deadline)
+	if err != nil {
+		return err
 	}
+	return s.conn.SetWriteDeadline(deadline)
 }
 
 func (s *session) upgrade(transport string, conn base.Conn) {
@@ -200,9 +210,12 @@ func (s *session) serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *session) upgrading(t string, conn base.Conn) {
-	deadline := time.Now().Add(s.params.PingTimeout)
-	conn.SetReadDeadline(deadline)
-	conn.SetWriteDeadline(deadline)
+	// Read a ping from the client.
+	err := conn.SetReadDeadline(time.Now().Add(s.params.PingTimeout))
+	if err != nil {
+		conn.Close()
+		return
+	}
 
 	ft, pt, r, err := conn.NextReader()
 	if err != nil {
@@ -213,7 +226,14 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		conn.Close()
 		return
 	}
-	if err := r.Close(); err != nil {
+	if err = r.Close(); err != nil {
+		conn.Close()
+		return
+	}
+
+	// Sent a pong in reply.
+	err = conn.SetWriteDeadline(time.Now().Add(s.params.PingTimeout))
+	if err != nil {
 		conn.Close()
 		return
 	}
@@ -223,15 +243,17 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		conn.Close()
 		return
 	}
-	if _, err := io.Copy(w, r); err != nil {
+	// echo?
+	if _, err = io.Copy(w, r); err != nil {
 		conn.Close()
 		return
 	}
-	if err := w.Close(); err != nil {
+	if err = w.Close(); err != nil {
 		conn.Close()
 		return
 	}
 
+	// Pause the old connection.
 	s.upgradeLocker.RLock()
 	old := s.conn
 	s.upgradeLocker.RUnlock()
@@ -242,12 +264,14 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 	p.Pause()
+	// Prepare to resume the connection if upgrade fails.
 	defer func() {
 		if p != nil {
 			p.Resume()
 		}
 	}()
 
+	// Check for upgrade packet from the client.
 	_, pt, r, err = conn.NextReader()
 	if err != nil {
 		conn.Close()
@@ -257,11 +281,12 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		conn.Close()
 		return
 	}
-	if err := r.Close(); err != nil {
+	if err = r.Close(); err != nil {
 		conn.Close()
 		return
 	}
 
+	// Successful upgrade.
 	s.upgradeLocker.Lock()
 	s.conn = conn
 	s.transport = t
