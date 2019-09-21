@@ -111,9 +111,10 @@ func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
 			// Caller must Close the ReadCloser to unlock the connection's
 			// FrameReader when finished reading.
 			return FrameType(ft), r, nil
+		default:
+			// Unknown packet type. Close reader and try again.
+			r.Close()
 		}
-		// Unknown packet type. Close reader and try again.
-		r.Close()
 	}
 }
 
