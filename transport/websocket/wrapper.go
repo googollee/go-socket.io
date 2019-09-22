@@ -48,9 +48,9 @@ type rcWrapper struct {
 }
 
 func (r rcWrapper) Close() error {
-	_, err := io.Copy(ioutil.Discard, r)
+	io.Copy(ioutil.Discard, r) // reader may be closed, ignore error
 	r.l.Unlock()
-	return err
+	return nil
 }
 
 func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
