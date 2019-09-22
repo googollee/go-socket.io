@@ -37,18 +37,18 @@ func main() {
 
 					w, err := conn.NextWriter(ft)
 					if err != nil {
+						r.Close()
 						fmt.Println("write error:", err)
 						return
 					}
 
 					_, err = io.Copy(w, r)
+					w.Close()
+					r.Close()
 					if err != nil {
 						fmt.Println("copy error:", err)
 						return
 					}
-
-					w.Close()
-					r.Close()
 				}
 			}(conn)
 		}

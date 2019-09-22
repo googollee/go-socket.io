@@ -57,10 +57,12 @@ func (c *clientConn) Open() (base.ConnParameters, error) {
 		return base.ConnParameters{}, err
 	}
 	if pt != base.OPEN {
+		r.Close()
 		return base.ConnParameters{}, errors.New("invalid open")
 	}
 	conn, err := base.ReadConnParameters(r)
 	if err != nil {
+		r.Close()
 		return base.ConnParameters{}, err
 	}
 	err = r.Close()

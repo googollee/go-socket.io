@@ -34,6 +34,7 @@ func main() {
 			}
 			b, err := ioutil.ReadAll(r)
 			if err != nil {
+				r.Close()
 				log.Println("read all error:", err)
 				return
 			}
@@ -53,6 +54,7 @@ func main() {
 			return
 		}
 		if _, err := w.Write([]byte("hello")); err != nil {
+			w.Close()
 			log.Println("write error:", err)
 			return
 		}
@@ -67,6 +69,7 @@ func main() {
 			return
 		}
 		if _, err := w.Write([]byte{1, 2, 3, 4}); err != nil {
+			w.Close()
 			log.Println("write error:", err)
 			return
 		}

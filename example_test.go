@@ -33,17 +33,23 @@ func ExampleServer() {
 				}
 				w, err := conn.NextWriter(typ)
 				if err != nil {
+					r.Close()
 					log.Fatalln("write error:", err)
 					return
 				}
 				_, err = io.Copy(w, r)
 				if err != nil {
+					r.Close()
+					w.Close()
 					log.Fatalln("copy error:", err)
 					return
 				}
-				err = w.Close()
-				if err != nil {
+				if err = w.Close(); err != nil {
 					log.Fatalln("close writer error:", err)
+					return
+				}
+				if err = r.Close(); err != nil {
+					log.Fatalln("close reader error:", err)
 					return
 				}
 			}

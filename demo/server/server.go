@@ -50,6 +50,7 @@ func main() {
 								return
 							}
 							if _, err := w.Write(d.data); err != nil {
+								w.Close()
 								log.Println("write error:", err)
 								return
 							}
@@ -71,6 +72,7 @@ func main() {
 					}
 					b, err := ioutil.ReadAll(r)
 					if err != nil {
+						r.Close()
 						log.Println("read all error:", err)
 						break
 					}

@@ -96,6 +96,7 @@ func TestDecoder(t *testing.T) {
 			}
 			b, err := ioutil.ReadAll(fr)
 			at.Nil(err)
+			fr.Close()
 			output = append(output, Packet{
 				ft:   ft,
 				pt:   pt,
@@ -123,7 +124,9 @@ func BenchmarkDecoder(b *testing.B) {
 	decoder := NewDecoder(r)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		decoder.NextReader()
-		decoder.NextReader()
+		_, _, fr, _ := decoder.NextReader()
+		fr.Close()
+		_, _, fr, _ = decoder.NextReader()
+		fr.Close()
 	}
 }
