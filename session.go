@@ -71,7 +71,7 @@ func (s *session) Close() error {
 }
 
 // NextReader attempts to obtain a ReadCloser from the session's connection.
-// when finished writing, The caller MUST Close the ReadCloser to unlock the
+// When finished writing, the caller MUST Close the ReadCloser to unlock the
 // connection's FramerReader.
 func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
 	for {
