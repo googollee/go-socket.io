@@ -34,13 +34,13 @@ func (w wrapper) NextReader() (base.FrameType, io.ReadCloser, error) {
 		w.readLocker.Unlock()
 		return 0, nil, err
 	}
-	rc := newRcWrapper(w.readLocker, r)
 	switch typ {
 	case websocket.TextMessage:
-		return base.FrameString, rc, nil
+		return base.FrameString, newRcWrapper(w.readLocker, r), nil
 	case websocket.BinaryMessage:
-		return base.FrameBinary, rc, nil
+		return base.FrameBinary, newRcWrapper(w.readLocker, r), nil
 	}
+	w.readLocker.Unlock()
 	return 0, nil, transport.ErrInvalidFrame
 }
 
