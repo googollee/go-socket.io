@@ -83,6 +83,8 @@ func TestWebsocket(t *testing.T) {
 			at.Equal(test.pt, pt)
 			b, err := ioutil.ReadAll(r)
 			at.Nil(err)
+			err = r.Close()
+			at.Nil(err)
 			at.Equal(test.data, b)
 
 			w, err := cc.NextWriter(ft, pt)
@@ -107,6 +109,8 @@ func TestWebsocket(t *testing.T) {
 		at.Equal(test.ft, ft)
 		at.Equal(test.pt, pt)
 		b, err := ioutil.ReadAll(r)
+		at.Nil(err)
+		err = r.Close()
 		at.Nil(err)
 		at.Equal(test.data, b)
 	}
