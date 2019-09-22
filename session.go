@@ -88,7 +88,7 @@ func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
 				if err != nil {
 					return err
 				}
-				// echo?
+				// echo
 				_, err = io.Copy(w, r)
 				w.Close() // unlocks the wrapped connection's FrameWriter
 				r.Close() // unlocks the wrapped connection's FrameReader
@@ -227,10 +227,7 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		conn.Close()
 		return
 	}
-	if err = r.Close(); err != nil {
-		conn.Close()
-		return
-	}
+	// Wait to close the reader until after data is read and echoed in the reply.
 
 	// Sent a pong in reply.
 	err = conn.SetWriteDeadline(time.Now().Add(s.params.PingTimeout))
@@ -244,8 +241,12 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		conn.Close()
 		return
 	}
-	// echo?
+	// echo
 	if _, err = io.Copy(w, r); err != nil {
+		conn.Close()
+		return
+	}
+	if err = r.Close(); err != nil {
 		conn.Close()
 		return
 	}
