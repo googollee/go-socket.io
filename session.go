@@ -224,6 +224,7 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 	if pt != base.PING {
+		r.Close()
 		conn.Close()
 		return
 	}
@@ -232,21 +233,26 @@ func (s *session) upgrading(t string, conn base.Conn) {
 	// Sent a pong in reply.
 	err = conn.SetWriteDeadline(time.Now().Add(s.params.PingTimeout))
 	if err != nil {
+		r.Close()
 		conn.Close()
 		return
 	}
 
 	w, err := conn.NextWriter(ft, base.PONG)
 	if err != nil {
+		r.Close()
 		conn.Close()
 		return
 	}
 	// echo
 	if _, err = io.Copy(w, r); err != nil {
+		w.Close()
+		r.Close()
 		conn.Close()
 		return
 	}
 	if err = r.Close(); err != nil {
+		w.Close()
 		conn.Close()
 		return
 	}
@@ -280,6 +286,7 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		return
 	}
 	if pt != base.UPGRADE {
+		r.Close()
 		conn.Close()
 		return
 	}
