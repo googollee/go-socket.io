@@ -81,7 +81,6 @@ type Server struct {
 	sessions       *manager
 	requestChecker func(*http.Request) (http.Header, error)
 	connInitor     func(*http.Request, Conn)
-	locker         sync.RWMutex
 	connChan       chan Conn
 	closeOnce      sync.Once
 }
