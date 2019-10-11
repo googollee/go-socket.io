@@ -6,6 +6,8 @@ go-socket.io is an implementation of [Socket.IO](http://socket.io) in Golang, wh
 
 Currently this library supports 1.4 version of the Socket.IO client. It supports room and namespaces.
 
+Go 1.9+ is required!
+
 **Help wanted** This project is looking for contributors to help fix bugs and implement new features. Please check [Issue 192](https://github.com/googollee/go-socket.io/issues/192). All help is much appreciated.
 
 * for compatibility with Socket.IO 0.9.x, please use branch 0.9.x *
