@@ -22,8 +22,8 @@ func TestNamespaceHandler(t *testing.T) {
 	})
 
 	disconnectMsg := ""
-	h.OnDisconnect(func(c Conn, msg string) {
-		disconnectMsg = msg
+	h.OnDisconnect(func(c Conn, reason string) {
+		disconnectMsg = reason
 	})
 
 	var onerror error
