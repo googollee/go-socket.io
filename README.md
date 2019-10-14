@@ -136,6 +136,11 @@ so.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
 })
 ```
 
+## Contributors
+
+This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+<a href="https://github.com/googollee/go-socket.io/graphs/contributors">
+
 ## License
 
 The 3-clause BSD License  - see LICENSE for more details
