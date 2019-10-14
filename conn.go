@@ -166,7 +166,7 @@ func (c *conn) serveError() {
 		case msg := <-c.errorChan:
 			if handler := c.namespace(msg.namespace); handler != nil {
 				if handler.onError != nil {
-					handler.onError(msg.error)
+					handler.onError(c.namespaces[msg.namespace], msg.error)
 				}
 			}
 		}
