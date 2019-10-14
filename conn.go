@@ -88,7 +88,7 @@ func (c *conn) Close() error {
 		for ns, nc := range c.namespaces {
 			nc.LeaveAll()
 			if nh := c.handlers[ns]; nh != nil {
-				nh.onDisconnect(nc, "bye")
+				nh.onDisconnect(nc, "client namespace disconnect")
 			}
 		}
 		err = c.Conn.Close()

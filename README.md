@@ -68,8 +68,8 @@ func main() {
 	server.OnError("/", func(e error) {
 		fmt.Println("meet error:", e)
 	})
-	server.OnDisconnect("/", func(s socketio.Conn, msg string) {
-		fmt.Println("closed", msg)
+	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		fmt.Println("closed", reason)
 	})
 	go server.Serve()
 	defer server.Close()
@@ -135,6 +135,25 @@ so.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
 	log.Println("Client ACK with data: ", data)
 })
 ```
+
+##### Cautch Disconnected reason
+
+* Server-side
+
+```go
+
+so.OnDisconnect("/", func(so socketio.Conn, reason string) {
+  	log.Println("closed", reason)
+})
+```
+
+Possible reasons:
+
+
+| Reason | Side | Description |
+|------------|-------------|------------|
+| client namespace disconnect | Client Side | Got disconnect packet from client |
+
 
 ## License
 
