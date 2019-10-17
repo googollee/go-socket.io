@@ -10,6 +10,15 @@ Currently this library supports 1.4 version of the Socket.IO client. It supports
 
 * for compatibility with Socket.IO 0.9.x, please use branch 0.9.x *
 
+
+## Contents
+
+- [Install](#install)
+- [Last changes](#last-changes)
+- [Example](#example)
+- [Contributors](#contributors)
+- [License](#license)
+
 ## Install
 
 Install the package with:
@@ -25,6 +34,14 @@ import "github.com/googollee/go-socket.io"
 ```
 
 and use `socketio` as the package name inside the code.
+
+## Last changes
+
+*Important changes:*
+| Short info | Description | Date |
+|------------|-------------|------------|
+| Changed signature of `OnError`  | Changed signature of `OnError` *From:* `server.OnError(string, func(error))` *To:* `server.OnError(string, func(Conn, error))` | 2019-10-16 |
+
 
 ## Example
 
