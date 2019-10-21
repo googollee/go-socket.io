@@ -4,25 +4,30 @@ import "sync"
 
 // Broadcast is the adaptor to handle broadcasts & rooms for socket.io server API
 type Broadcast interface {
-	Join(room string, connection Conn)            // Join causes the connection to join a room
-	Leave(room string, connection Conn)           // Leave causes the connection to leave a room
-	LeaveAll(connection Conn)                     // LeaveAll causes given connection to leave all rooms
-	Clear(room string)                            // Clear causes removal of all connections from the room
-	Send(room, event string, args ...interface{}) // Send will send an event with args to the room
-	SendAll(event string, args ...interface{})    // SendAll will send an event with args to all the rooms
-	Len(room string) int                          // Len gives number of connections in the room
-	Rooms(connection Conn) []string               // Gives list of all the rooms if no connection given, else list of all the rooms the connection joined
+	Join(room string, connection Conn)            				// Join causes the connection to join a room
+	Leave(room string, connection Conn)           				// Leave causes the connection to leave a room
+	LeaveAll(connection Conn)                     				// LeaveAll causes given connection to leave all rooms
+	Clear(room string)                            				// Clear causes removal of all connections from the room
+	Send(room, event string, args ...interface{}) 				// Send will send an event with args to the room
+	SendAll(event string, args ...interface{})    				// SendAll will send an event with args to all the rooms
+	Len(room string) int                          				// Len gives number of connections in the room
+	Rooms(connection Conn) []string               				// Gives list of all the rooms if no connection given, else list of all the rooms the connection joined
+	Emit(connectId string, event string, args ...interface{})	// Emit will send an event with args to target socket connection
 }
 
 // broadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
 type broadcast struct {
 	rooms map[string]map[string]Conn // map of rooms where each room contains a map of connection id to connections in that room
+	connections map[string]Conn 	 // map of connection id to all connections
 	lock  sync.RWMutex               // access lock for rooms
 }
 
 // NewBroadcast creates a new broadcast adapter
 func NewBroadcast() Broadcast {
-	return &broadcast{rooms: make(map[string]map[string]Conn)}
+	return &broadcast{
+		rooms: make(map[string]map[string]Conn),
+		connections: make(map[string]Conn),
+	}
 }
 
 // Join joins the given connection to the broadcast room
@@ -38,6 +43,9 @@ func (broadcast *broadcast) Join(room string, connection Conn) {
 
 	// add the connection to the rooms connection map
 	broadcast.rooms[room][connection.ID()] = connection
+
+	// add the connection to the connetions store map
+	broadcast.connections[connection.ID()] = connection
 }
 
 // Leave leaves the given connection from given room (if exist)
@@ -50,6 +58,9 @@ func (broadcast *broadcast) Leave(room string, connection Conn) {
 	if connections, ok := broadcast.rooms[room]; ok {
 		// remove the connection from the room
 		delete(connections, connection.ID())
+
+		// remove the connection from the connections store
+		delete(broadcast.connections, connection.ID())
 
 		// check if no more connection is left to the room, then delete the room
 		if len(connections) == 0 {
@@ -69,6 +80,9 @@ func (broadcast *broadcast) LeaveAll(connection Conn) {
 		// remove the connection from the rooms connections
 		delete(connections, connection.ID())
 
+		// remove the connection from the connections store
+		delete(broadcast.connections, connection.ID())
+
 		// check if no more connection is left to the room, then delete the room
 		if len(connections) == 0 {
 			delete(broadcast.rooms, room)
@@ -81,6 +95,11 @@ func (broadcast *broadcast) Clear(room string) {
 	// get write lock
 	broadcast.lock.Lock()
 	defer broadcast.lock.Unlock()
+
+	for _, connection := range broadcast.rooms[room] {
+		// remove the connection from the connections store by the room
+		delete(broadcast.connections, connection.ID())
+	}
 
 	// delete the room
 	delete(broadcast.rooms, room)
@@ -147,4 +166,14 @@ func (broadcast *broadcast) Rooms(connection Conn) []string {
 		}
 	}
 	return rooms
+}
+
+//TODO: Emit if you join to the broadcast room без подключения к комнате
+func (broadcast *broadcast) Emit(connectId string, event string, args ...interface{}) {
+	broadcast.lock.RLock()
+	defer broadcast.lock.RUnlock()
+
+	if connection, ok := broadcast.connections[connectId]; ok {
+		connection.Emit(event, args...)
+	}
 }
