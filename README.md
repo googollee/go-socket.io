@@ -2,6 +2,8 @@
 
 [![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
 
+[![Coverage Status](https://coveralls.io/repos/github/googollee/go-socket.io/badge.svg?branch=v1.4)](https://coveralls.io/github/googollee/go-socket.io?branch=v1.4)
+
 go-socket.io is an implementation of [Socket.IO](http://socket.io) in Golang, which is a realtime application framework.
 
 Currently this library supports 1.4 version of the Socket.IO client. It supports room and namespaces.
