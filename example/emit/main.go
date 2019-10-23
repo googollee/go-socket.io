@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 	"sync"
+	"time"
 
 	socketio "github.com/googollee/go-socket.io"
 )
@@ -31,11 +31,11 @@ func main() {
 	})
 	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
 		fmt.Println("notice:", msg)
-		server.Emit(s.ID(), "reply", "notice message " + msg)
+		server.Emit(s.ID(), "reply", "notice message "+msg)
 	})
 	server.OnEvent("/chat", "msg", func(s socketio.Conn, msg string) string {
 		s.SetContext(msg)
-		server.Emit(s.ID(), "reply", "chat msg " + msg)
+		server.Emit(s.ID(), "reply", "chat msg "+msg)
 		fmt.Println("connect id", s.ID())
 		return "recv " + msg
 	})

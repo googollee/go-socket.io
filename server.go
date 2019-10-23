@@ -98,8 +98,8 @@ func (s *Server) BroadcastToRoom(room, event string, args ...interface{}) {
 }
 
 // Emit emit to message given connectId, event & args to target connetion
-func (s *Server) Emit(connectId, event string, args ...interface{}) {
-	s.broadcast.Emit(connectId, event, args...)
+func (s *Server) Emit(connectID, event string, args ...interface{}) {
+	s.broadcast.Emit(connectID, event, args...)
 }
 
 // RoomLen gives number of connections in the room
@@ -107,7 +107,7 @@ func (s *Server) RoomLen(room string) int {
 	return s.broadcast.Len(room)
 }
 
-//  Rooms gives list of all the rooms
+// Rooms gives list of all the rooms
 func (s *Server) Rooms() []string {
 	return s.broadcast.Rooms(nil)
 }

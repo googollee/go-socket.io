@@ -4,28 +4,28 @@ import "sync"
 
 // Broadcast is the adaptor to handle broadcasts & rooms for socket.io server API
 type Broadcast interface {
-	Join(room string, connection Conn)            				// Join causes the connection to join a room
-	Leave(room string, connection Conn)           				// Leave causes the connection to leave a room
-	LeaveAll(connection Conn)                     				// LeaveAll causes given connection to leave all rooms
-	Clear(room string)                            				// Clear causes removal of all connections from the room
-	Send(room, event string, args ...interface{}) 				// Send will send an event with args to the room
-	SendAll(event string, args ...interface{})    				// SendAll will send an event with args to all the rooms
-	Len(room string) int                          				// Len gives number of connections in the room
-	Rooms(connection Conn) []string               				// Gives list of all the rooms if no connection given, else list of all the rooms the connection joined
-	Emit(connectId string, event string, args ...interface{})	// Emit will send an event with args to target socket connection
+	Join(room string, connection Conn)                        // Join causes the connection to join a room
+	Leave(room string, connection Conn)                       // Leave causes the connection to leave a room
+	LeaveAll(connection Conn)                                 // LeaveAll causes given connection to leave all rooms
+	Clear(room string)                                        // Clear causes removal of all connections from the room
+	Send(room, event string, args ...interface{})             // Send will send an event with args to the room
+	SendAll(event string, args ...interface{})                // SendAll will send an event with args to all the rooms
+	Len(room string) int                                      // Len gives number of connections in the room
+	Rooms(connection Conn) []string                           // Gives list of all the rooms if no connection given, else list of all the rooms the connection joined
+	Emit(connectID string, event string, args ...interface{}) // Emit will send an event with args to target socket connection
 }
 
 // broadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
 type broadcast struct {
-	rooms map[string]map[string]Conn // map of rooms where each room contains a map of connection id to connections in that room
-	connections map[string]Conn 	 // map of connection id to all connections
-	lock  sync.RWMutex               // access lock for rooms
+	rooms       map[string]map[string]Conn // map of rooms where each room contains a map of connection id to connections in that room
+	connections map[string]Conn            // map of connection id to all connections
+	lock        sync.RWMutex               // access lock for rooms
 }
 
 // NewBroadcast creates a new broadcast adapter
 func NewBroadcast() Broadcast {
 	return &broadcast{
-		rooms: make(map[string]map[string]Conn),
+		rooms:       make(map[string]map[string]Conn),
 		connections: make(map[string]Conn),
 	}
 }
@@ -148,21 +148,14 @@ func (broadcast *broadcast) Len(room string) int {
 func (broadcast *broadcast) Rooms(connection Conn) []string {
 	broadcast.lock.RLock()
 	defer broadcast.lock.RUnlock()
+	rooms := make([]string, 0)
 
 	if connection == nil {
-		// create a new list of all the room names
-		rooms := make([]string, 0)
-
 		// iterate through the rooms map and add the room name to the above list
 		for room := range broadcast.rooms {
 			rooms = append(rooms, room)
 		}
-
-		return rooms
 	} else {
-		// create a new list of all the room names the connection is joined to
-		rooms := make([]string, 0)
-
 		// iterate through the rooms map and add the room name to the above list
 		for room, connections := range broadcast.rooms {
 			// check if the connection is joined to the room
@@ -171,17 +164,16 @@ func (broadcast *broadcast) Rooms(connection Conn) []string {
 				rooms = append(rooms, room)
 			}
 		}
-
-		return rooms
 	}
+	return rooms
 }
 
-//TODO: Emit if you join to the broadcast room без подключения к комнате
-func (broadcast *broadcast) Emit(connectId string, event string, args ...interface{}) {
+// Emit emits given connetionID, event & args to target clientID by connection
+func (broadcast *broadcast) Emit(connectID string, event string, args ...interface{}) {
 	broadcast.lock.RLock()
 	defer broadcast.lock.RUnlock()
 
-	if connection, ok := broadcast.connections[connectId]; ok {
+	if connection, ok := broadcast.connections[connectID]; ok {
 		connection.Emit(event, args...)
 	}
 }
