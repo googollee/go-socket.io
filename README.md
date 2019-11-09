@@ -44,6 +44,7 @@ and use `socketio` as the package name inside the code.
 ## Last changes
 
 *Important changes:*
+
 | Short info | Description | Date |
 |------------|-------------|------------|
 | Changed signature of `OnError`  | Changed signature of `OnError` *From:* `server.OnError(string, func(error))` *To:* `server.OnError(string, func(Conn, error))` | 2019-10-16 |
