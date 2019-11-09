@@ -35,8 +35,8 @@ func main() {
 	server.OnError("/", func(e error) {
 		fmt.Println("meet error:", e)
 	})
-	server.OnDisconnect("/", func(s socketio.Conn, msg string) {
-		fmt.Println("closed", msg)
+	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		fmt.Println("closed", reason)
 	})
 	go server.Serve()
 	defer server.Close()
