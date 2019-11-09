@@ -160,6 +160,7 @@ so.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
 })
 ```
 
+<<<<<<< HEAD
 ##### Cautch Disconnected reason
 
 * Server-side
@@ -177,6 +178,11 @@ Possible reasons:
 | Reason | Side | Description |
 |------------|-------------|------------|
 | client namespace disconnect | Client Side | Got disconnect packet from client |
+=======
+## Community
+
+Telegram chat: [@go_socketio](https://t.me/go_socketio)
+>>>>>>> docs: update readme
 
 
 ## Community
