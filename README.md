@@ -138,6 +138,11 @@ so.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
 })
 ```
 
+## Community
+
+Telegram chat: [@go_socketio](https://t.me/go_socketio)
+
+
 ## Contributors
 
 This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
