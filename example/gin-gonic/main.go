@@ -47,7 +47,7 @@ func main() {
 
 	router.GET("/socket.io/*any", gin.WrapH(server))
 	router.POST("/socket.io/*any", gin.WrapH(server))
-	router.StaticFS("/", http.Dir("../asset"))
+	router.StaticFS("/public", http.Dir("../asset"))
 
 	router.Run()
 }

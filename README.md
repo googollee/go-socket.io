@@ -2,9 +2,15 @@
 
 [![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) [![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
 
+[![Coverage Status](https://coveralls.io/repos/github/googollee/go-socket.io/badge.svg?branch=v1.4)](https://coveralls.io/github/googollee/go-socket.io?branch=v1.4)
+
+[![Go Report Card](https://goreportcard.com/badge/github.com/googollee/go-socket.io)](https://goreportcard.com/report/github.com/googollee/go-socket.io)
+
 go-socket.io is an implementation of [Socket.IO](http://socket.io) in Golang, which is a realtime application framework.
 
 Currently this library supports 1.4 version of the Socket.IO client. It supports room and namespaces.
+
+Go 1.9+ is required!
 
 **Help wanted** This project is looking for contributors to help fix bugs and implement new features. Please check [Issue 192](https://github.com/googollee/go-socket.io/issues/192). All help is much appreciated.
 
@@ -154,6 +160,16 @@ Possible reasons:
 |------------|-------------|------------|
 | client namespace disconnect | Client Side | Got disconnect packet from client |
 
+
+## Community
+
+Telegram chat: [@go_socketio](https://t.me/go_socketio)
+
+
+## Contributors
+
+This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+<a href="https://github.com/googollee/go-socket.io/graphs/contributors">
 
 ## License
 
