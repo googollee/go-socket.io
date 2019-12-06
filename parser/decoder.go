@@ -105,6 +105,8 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 		if err == io.EOF {
 			err = nil
 		}
+		d.lastFrame.Close()
+		d.lastFrame = nil
 		return nil, err
 	}
 	d.lastFrame.Close()
