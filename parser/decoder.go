@@ -102,15 +102,19 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 		values[i] = ret[i].Interface()
 	}
 
-	defer func() {
-		_ = d.lastFrame.Close()
-		d.lastFrame = nil
-	}()
-	
-	if err := json.NewDecoder(r).Decode(&values); err != nil {
-		if err == io.EOF {
-			err = nil
+	if err := func() error {
+		defer func() {
+			_ = d.lastFrame.Close()
+			d.lastFrame = nil
+		}()
+		if err := json.NewDecoder(r).Decode(&values); err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return err
 		}
+		return nil
+	}; err!=nil {
 		return nil, err
 	}
 	
