@@ -10,7 +10,6 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 )
 
-
 func GinMiddleware(allowOrigin string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
@@ -29,7 +28,7 @@ func GinMiddleware(allowOrigin string) gin.HandlerFunc {
 	}
 }
 
-func main(){
+func main() {
 	router := gin.New()
 	server, err := socketio.NewServer(nil)
 	if err != nil {
@@ -64,7 +63,6 @@ func main(){
 	go server.Serve()
 	defer server.Close()
 
-
 	router.Use(GinMiddleware("http://localhost:3000"))
 	router.GET("/socket.io/*any", gin.WrapH(server))
 	router.POST("/socket.io/*any", gin.WrapH(server))
@@ -72,4 +70,3 @@ func main(){
 
 	router.Run()
 }
-
