@@ -130,20 +130,13 @@ func (broadcast *broadcast) Rooms(connection Conn) []string {
 	broadcast.lock.RLock()
 	defer broadcast.lock.RUnlock()
 
-	if connection == nil {
-		// create a new list of all the room names
-		rooms := make([]string, 0)
-
+	rooms := make([]string, 0)
+	if connection == nil { // create a new list of all the room names
 		// iterate through the rooms map and add the room name to the above list
 		for room := range broadcast.rooms {
 			rooms = append(rooms, room)
 		}
-
-		return rooms
-	} else {
-		// create a new list of all the room names the connection is joined to
-		rooms := make([]string, 0)
-
+	} else { // create a new list of all the room names the connection is joined to
 		// iterate through the rooms map and add the room name to the above list
 		for room, connections := range broadcast.rooms {
 			// check if the connection is joined to the room
@@ -152,7 +145,6 @@ func (broadcast *broadcast) Rooms(connection Conn) []string {
 				rooms = append(rooms, room)
 			}
 		}
-
-		return rooms
 	}
+	return rooms
 }

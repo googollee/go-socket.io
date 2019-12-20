@@ -102,7 +102,7 @@ func (s *Server) RoomLen(room string) int {
 	return s.broadcast.Len(room)
 }
 
-//  Rooms gives list of all the rooms
+// Rooms gives list of all the rooms
 func (s *Server) Rooms() []string {
 	return s.broadcast.Rooms(nil)
 }
