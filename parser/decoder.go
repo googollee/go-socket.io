@@ -114,7 +114,7 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 			return err
 		}
 		return nil
-	}; err!=nil {
+	}(); err!=nil {
 		return nil, err
 	}
 	
