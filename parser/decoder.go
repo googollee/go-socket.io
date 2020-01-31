@@ -5,16 +5,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/googollee/go-socket.io/base"
 	"io"
 	"io/ioutil"
 	"reflect"
 	"strings"
-
-	engineio "github.com/googollee/go-engine.io"
 )
 
 type FrameReader interface {
-	NextReader() (engineio.FrameType, io.ReadCloser, error)
+	NextReader() (base.FrameType, io.ReadCloser, error)
 }
 
 type Decoder struct {
@@ -59,7 +58,7 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 	if err != nil {
 		return err
 	}
-	if ft != engineio.TEXT {
+	if ft != base.TEXT {
 		return errors.New("first packet should be TEXT frame")
 	}
 	d.lastFrame = r
@@ -279,9 +278,9 @@ func (d *Decoder) readEvent(event *string) error {
 	return json.Unmarshal(buf.Bytes(), event)
 }
 
-func (d *Decoder) readBuffer(ft engineio.FrameType, r io.ReadCloser) ([]byte, error) {
+func (d *Decoder) readBuffer(ft base.FrameType, r io.ReadCloser) ([]byte, error) {
 	defer r.Close()
-	if ft != engineio.BINARY {
+	if ft != base.BINARY {
 		return nil, errors.New("buffer packet should be BINARY")
 	}
 	return ioutil.ReadAll(r)

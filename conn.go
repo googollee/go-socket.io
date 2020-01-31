@@ -1,41 +1,20 @@
 package socketio
 
 import (
+	"context"
+	"github.com/googollee/go-socket.io/base"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"reflect"
 	"sync"
 
-	engineio "github.com/googollee/go-engine.io"
-
 	"github.com/googollee/go-socket.io/parser"
 )
 
-// Conn is a connection in go-socket.io
-type Conn interface {
-	// ID returns session id
-	ID() string
-	Close() error
-	URL() url.URL
-	LocalAddr() net.Addr
-	RemoteAddr() net.Addr
-	RemoteHeader() http.Header
-
-	// Context of this connection. You can save one context for one
-	// connection, and share it between all handlers. The handlers
-	// is called in one goroutine, so no need to lock context if it
-	// only be accessed in one connection.
-	Context() interface{}
-	SetContext(v interface{})
-	Namespace() string
-	Emit(msg string, v ...interface{})
-
-	// Broadcast server side apis
-	Join(room string)
-	Leave(room string)
-	LeaveAll()
-	Rooms() []string
+func (c Conn) NextWriter(ft base.FrameType) (io.WriteCloser, error) {
+	panic("implement me")
 }
 
 type errorMessage struct {
@@ -49,7 +28,10 @@ type writePacket struct {
 }
 
 type conn struct {
-	engineio.Conn
+	closeOnce sync.Once
+
+	Conn
+	id         uint64
 	broadcast  Broadcast
 	encoder    *parser.Encoder
 	decoder    *parser.Decoder
@@ -58,11 +40,9 @@ type conn struct {
 	quitChan   chan struct{}
 	handlers   map[string]*namespaceHandler
 	namespaces map[string]*namespaceConn
-	closeOnce  sync.Once
-	id         uint64
 }
 
-func newConn(c engineio.Conn, handlers map[string]*namespaceHandler, broadcast Broadcast) (*conn, error) {
+func newConn(c Conn, handlers map[string]*namespaceHandler, broadcast Broadcast) (*conn, error) {
 	ret := &conn{
 		Conn:       c,
 		broadcast:  broadcast,
