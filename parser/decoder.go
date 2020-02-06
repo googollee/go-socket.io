@@ -101,14 +101,15 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 		ret[i] = reflect.New(typ)
 		values[i] = ret[i].Interface()
 	}
+
+	d.DiscardLast()
 	if err := json.NewDecoder(r).Decode(&values); err != nil {
 		if err == io.EOF {
 			err = nil
 		}
 		return nil, err
 	}
-	d.lastFrame.Close()
-	d.lastFrame = nil
+
 	for i, typ := range types {
 		if typ.Kind() != reflect.Ptr {
 			ret[i] = ret[i].Elem()
