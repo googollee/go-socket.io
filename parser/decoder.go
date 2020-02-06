@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	engineio "github.com/googollee/go-engine.io"
+	engineio "github.com/googollee/go-socket.io/connection"
 )
 
 type FrameReader interface {
