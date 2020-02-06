@@ -2,6 +2,7 @@ package polling
 
 import (
 	"bytes"
+	"context"
 	"html/template"
 	"net"
 	"net/http"
@@ -20,6 +21,26 @@ type serverConn struct {
 	remoteAddr   Addr
 	url          url.URL
 	jsonp        string
+}
+
+func (c *serverConn) ID() string {
+	panic("implement me")
+}
+
+func (c *serverConn) Context() context.Context {
+	panic("implement me")
+}
+
+func (c *serverConn) SetContext(ctx context.Context) {
+	panic("implement me")
+}
+
+func (c *serverConn) Namespace() string {
+	panic("implement me")
+}
+
+func (c *serverConn) Emit(msg string, v ...interface{}) {
+	panic("implement me")
 }
 
 func newServerConn(r *http.Request) base.Conn {
@@ -58,7 +79,7 @@ func (c *serverConn) RemoteHeader() http.Header {
 
 func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case "GET":
+	case http.MethodGet:
 		if jsonp := r.URL.Query().Get("j"); jsonp != "" {
 			buf := bytes.NewBuffer(nil)
 			if err := c.Payload.FlushOut(buf); err != nil {
@@ -82,7 +103,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		return
-	case "POST":
+	case http.MethodPost:
 		mime := r.Header.Get("Content-Type")
 		supportBinary, err := mimeSupportBinary(mime)
 		if err != nil {
