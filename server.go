@@ -159,7 +159,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.connInitor(r, session)
 
-		//FIXME:
+		//FIXME: need refactor code
 		go func() {
 			w, err := session.nextWriter(base.FrameString, base.OPEN)
 			if err != nil {
