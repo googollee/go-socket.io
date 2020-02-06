@@ -102,12 +102,17 @@ type namespaceConn struct {
 }
 
 func newNamespaceConn(conn *conn, namespace string, broadcast Broadcast) *namespaceConn {
-	return &namespaceConn{
+	ns := &namespaceConn{
 		conn:      conn,
 		namespace: namespace,
 		acks:      sync.Map{},
 		broadcast: broadcast,
 	}
+	//NOTICE: It is check to some different namespaces. by default all clients are joining "/" namespace when is start connection
+	if namespace == "/" {
+		ns.broadcast.Join(namespace, ns)
+	}
+	return ns
 }
 
 func (c *namespaceConn) SetContext(ctx context.Context) {
@@ -150,22 +155,21 @@ func (c *namespaceConn) Emit(event string, v ...interface{}) {
 	c.conn.write(header, args)
 }
 
-//
-//func (c *namespaceConn) Join(room string) {
-//	c.broadcast.Join(room, c)
-//}
-//
-//func (c *namespaceConn) Leave(room string) {
-//	c.broadcast.Leave(room, c)
-//}
-//
-//func (c *namespaceConn) LeaveAll() {
-//	c.broadcast.LeaveAll(c)
-//}
-//
-//func (c *namespaceConn) Rooms() []string {
-//	return c.broadcast.Rooms(c)
-//}
+func (c *namespaceConn) Join(room string) {
+	c.broadcast.Join(room, c)
+}
+
+func (c *namespaceConn) Leave(room string) {
+	c.broadcast.Leave(room, c)
+}
+
+func (c *namespaceConn) LeaveAll() {
+	c.broadcast.LeaveAll(c)
+}
+
+func (c *namespaceConn) Rooms() []string {
+	return c.broadcast.Rooms(c)
+}
 
 func (c *namespaceConn) dispatch(header parser.Header) {
 	if header.Type != parser.Ack {

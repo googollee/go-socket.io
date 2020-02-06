@@ -255,6 +255,11 @@ func (s *Server) BroadcastToRoom(room, event string, args ...interface{}) {
 	s.broadcast.Send(room, event, args...)
 }
 
+// Emit emit to message given connectId, event & args to target connetion
+func (s *Server) Emit(connectID, event string, args ...interface{}) {
+	s.broadcast.Emit(connectID, event, args...)
+}
+
 // RoomLen gives number of connections in the room
 func (s *Server) RoomLen(room string) int {
 	return s.broadcast.Len(room)
