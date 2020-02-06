@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sync"
 
-	engineio "github.com/googollee/go-engine.io"
+	engineio "github.com/googollee/go-socket.io/connection"
 )
 
 func main() {

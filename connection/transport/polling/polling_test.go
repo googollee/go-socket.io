@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/googollee/go-engine.io/base"
+	"github.com/googollee/go-socket.io/connection/base"
 
 	"github.com/stretchr/testify/assert"
 )

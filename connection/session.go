@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googollee/go-engine.io/base"
-	"github.com/googollee/go-engine.io/payload"
-	"github.com/googollee/go-engine.io/transport"
+	"github.com/googollee/go-socket.io/connection/base"
+	"github.com/googollee/go-socket.io/connection/payload"
+	"github.com/googollee/go-socket.io/connection/transport"
 )
 
 type session struct {
