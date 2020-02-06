@@ -1,0 +1,12 @@
+sudo: false
+language: go
+env:
+  - GO111MODULE=on
+go:
+  - master
+  - tip
+install:
+  - go get
+script:
+  - make test
+  - ./gosweep.sh

@@ -1,0 +1,4 @@
+profile.cov
+*.prof
+*.svg
+*/node_modules
