@@ -117,7 +117,7 @@ func (c *client) NextReader() (FrameType, io.ReadCloser, error) {
 		}
 		switch pt {
 		case base.PONG:
-			c.conn.SetReadDeadline(time.Now().Add(c.params.PingTimeout))
+			c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
 		case base.CLOSE:
 			c.Close()
 			return 0, nil, io.EOF
@@ -163,6 +163,6 @@ func (c *client) serve() {
 		if err := w.Close(); err != nil {
 			return
 		}
-		c.conn.SetWriteDeadline(time.Now().Add(c.params.PingTimeout))
+		c.conn.SetWriteDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
 	}
 }
