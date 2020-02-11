@@ -1,6 +1,9 @@
 package socketio
 
-import "sync"
+import (
+	"github.com/googollee/go-socket.io/base"
+	"sync"
+)
 
 // Broadcast is the adaptor to handle broadcasts & rooms for socket.io server API
 type Broadcast interface {
@@ -31,14 +34,13 @@ func NewBroadcast() Broadcast {
 }
 
 // Join joins the given connection to the broadcast room
-func (broadcast *broadcast) Join(room string, connection Conn) {
+func (broadcast *broadcast) Join(room string, connection base.Conn) {
 	// get write lock
 	broadcast.lock.Lock()
 	defer broadcast.lock.Unlock()
 
-	// check if room already has connection mappings, if not then create one
 	if _, ok := broadcast.rooms[room]; !ok {
-		broadcast.rooms[room] = make(map[string]Conn)
+		broadcast.rooms[room] = make(map[string]base.Conn)
 	}
 
 	// add the connection to the rooms connection map
@@ -49,7 +51,7 @@ func (broadcast *broadcast) Join(room string, connection Conn) {
 }
 
 // Leave leaves the given connection from given room (if exist)
-func (broadcast *broadcast) Leave(room string, connection Conn) {
+func (broadcast *broadcast) Leave(room string, connection base.Conn) {
 	// get write lock
 	broadcast.lock.Lock()
 	defer broadcast.lock.Unlock()
@@ -70,7 +72,7 @@ func (broadcast *broadcast) Leave(room string, connection Conn) {
 }
 
 // LeaveAll leaves the given connection from all rooms
-func (broadcast *broadcast) LeaveAll(connection Conn) {
+func (broadcast *broadcast) LeaveAll(connection base.Conn) {
 	// get write lock
 	broadcast.lock.Lock()
 	defer broadcast.lock.Unlock()
@@ -145,7 +147,7 @@ func (broadcast *broadcast) Len(room string) int {
 // Rooms gives the list of all the rooms available for broadcast in case of
 // no connection is given, in case of a connection is given, it gives
 // list of all the rooms the connection is joined to
-func (broadcast *broadcast) Rooms(connection Conn) []string {
+func (broadcast *broadcast) Rooms(connection base.Conn) []string {
 	broadcast.lock.RLock()
 	defer broadcast.lock.RUnlock()
 	rooms := make([]string, 0)

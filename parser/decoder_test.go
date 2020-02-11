@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bytes"
+	"github.com/googollee/go-socket.io/base"
 	"io"
 	"reflect"
 	"testing"
@@ -18,14 +19,14 @@ type fakeReader struct {
 	buf   *bytes.Buffer
 }
 
-func (r *fakeReader) NextReader() (engineio.FrameType, io.ReadCloser, error) {
+func (r *fakeReader) NextReader() (base.FrameType, io.ReadCloser, error) {
 	if r.index >= len(r.datas) {
 		return 0, nil, io.EOF
 	}
 	r.buf = bytes.NewBuffer(r.datas[r.index])
-	ft := engineio.BINARY
+	ft := base.BINARY
 	if r.index == 0 {
-		ft = engineio.TEXT
+		ft = base.TEXT
 	}
 	return ft, r, nil
 }
