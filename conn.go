@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/googollee/go-socket.io/parser"
+	engineio "github.com/googollee/go-socket.io/connection"
 )
 
 func (c Conn) NextWriter(ft base.FrameType) (io.WriteCloser, error) {

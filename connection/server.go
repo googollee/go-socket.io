@@ -1,26 +1,27 @@
-package socketio
+package engineio
 
 import (
-	"github.com/googollee/go-socket.io/base"
-	"github.com/googollee/go-socket.io/transport"
-	"github.com/googollee/go-socket.io/transport/polling"
-	"github.com/googollee/go-socket.io/transport/websocket"
 	"io"
 	"net/http"
+	"sync"
+	"time"
 
-	engineio "github.com/googollee/go-socket.io/connection"
+	"github.com/googollee/go-socket.io/connection/base"
+	"github.com/googollee/go-socket.io/connection/transport"
+	"github.com/googollee/go-socket.io/connection/transport/polling"
+	"github.com/googollee/go-socket.io/connection/transport/websocket"
 )
 
 func defaultChecker(*http.Request) (http.Header, error) {
 	return nil, nil
 }
 
-func defaultInitor(*http.Request, base.Conn) {}
+func defaultInitor(*http.Request, Conn) {}
 
 // Options is options to create a server.
 type Options struct {
 	RequestChecker     func(*http.Request) (http.Header, error)
-	ConnInitor         func(*http.Request, base.Conn)
+	ConnInitor         func(*http.Request, Conn)
 	PingTimeout        time.Duration
 	PingInterval       time.Duration
 	Transports         []transport.Transport
@@ -34,7 +35,7 @@ func (c *Options) getRequestChecker() func(*http.Request) (http.Header, error) {
 	return defaultChecker
 }
 
-func (c *Options) getConnInitor() func(*http.Request, base.Conn) {
+func (c *Options) getConnInitor() func(*http.Request, Conn) {
 	if c != nil && c.ConnInitor != nil {
 		return c.ConnInitor
 	}
@@ -74,17 +75,14 @@ func (c *Options) getSessionIDGenerator() SessionIDGenerator {
 
 // Server is server.
 type Server struct {
-	closeOnce sync.Once
-
 	transports     *transport.Manager
 	pingInterval   time.Duration
 	pingTimeout    time.Duration
 	sessions       *manager
-	broadcast      Broadcast
-	handlers       map[string]*namespaceHandler
 	requestChecker func(*http.Request) (http.Header, error)
-	connInitor     func(*http.Request, base.Conn)
-	connChan       chan base.Conn
+	connInitor     func(*http.Request, Conn)
+	connChan       chan Conn
+	closeOnce      sync.Once
 }
 
 // NewServer returns a server.
@@ -97,7 +95,7 @@ func NewServer(opts *Options) (*Server, error) {
 		requestChecker: opts.getRequestChecker(),
 		connInitor:     opts.getConnInitor(),
 		sessions:       newManager(opts.getSessionIDGenerator()),
-		connChan:       make(chan base.Conn, 1),
+		connChan:       make(chan Conn, 1),
 	}, nil
 }
 
@@ -110,7 +108,7 @@ func (s *Server) Close() error {
 }
 
 // Accept accepts a connection.
-func (s *Server) Accept() (base.Conn, error) {
+func (s *Server) Accept() (Conn, error) {
 	c := <-s.connChan
 	if c == nil {
 		return nil, io.EOF
@@ -159,7 +157,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.connInitor(r, session)
 
-		//FIXME: need refactor code
 		go func() {
 			w, err := session.nextWriter(base.FrameString, base.OPEN)
 			if err != nil {
@@ -191,105 +188,4 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session.serveHTTP(w, r)
-}
-
-// OnConnect set a handler function f to handle open event for
-// namespace nsp.
-func (s *Server) OnConnect(nsp string, f func(base.Conn) error) {
-	h := s.getNamespace(nsp)
-	h.OnConnect(f)
-}
-
-// OnDisconnect set a handler function f to handle disconnect event for
-// namespace nsp.
-func (s *Server) OnDisconnect(nsp string, f func(base.Conn, string)) {
-	h := s.getNamespace(nsp)
-	h.OnDisconnect(f)
-}
-
-// OnError set a handler function f to handle error for namespace nsp.
-func (s *Server) OnError(nsp string, f func(base.Conn, error)) {
-	h := s.getNamespace(nsp)
-	h.OnError(f)
-}
-
-// OnEvent set a handler function f to handle event for namespace nsp.
-func (s *Server) OnEvent(nsp, event string, f interface{}) {
-	h := s.getNamespace(nsp)
-	h.OnEvent(event, f)
-}
-
-// Serve serves go-socket.io server
-func (s *Server) Serve() error {
-	for {
-		conn, err := s.Accept()
-		if err != nil {
-			return err
-		}
-		go s.serveConn(conn)
-	}
-}
-
-// JoinRoom joins given connection to the room
-func (s *Server) JoinRoom(room string, connection base.Conn) {
-	s.broadcast.Join(room, connection)
-}
-
-// LeaveRoom leaves given connection from the room
-func (s *Server) LeaveRoom(room string, connection base.Conn) {
-	s.broadcast.Leave(room, connection)
-}
-
-// LeaveAllRooms leaves the given connection from all rooms
-func (s *Server) LeaveAllRooms(connection base.Conn) {
-	s.broadcast.LeaveAll(connection)
-}
-
-// ClearRoom clears the room
-func (s *Server) ClearRoom(room string) {
-	s.broadcast.Clear(room)
-}
-
-// BroadcastToRoom broadcasts given event & args to all the connections in the room
-func (s *Server) BroadcastToRoom(room, event string, args ...interface{}) {
-	s.broadcast.Send(room, event, args...)
-}
-
-// Emit emit to message given connectId, event & args to target connetion
-func (s *Server) Emit(connectID, event string, args ...interface{}) {
-	s.broadcast.Emit(connectID, event, args...)
-}
-
-// RoomLen gives number of connections in the room
-func (s *Server) RoomLen(room string) int {
-	return s.broadcast.Len(room)
-}
-
-// Rooms gives list of all the rooms
-func (s *Server) Rooms() []string {
-	return s.broadcast.Rooms(nil)
-}
-
-func (s *Server) serveConn(c base.Conn) {
-	_, err := newConn(c, s.handlers, s.broadcast)
-	if err != nil {
-		root := s.handlers[""]
-		if root != nil && root.onError != nil {
-			root.onError(nil, err)
-		}
-		return
-	}
-}
-
-func (s *Server) getNamespace(nsp string) *namespaceHandler {
-	if nsp == "/" {
-		nsp = ""
-	}
-	ret, ok := s.handlers[nsp]
-	if ok {
-		return ret
-	}
-	handler := newHandler()
-	s.handlers[nsp] = handler
-	return handler
 }

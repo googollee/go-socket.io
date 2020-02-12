@@ -10,6 +10,8 @@ import (
 	"io/ioutil"
 	"reflect"
 	"strings"
+
+	engineio "github.com/googollee/go-socket.io/connection"
 )
 
 type FrameReader interface {
