@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	websocket2 "github.com/gorilla/websocket"
 	"io"
 	"net/http"
 	"sync"
@@ -178,7 +179,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if session.Transport() != t {
 		conn, err := tspt.Accept(w, r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			// don't call http.Error() for HandshakeErrors because
+			// they get handled by the websocket library internally.
+			if _, ok := err.(websocket2.HandshakeError); !ok {
+				http.Error(w, err.Error(), http.StatusBadGateway)
+			}
 			return
 		}
 		session.upgrade(t, conn)
