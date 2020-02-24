@@ -18,22 +18,20 @@ type readArg struct {
 
 // Payload does encode or decode to payload protocol.
 type Payload struct {
-	feeding, flushing int64
-
 	close     chan struct{}
 	closeOnce sync.Once
 	err       atomic.Value
 
 	pauser *pauser
 
-	readerChan chan readArg
-	//feeding moved to the top to ensure correct 64bit-alignment on ARM/32bit arch.
+	readerChan   chan readArg
+	feeding      int32
 	readError    chan error
 	readDeadline atomic.Value
 	decoder      decoder
 
-	writerChan chan io.Writer
-	//flushing moved to the top to ensure correct 64bit-alignment on ARM/32bit arch.
+	writerChan    chan io.Writer
+	flushing      int32
 	writeError    chan error
 	writeDeadline atomic.Value
 	encoder       encoder
@@ -71,10 +69,10 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 	default:
 	}
 
-	if !atomic.CompareAndSwapInt64(&p.feeding, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&p.feeding, 0, 1) {
 		return newOpError("read", errOverlap)
 	}
-	defer atomic.StoreInt64(&p.feeding, 0)
+	defer atomic.StoreInt32(&p.feeding, 0)
 	if ok := p.pauser.Working(); !ok {
 		return newOpError("payload", errPaused)
 	}
@@ -128,10 +126,10 @@ func (p *Payload) FlushOut(w io.Writer) error {
 		return p.load()
 	default:
 	}
-	if !atomic.CompareAndSwapInt64(&p.flushing, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&p.flushing, 0, 1) {
 		return newOpError("write", errOverlap)
 	}
-	defer atomic.StoreInt64(&p.flushing, 0)
+	defer atomic.StoreInt32(&p.flushing, 0)
 
 	if ok := p.pauser.Working(); !ok {
 		_, err := w.Write(p.encoder.NOOP())
