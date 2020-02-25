@@ -20,9 +20,7 @@ var Default = &Transport{
 	Client: &http.Client{
 		Timeout: time.Minute,
 	},
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+	CheckOrigin: nil,
 }
 
 func Config(tsp *Transport) *Transport {
