@@ -1,6 +1,7 @@
 package socketio
 
 import (
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -50,7 +51,6 @@ type writePacket struct {
 
 type conn struct {
 	engineio.Conn
-	broadcast  Broadcast
 	encoder    *parser.Encoder
 	decoder    *parser.Decoder
 	errorChan  chan errorMessage
@@ -62,10 +62,9 @@ type conn struct {
 	id         uint64
 }
 
-func newConn(c engineio.Conn, handlers map[string]*namespaceHandler, broadcast Broadcast) (*conn, error) {
+func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) (*conn, error) {
 	ret := &conn{
 		Conn:       c,
-		broadcast:  broadcast,
 		encoder:    parser.NewEncoder(c),
 		decoder:    parser.NewDecoder(c),
 		errorChan:  make(chan errorMessage),
@@ -98,8 +97,13 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) connect() error {
-	root := newNamespaceConn(c, "/", c.broadcast)
+	rootHandler, ok := c.handlers[""]
+	if !ok {
+		return errors.New("root ('/') doesn't have a namespace handler")
+	}
+	root := newNamespaceConn(c, "/", rootHandler.broadcast)
 	c.namespaces[""] = root
+	root.Join(root.ID())
 	header := parser.Header{
 		Type: parser.Connect,
 	}
@@ -238,14 +242,21 @@ func (c *conn) serveRead() {
 				c.onError(header.Namespace, err)
 				return
 			}
-			conn, ok := c.namespaces[header.Namespace]
-			if !ok {
-				conn = newNamespaceConn(c, header.Namespace, c.broadcast)
-				c.namespaces[header.Namespace] = conn
-			}
+
 			handler, ok := c.handlers[header.Namespace]
 			if ok {
+				conn, ok := c.namespaces[header.Namespace]
+				if !ok {
+					conn = newNamespaceConn(c, header.Namespace, handler.broadcast)
+					c.namespaces[header.Namespace] = conn
+					conn.Join(c.ID())
+				}
 				handler.dispatch(conn, header, "", nil)
+
+				//leave default room?!
+			} else {
+				c.onError(header.Namespace, errors.New("can't connect to namespace without handler"))
+				return
 			}
 			c.write(header, nil)
 		case parser.Disconnect:
@@ -260,6 +271,8 @@ func (c *conn) serveRead() {
 				c.decoder.DiscardLast()
 				continue
 			}
+
+			conn.LeaveAll()
 			delete(c.namespaces, header.Namespace)
 			handler, ok := c.handlers[header.Namespace]
 			if ok {
