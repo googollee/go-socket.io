@@ -64,7 +64,13 @@ func (c *serverConn) SetHeaders(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-XSS-Protection", "0")
 	}
 
-	if c.transport.CheckOrigin != nil && c.transport.CheckOrigin(r) {
+	//just in case the default behaviour gets changed and it has to handle an origin check
+	checkOrigin := Default.CheckOrigin
+	if c.transport.CheckOrigin != nil {
+		checkOrigin = c.transport.CheckOrigin
+	}
+
+	if checkOrigin != nil && checkOrigin(r) {
 		isPolling := r.URL.Query().Get("j") == ""
 		if isPolling {
 			origin := r.Header.Get("Origin")

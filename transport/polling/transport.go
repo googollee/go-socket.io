@@ -1,7 +1,6 @@
 package polling
 
 import (
-	"github.com/imdario/mergo"
 	"net/http"
 	"net/url"
 	"time"
@@ -23,11 +22,6 @@ var Default = &Transport{
 	CheckOrigin: nil,
 }
 
-func Config(tsp *Transport) *Transport {
-	mergo.Merge(tsp, Default)
-	return tsp
-}
-
 // Name is the name of transport.
 func (t *Transport) Name() string {
 	return "polling"
@@ -44,5 +38,11 @@ func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (base.Conn, erro
 	query := u.Query()
 	query.Set("transport", t.Name())
 	u.RawQuery = query.Encode()
-	return dial(t.Client, u, requestHeader)
+
+	client := t.Client
+	if client == nil {
+		client = Default.Client
+	}
+
+	return dial(client, u, requestHeader)
 }
