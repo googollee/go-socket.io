@@ -102,13 +102,17 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 		values[i] = ret[i].Interface()
 	}
 
-	d.DiscardLast()
 	if err := json.NewDecoder(r).Decode(&values); err != nil {
 		if err == io.EOF {
 			err = nil
 		}
+		d.DiscardLast()
 		return nil, err
 	}
+
+	//we can't use defer or call DiscardLast before decoding, because
+	//there are buffered readers involved and if we invoke .Close() json will encounter unexpected EOF.
+	d.DiscardLast()
 
 	for i, typ := range types {
 		if typ.Kind() != reflect.Ptr {
