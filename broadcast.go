@@ -2,6 +2,8 @@ package socketio
 
 import "sync"
 
+type EachFunc func(Conn)
+
 // Broadcast is the adaptor to handle broadcasts & rooms for socket.io server API
 type Broadcast interface {
 	Join(room string, connection Conn)            // Join causes the connection to join a room
@@ -10,8 +12,9 @@ type Broadcast interface {
 	Clear(room string)                            // Clear causes removal of all connections from the room
 	Send(room, event string, args ...interface{}) // Send will send an event with args to the room
 	SendAll(event string, args ...interface{})    // SendAll will send an event with args to all the rooms
-	Len(room string) int                          // Len gives number of connections in the room
-	Rooms(connection Conn) []string               // Gives list of all the rooms if no connection given, else list of all the rooms the connection joined
+	ForEach(room string, f EachFunc)
+	Len(room string) int            // Len gives number of connections in the room
+	Rooms(connection Conn) []string // Gives list of all the rooms if no connection given, else list of all the rooms the connection joined
 }
 
 // broadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
@@ -21,7 +24,7 @@ type broadcast struct {
 }
 
 // NewBroadcast creates a new broadcast adapter
-func NewBroadcast() Broadcast {
+func NewBroadcast() *broadcast {
 	return &broadcast{rooms: make(map[string]map[string]Conn)}
 }
 
@@ -112,6 +115,22 @@ func (broadcast *broadcast) SendAll(event string, args ...interface{}) {
 			// emit the event to the connection
 			connection.Emit(event, args...)
 		}
+	}
+}
+
+// SendForEach sends data returned by DataFunc, if the return is 'ok' (second return)
+func (broadcast *broadcast) ForEach(room string, f EachFunc) {
+	// get a read lock
+	broadcast.lock.RLock()
+	defer broadcast.lock.RUnlock()
+
+	occupants, ok := broadcast.rooms[room]
+	if !ok {
+		return
+	}
+
+	for _, connection := range occupants {
+		f(connection)
 	}
 }
 

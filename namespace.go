@@ -14,11 +14,13 @@ type namespaceHandler struct {
 	onDisconnect func(c Conn, msg string)
 	onError      func(c Conn, err error)
 	events       map[string]*funcHandler
+	broadcast    Broadcast
 }
 
 func newHandler() *namespaceHandler {
 	return &namespaceHandler{
-		events: make(map[string]*funcHandler),
+		events:    make(map[string]*funcHandler),
+		broadcast: NewBroadcast(),
 	}
 }
 
