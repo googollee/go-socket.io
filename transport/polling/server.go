@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/googollee/go-engine.io/base"
 	"github.com/googollee/go-engine.io/payload"
@@ -13,6 +14,7 @@ import (
 
 type serverConn struct {
 	*payload.Payload
+	transport     *Transport
 	supportBinary bool
 
 	remoteHeader http.Header
@@ -22,7 +24,7 @@ type serverConn struct {
 	jsonp        string
 }
 
-func newServerConn(r *http.Request) base.Conn {
+func newServerConn(t *Transport, r *http.Request) base.Conn {
 	query := r.URL.Query()
 	supportBinary := query.Get("b64") == ""
 	jsonp := query.Get("j")
@@ -31,6 +33,7 @@ func newServerConn(r *http.Request) base.Conn {
 	}
 	return &serverConn{
 		Payload:       payload.New(supportBinary),
+		transport:     t,
 		supportBinary: supportBinary,
 		remoteHeader:  r.Header,
 		localAddr:     Addr{r.Host},
@@ -56,9 +59,41 @@ func (c *serverConn) RemoteHeader() http.Header {
 	return c.remoteHeader
 }
 
+func (c *serverConn) SetHeaders(w http.ResponseWriter, r *http.Request) {
+	if strings.Contains(r.UserAgent(), ";MSIE") || strings.Contains(r.UserAgent(), "Trident/") {
+		w.Header().Set("X-XSS-Protection", "0")
+	}
+
+	//just in case the default behaviour gets changed and it has to handle an origin check
+	checkOrigin := Default.CheckOrigin
+	if c.transport.CheckOrigin != nil {
+		checkOrigin = c.transport.CheckOrigin
+	}
+
+	if checkOrigin != nil && checkOrigin(r) {
+		isPolling := r.URL.Query().Get("j") == ""
+		if isPolling {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+		}
+	}
+}
+
 func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
+	case "OPTIONS":
+		if r.URL.Query().Get("j") == "" {
+			c.SetHeaders(w, r)
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.WriteHeader(200)
+		}
 	case "GET":
+		c.SetHeaders(w, r)
 		if jsonp := r.URL.Query().Get("j"); jsonp != "" {
 			buf := bytes.NewBuffer(nil)
 			if err := c.Payload.FlushOut(buf); err != nil {
@@ -83,6 +118,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	case "POST":
+		c.SetHeaders(w, r)
 		mime := r.Header.Get("Content-Type")
 		supportBinary, err := mimeSupportBinary(mime)
 		if err != nil {
