@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	engineio "github.com/googollee/go-socket.io/connection"
+	"github.com/googollee/go-socket.io/connection/base"
 )
 
 func main() {
@@ -28,14 +29,14 @@ func main() {
 				fmt.Println(conn.ID(), conn.RemoteAddr(), "->", conn.LocalAddr(), "with", conn.RemoteHeader())
 
 				for {
-					ft, r, err := conn.NextReader()
+					ft, _, r, err := conn.NextReader()
 					if err != nil {
 						fmt.Println("read error:", err)
 						return
 					}
 					fmt.Println("read type:", ft)
 
-					w, err := conn.NextWriter(ft)
+					w, err := conn.NextWriter(ft, base.MESSAGE)
 					if err != nil {
 						r.Close()
 						fmt.Println("write error:", err)

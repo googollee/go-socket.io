@@ -113,7 +113,6 @@ func newNamespaceConn(conn *conn, namespace string, broadcast Broadcast) *namesp
 	return ns
 }
 
-//TODO: review this
 func (c *namespaceConn) SetContext(ctx interface{}) {
 	c.context = ctx
 }

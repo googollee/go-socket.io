@@ -7,6 +7,7 @@ import (
 	"time"
 
 	engineio "github.com/googollee/go-socket.io/connection"
+	"github.com/googollee/go-socket.io/connection/base"
 	"github.com/googollee/go-socket.io/connection/transport"
 	"github.com/googollee/go-socket.io/connection/transport/polling"
 	"github.com/googollee/go-socket.io/connection/transport/websocket"
@@ -27,7 +28,7 @@ func main() {
 		defer conn.Close()
 
 		for {
-			ft, r, err := conn.NextReader()
+			ft, _, r, err := conn.NextReader()
 			if err != nil {
 				log.Println("next reader error:", err)
 				return
@@ -48,7 +49,7 @@ func main() {
 
 	for {
 		fmt.Println("write text hello")
-		w, err := conn.NextWriter(engineio.TEXT)
+		w, err := conn.NextWriter(engineio.TEXT, base.MESSAGE)
 		if err != nil {
 			log.Println("next writer error:", err)
 			return
@@ -63,7 +64,7 @@ func main() {
 			return
 		}
 		fmt.Println("write binary 1234")
-		w, err = conn.NextWriter(engineio.BINARY)
+		w, err = conn.NextWriter(engineio.BINARY, base.MESSAGE)
 		if err != nil {
 			log.Println("next writer error:", err)
 			return
