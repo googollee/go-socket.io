@@ -41,7 +41,7 @@ func TestEnginePolling(t *testing.T) {
 		must.Nil(err)
 		defer conn.Close()
 
-		ft, r, err := conn.NextReader()
+		ft, _, r, err := conn.NextReader()
 		must.Nil(err)
 		should.Equal(TEXT, ft)
 		b, err := ioutil.ReadAll(r)
@@ -50,7 +50,7 @@ func TestEnginePolling(t *testing.T) {
 		err = r.Close()
 		must.Nil(err)
 
-		w, err := conn.NextWriter(BINARY)
+		w, err := conn.NextWriter(BINARY, base.MESSAGE)
 		must.Nil(err)
 		_, err = w.Write([]byte{1, 2, 3, 4})
 		must.Nil(err)
@@ -67,14 +67,14 @@ func TestEnginePolling(t *testing.T) {
 	cnt, err := dialer.Dial(httpSvr.URL, header)
 	must.Nil(err)
 
-	w, err := cnt.NextWriter(TEXT)
+	w, err := cnt.NextWriter(TEXT, base.MESSAGE)
 	must.Nil(err)
 	_, err = w.Write([]byte("hello你好"))
 	must.Nil(err)
 	err = w.Close()
 	must.Nil(err)
 
-	ft, r, err := cnt.NextReader()
+	ft, _, r, err := cnt.NextReader()
 	must.Nil(err)
 	should.Equal(BINARY, ft)
 	b, err := ioutil.ReadAll(r)
@@ -117,7 +117,7 @@ func TestEngineWebsocket(t *testing.T) {
 		u.RawQuery = ""
 		should.Equal("/", u.String())
 
-		ft, r, err := conn.NextReader()
+		ft, _, r, err := conn.NextReader()
 		must.Nil(err)
 		should.Equal(TEXT, ft)
 		b, err := ioutil.ReadAll(r)
@@ -126,7 +126,7 @@ func TestEngineWebsocket(t *testing.T) {
 		err = r.Close()
 		must.Nil(err)
 
-		w, err := conn.NextWriter(BINARY)
+		w, err := conn.NextWriter(BINARY, base.MESSAGE)
 		must.Nil(err)
 		_, err = w.Write([]byte{1, 2, 3, 4})
 		must.Nil(err)
@@ -148,14 +148,14 @@ func TestEngineWebsocket(t *testing.T) {
 	ur.RawQuery = ""
 	should.Equal(u, ur.String())
 
-	w, err := cnt.NextWriter(TEXT)
+	w, err := cnt.NextWriter(TEXT, base.MESSAGE)
 	must.Nil(err)
 	_, err = w.Write([]byte("hello你好"))
 	must.Nil(err)
 	err = w.Close()
 	must.Nil(err)
 
-	ft, r, err := cnt.NextReader()
+	ft, _, r, err := cnt.NextReader()
 	must.Nil(err)
 	should.Equal(BINARY, ft)
 	b, err := ioutil.ReadAll(r)
@@ -193,7 +193,7 @@ func TestEngineUpgrade(t *testing.T) {
 		must.Nil(err)
 		defer conn.Close()
 
-		ft, r, err := conn.NextReader()
+		ft, _, r, err := conn.NextReader()
 		must.Nil(err)
 		should.Equal(TEXT, ft)
 		b, err := ioutil.ReadAll(r)
@@ -202,7 +202,7 @@ func TestEngineUpgrade(t *testing.T) {
 		err = r.Close()
 		must.Nil(err)
 
-		w, err := conn.NextWriter(BINARY)
+		w, err := conn.NextWriter(BINARY, base.MESSAGE)
 		must.Nil(err)
 		_, err = w.Write([]byte{1, 2, 3, 4})
 		must.Nil(err)

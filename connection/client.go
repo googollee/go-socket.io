@@ -109,27 +109,27 @@ func (c *client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *client) NextReader() (FrameType, io.ReadCloser, error) {
+func (c *client) NextReader() (FrameType, base.PacketType, io.ReadCloser, error) {
 	for {
 		ft, pt, r, err := c.conn.NextReader()
 		if err != nil {
-			return 0, nil, err
+			return 0, 0, nil, err
 		}
 		switch pt {
 		case base.PONG:
 			c.conn.SetReadDeadline(time.Now().Add(c.params.PingTimeout))
 		case base.CLOSE:
 			c.Close()
-			return 0, nil, io.EOF
+			return 0, 0, nil, io.EOF
 		case base.MESSAGE:
-			return FrameType(ft), r, nil
+			return FrameType(ft), pt, r, nil
 		}
 		r.Close()
 	}
 }
 
-func (c *client) NextWriter(typ FrameType) (io.WriteCloser, error) {
-	return c.conn.NextWriter(base.FrameType(typ), base.MESSAGE)
+func (c *client) NextWriter(typ FrameType, pt base.PacketType) (io.WriteCloser, error) {
+	return c.conn.NextWriter(base.FrameType(typ), pt)
 }
 
 func (c *client) URL() url.URL {

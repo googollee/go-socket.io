@@ -1,10 +1,8 @@
 package socketio
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"github.com/googollee/go-socket.io/base"
 	"reflect"
 	"sync"
 
@@ -12,9 +10,9 @@ import (
 )
 
 type namespaceHandler struct {
-	onConnect    func(c base.Conn) error
-	onDisconnect func(c base.Conn, msg string)
-	onError      func(c base.Conn, err error)
+	onConnect    func(c Conn) error
+	onDisconnect func(c Conn, msg string)
+	onError      func(c Conn, err error)
 	events       map[string]*funcHandler
 }
 
@@ -24,15 +22,15 @@ func newHandler() *namespaceHandler {
 	}
 }
 
-func (h *namespaceHandler) OnConnect(f func(base.Conn) error) {
+func (h *namespaceHandler) OnConnect(f func(Conn) error) {
 	h.onConnect = f
 }
 
-func (h *namespaceHandler) OnDisconnect(f func(base.Conn, string)) {
+func (h *namespaceHandler) OnDisconnect(f func(Conn, string)) {
 	h.onDisconnect = f
 }
 
-func (h *namespaceHandler) OnError(f func(base.Conn, error)) {
+func (h *namespaceHandler) OnError(f func(Conn, error)) {
 	h.onError = f
 }
 
@@ -56,7 +54,7 @@ func (h *namespaceHandler) getTypes(header parser.Header, event string) []reflec
 	return nil
 }
 
-func (h *namespaceHandler) dispatch(c base.Conn, header parser.Header, event string, args []reflect.Value) ([]reflect.Value, error) {
+func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, args []reflect.Value) ([]reflect.Value, error) {
 	switch header.Type {
 	case parser.Connect:
 		var err error
@@ -95,7 +93,7 @@ type namespaceConn struct {
 	*conn
 
 	namespace string
-	context   context.Context
+	context   interface{}
 	broadcast Broadcast
 
 	acks sync.Map
@@ -115,11 +113,12 @@ func newNamespaceConn(conn *conn, namespace string, broadcast Broadcast) *namesp
 	return ns
 }
 
-func (c *namespaceConn) SetContext(ctx context.Context) {
+//TODO: review this
+func (c *namespaceConn) SetContext(ctx interface{}) {
 	c.context = ctx
 }
 
-func (c *namespaceConn) Context() context.Context {
+func (c *namespaceConn) Context() interface{} {
 	return c.context
 }
 

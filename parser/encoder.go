@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"github.com/googollee/go-socket.io/base"
+	"github.com/googollee/go-socket.io/connection/base"
 	"io"
 	"reflect"
 
@@ -12,7 +12,7 @@ import (
 )
 
 type FrameWriter interface {
-	NextWriter(ft base.FrameType) (io.WriteCloser, error)
+	NextWriter(ft engineio.FrameType, packetType base.PacketType) (io.WriteCloser, error)
 }
 
 type Encoder struct {
@@ -27,7 +27,7 @@ func NewEncoder(w FrameWriter) *Encoder {
 
 func (e *Encoder) Encode(h Header, args []interface{}) (err error) {
 	var w io.WriteCloser
-	w, err = e.w.NextWriter(base.TEXT)
+	w, err = e.w.NextWriter(engineio.TEXT, base.MESSAGE)
 	if err != nil {
 		return
 	}
@@ -40,7 +40,7 @@ func (e *Encoder) Encode(h Header, args []interface{}) (err error) {
 	}
 
 	for _, b := range buffers {
-		w, err = e.w.NextWriter(base.BINARY)
+		w, err = e.w.NextWriter(engineio.BINARY, base.MESSAGE)
 		if err != nil {
 			return
 		}

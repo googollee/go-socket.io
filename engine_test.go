@@ -10,13 +10,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googollee/go-socket.io/base"
-	"github.com/googollee/go-socket.io/transport"
-	"github.com/googollee/go-socket.io/transport/polling"
-	"github.com/googollee/go-socket.io/transport/websocket"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	engineio "github.com/googollee/go-socket.io/connection"
+	"github.com/googollee/go-socket.io/connection/base"
+	"github.com/googollee/go-socket.io/connection/transport"
+	"github.com/googollee/go-socket.io/connection/transport/polling"
+	"github.com/googollee/go-socket.io/connection/transport/websocket"
 )
 
 func TestEnginePolling(t *testing.T) {
@@ -41,16 +42,16 @@ func TestEnginePolling(t *testing.T) {
 		must.Nil(err)
 		defer conn.Close()
 
-		ft, r, err := conn.NextReader()
+		ft, _, r, err := conn.NextReader()
 		must.Nil(err)
-		should.Equal(base.TEXT, ft)
+		should.Equal(engineio.TEXT, ft)
 		b, err := ioutil.ReadAll(r)
 		must.Nil(err)
 		should.Equal("hello你好", string(b))
 		err = r.Close()
 		must.Nil(err)
 
-		w, err := conn.NextWriter(base.BINARY)
+		w, err := conn.NextWriter(engineio.BINARY, base.MESSAGE)
 		must.Nil(err)
 		_, err = w.Write([]byte{1, 2, 3, 4})
 		must.Nil(err)
@@ -67,16 +68,16 @@ func TestEnginePolling(t *testing.T) {
 	cnt, err := dialer.Dial(httpSvr.URL, header)
 	must.Nil(err)
 
-	w, err := cnt.NextWriter(base.TEXT)
+	w, err := cnt.NextWriter(base.FrameString, base.MESSAGE)
 	must.Nil(err)
 	_, err = w.Write([]byte("hello你好"))
 	must.Nil(err)
 	err = w.Close()
 	must.Nil(err)
 
-	ft, r, err := cnt.NextReader()
+	ft, _, r, err := cnt.NextReader()
 	must.Nil(err)
-	should.Equal(base.BINARY, ft)
+	should.Equal(base.FrameBinary, ft)
 	b, err := ioutil.ReadAll(r)
 	must.Nil(err)
 	should.Equal([]byte{1, 2, 3, 4}, b)
@@ -113,20 +114,20 @@ func TestEngineWebsocket(t *testing.T) {
 		defer conn.Close()
 		should.Equal("client", conn.RemoteHeader().Get("X-EIO-Test"))
 		u := conn.URL()
-		svrInfo = fmt.Sprintf("%s %s %s %s", conn.ID(), u.RawQuery, conn.RemoteAddr(), conn.LocalAddr())
+		svrInfo = fmt.Sprintf("%s %s %s %s", "", u.RawQuery, conn.RemoteAddr(), conn.LocalAddr())
 		u.RawQuery = ""
 		should.Equal("/", u.String())
 
-		ft, r, err := conn.NextReader()
+		ft, _, r, err := conn.NextReader()
 		must.Nil(err)
-		should.Equal(base.TEXT, ft)
+		should.Equal(engineio.TEXT, ft)
 		b, err := ioutil.ReadAll(r)
 		must.Nil(err)
 		should.Equal("hello你好", string(b))
 		err = r.Close()
 		must.Nil(err)
 
-		w, err := conn.NextWriter(base.BINARY)
+		w, err := conn.NextWriter(engineio.BINARY, base.MESSAGE)
 		must.Nil(err)
 		_, err = w.Write([]byte{1, 2, 3, 4})
 		must.Nil(err)
@@ -144,20 +145,20 @@ func TestEngineWebsocket(t *testing.T) {
 	must.Nil(err)
 	u := strings.Replace(httpSvr.URL, "http", "ws", 1)
 	ur := cnt.URL()
-	cntInfo := fmt.Sprintf("%s %s %s %s", cnt.ID(), ur.RawQuery, cnt.LocalAddr(), cnt.RemoteAddr())
+	cntInfo := fmt.Sprintf("%s %s %s %s", "", ur.RawQuery, cnt.LocalAddr(), cnt.RemoteAddr())
 	ur.RawQuery = ""
 	should.Equal(u, ur.String())
 
-	w, err := cnt.NextWriter(base.TEXT)
+	w, err := cnt.NextWriter(base.FrameString, base.MESSAGE)
 	must.Nil(err)
 	_, err = w.Write([]byte("hello你好"))
 	must.Nil(err)
 	err = w.Close()
 	must.Nil(err)
 
-	ft, r, err := cnt.NextReader()
+	ft, _, r, err := cnt.NextReader()
 	must.Nil(err)
-	should.Equal(base.BINARY, ft)
+	should.Equal(base.FrameBinary, ft)
 	b, err := ioutil.ReadAll(r)
 	must.Nil(err)
 	should.Equal([]byte{1, 2, 3, 4}, b)
@@ -193,16 +194,16 @@ func TestEngineUpgrade(t *testing.T) {
 		must.Nil(err)
 		defer conn.Close()
 
-		ft, r, err := conn.NextReader()
+		ft, _, r, err := conn.NextReader()
 		must.Nil(err)
-		should.Equal(base.TEXT, ft)
+		should.Equal(engineio.TEXT, ft)
 		b, err := ioutil.ReadAll(r)
 		must.Nil(err)
 		should.Equal("hello你好", string(b))
 		err = r.Close()
 		must.Nil(err)
 
-		w, err := conn.NextWriter(base.FrameBinary)
+		w, err := conn.NextWriter(engineio.BINARY, base.MESSAGE)
 		must.Nil(err)
 		_, err = w.Write([]byte{1, 2, 3, 4})
 		must.Nil(err)

@@ -1,14 +1,16 @@
-package base
+package socketio_test
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
-	"net/http"
-	"net/url"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // OpError is the error type usually returned by functions in the transport
@@ -48,66 +50,46 @@ func (e *OpError) Temporary() bool {
 	return false
 }
 
-// FrameType is the type of frames.
-type FrameType byte
-
-const (
-	// FrameString identifies a string frame.
-	FrameString FrameType = iota
-	// FrameBinary identifies a binary frame.
-	FrameBinary
-)
-
-// ByteToFrameType converts a byte to FrameType.
-func ByteToFrameType(b byte) FrameType {
-	return FrameType(b)
+type fakeOpError struct {
+	timeout   bool
+	temporary bool
 }
 
-// Byte returns type in byte.
-func (t FrameType) Byte() byte {
-	return byte(t)
+func (f fakeOpError) Error() string {
+	return "fake error"
 }
 
-// FrameReader reads a frame. It need be closed before next reading.
-type FrameReader interface {
-	NextReader() (FrameType, PacketType, io.ReadCloser, error)
+func (f fakeOpError) Timeout() bool {
+	return f.timeout
 }
 
-// FrameWriter writes a frame. It need be closed before next writing.
-type FrameWriter interface {
-	NextWriter(ft FrameType, pt PacketType) (io.WriteCloser, error)
+func (f fakeOpError) Temporary() bool {
+	return f.temporary
 }
 
-// Conn is a connection.
-type Conn interface {
-	FrameReader
-	FrameWriter
-	io.Closer
-	URL() url.URL
-	LocalAddr() net.Addr
-	RemoteAddr() net.Addr
-	RemoteHeader() http.Header
-	SetReadDeadline(t time.Time) error
-	SetWriteDeadline(t time.Time) error
-
-	// ID returns session id
-	ID() string
-
-	// Context of this connection. You can save one context for one
-	// connection, and share it between all handlers. The handlers
-	// is called in one goroutine, so no need to lock context if it
-	// only be accessed in one connection.
-	Context() context.Context
-	SetContext(ctx context.Context)
-
-	Namespace() string
-	Emit(msg string, v ...interface{})
-
-	// Broadcast server side apis
-	//Join(room string)
-	//Leave(room string)
-	//LeaveAll()
-	//Rooms() []string
+func TestOpError(t *testing.T) {
+	at := assert.New(t)
+	tests := []struct {
+		url       string
+		op        string
+		err       error
+		timeout   bool
+		temporary bool
+		errString string
+	}{
+		{"http://domain/abc", "post(write) to", io.EOF, false, false, "post(write) to http://domain/abc: EOF"},
+		{"http://domain/abc", "get(read) from", io.EOF, false, false, "get(read) from http://domain/abc: EOF"},
+		{"http://domain/abc", "post(write) to", fakeOpError{true, false}, true, false, "post(write) to http://domain/abc: fake error"},
+		{"http://domain/abc", "get(read) from", fakeOpError{false, true}, false, true, "get(read) from http://domain/abc: fake error"},
+	}
+	for _, test := range tests {
+		err := OpErr(test.url, test.op, test.err)
+		e, ok := err.(*OpError)
+		at.True(ok)
+		at.Equal(test.timeout, e.Timeout())
+		at.Equal(test.temporary, e.Temporary())
+		at.Equal(test.errString, e.Error())
+	}
 }
 
 // ConnParameters is connection parameter of server.
@@ -163,4 +145,47 @@ func (w *writer) Write(p []byte) (int, error) {
 	n, err := w.w.Write(p)
 	w.i += int64(n)
 	return n, err
+}
+
+func TestConnParameters(t *testing.T) {
+	at := assert.New(t)
+	tests := []struct {
+		para ConnParameters
+		out  string
+	}{
+		{
+			ConnParameters{
+				time.Second * 10,
+				time.Second * 5,
+				"vCcJKmYQcIf801WDAAAB",
+				[]string{"websocket", "polling"},
+			},
+			"{\"sid\":\"vCcJKmYQcIf801WDAAAB\",\"upgrades\":[\"websocket\",\"polling\"],\"pingInterval\":10000,\"pingTimeout\":5000}\n",
+		},
+	}
+	for _, test := range tests {
+		buf := bytes.NewBuffer(nil)
+		n, err := test.para.WriteTo(buf)
+		at.Nil(err)
+		at.Equal(int64(len(test.out)), n)
+		at.Equal(test.out, buf.String())
+
+		conn, err := ReadConnParameters(buf)
+		at.Nil(err)
+		at.Equal(test.para, conn)
+	}
+}
+
+func BenchmarkConnParameters(b *testing.B) {
+	param := ConnParameters{
+		time.Second * 10,
+		time.Second * 5,
+		"vCcJKmYQcIf801WDAAAB",
+		[]string{"websocket", "polling"},
+	}
+	discarder := ioutil.Discard
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		param.WriteTo(discarder)
+	}
 }

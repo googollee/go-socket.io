@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	engineio "github.com/googollee/go-socket.io/connection"
+	"github.com/googollee/go-socket.io/connection/base"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 					for {
 						select {
 						case d := <-data:
-							w, err := conn.NextWriter(d.typ)
+							w, err := conn.NextWriter(d.typ, base.MESSAGE)
 							if err != nil {
 								log.Println("next write error:", err)
 								return
@@ -65,7 +66,7 @@ func main() {
 				}()
 
 				for {
-					typ, r, err := conn.NextReader()
+					typ, _, r, err := conn.NextReader()
 					if err != nil {
 						log.Println("next read error:", err)
 						break

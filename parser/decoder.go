@@ -5,17 +5,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/googollee/go-socket.io/base"
 	"io"
 	"io/ioutil"
 	"reflect"
 	"strings"
 
 	engineio "github.com/googollee/go-socket.io/connection"
+	"github.com/googollee/go-socket.io/connection/base"
 )
 
 type FrameReader interface {
-	NextReader() (base.FrameType, io.ReadCloser, error)
+	NextReader() (engineio.FrameType, base.PacketType, io.ReadCloser, error)
 }
 
 type Decoder struct {
@@ -56,11 +56,11 @@ func (d *Decoder) DiscardLast() (err error) {
 }
 
 func (d *Decoder) DecodeHeader(header *Header, event *string) error {
-	ft, r, err := d.r.NextReader()
+	ft, _, r, err := d.r.NextReader()
 	if err != nil {
 		return err
 	}
-	if ft != base.TEXT {
+	if ft != engineio.TEXT {
 		return errors.New("first packet should be TEXT frame")
 	}
 	d.lastFrame = r
@@ -118,7 +118,7 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 
 	buffers := make([]Buffer, d.bufferCount)
 	for i := range buffers {
-		ft, r, err := d.r.NextReader()
+		ft, _, r, err := d.r.NextReader()
 		if err != nil {
 			return nil, err
 		}
@@ -280,9 +280,9 @@ func (d *Decoder) readEvent(event *string) error {
 	return json.Unmarshal(buf.Bytes(), event)
 }
 
-func (d *Decoder) readBuffer(ft base.FrameType, r io.ReadCloser) ([]byte, error) {
+func (d *Decoder) readBuffer(ft engineio.FrameType, r io.ReadCloser) ([]byte, error) {
 	defer r.Close()
-	if ft != base.BINARY {
+	if ft != engineio.BINARY {
 		return nil, errors.New("buffer packet should be BINARY")
 	}
 	return ioutil.ReadAll(r)

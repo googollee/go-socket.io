@@ -73,12 +73,12 @@ func (s *session) Close() error {
 // NextReader attempts to obtain a ReadCloser from the session's connection.
 // When finished writing, the caller MUST Close the ReadCloser to unlock the
 // connection's FramerReader.
-func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
+func (s *session) NextReader() (FrameType, base.PacketType, io.ReadCloser, error) {
 	for {
 		ft, pt, r, err := s.nextReader()
 		if err != nil {
 			s.Close()
-			return 0, nil, err
+			return 0, 0, nil, err
 		}
 		switch pt {
 		case base.PING:
@@ -96,21 +96,21 @@ func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
 			}()
 			if err != nil {
 				s.Close()
-				return 0, nil, err
+				return 0, 0, nil, err
 			}
 			// Read another frame.
 			if err := s.setDeadline(); err != nil {
 				s.Close()
-				return 0, nil, err
+				return 0, 0, nil, err
 			}
 		case base.CLOSE:
 			r.Close() // unlocks the wrapped connection's FrameReader
 			s.Close()
-			return 0, nil, io.EOF
+			return 0, 0, nil, io.EOF
 		case base.MESSAGE:
 			// Caller must Close the ReadCloser to unlock the connection's
 			// FrameReader when finished reading.
-			return FrameType(ft), r, nil
+			return FrameType(ft), pt, r, nil
 		default:
 			// Unknown packet type. Close reader and try again.
 			r.Close()
@@ -121,8 +121,8 @@ func (s *session) NextReader() (FrameType, io.ReadCloser, error) {
 // NextWriter attempts to obtain a WriteCloser from the session's connection.
 // When finished writing, the caller MUST Close the WriteCloser to unlock the
 // connection's FrameWriter.
-func (s *session) NextWriter(typ FrameType) (io.WriteCloser, error) {
-	return s.nextWriter(base.FrameType(typ), base.MESSAGE)
+func (s *session) NextWriter(typ FrameType, pt base.PacketType) (io.WriteCloser, error) {
+	return s.nextWriter(base.FrameType(typ), pt)
 }
 
 func (s *session) URL() url.URL {

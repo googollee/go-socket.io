@@ -22,8 +22,8 @@ const (
 // Conn is connection.
 type Conn interface {
 	ID() string
-	NextReader() (FrameType, io.ReadCloser, error)
-	NextWriter(typ FrameType) (io.WriteCloser, error)
+	NextReader() (FrameType, base.PacketType, io.ReadCloser, error)
+	NextWriter(FrameType, base.PacketType) (io.WriteCloser, error)
 	Close() error
 	URL() url.URL
 	LocalAddr() net.Addr
@@ -31,4 +31,8 @@ type Conn interface {
 	RemoteHeader() http.Header
 	SetContext(v interface{})
 	Context() interface{}
+}
+
+func (t FrameType) Byte() byte {
+	return t.Byte()
 }
