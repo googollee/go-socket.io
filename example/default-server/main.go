@@ -62,7 +62,7 @@ func main() {
 		<-timer.C
 		testId := "1"
 		if _, ok := connections.Load(testId); ok {
-			server.Emit(testId, "reply", "wow! I can emit message by connetion Id")
+			server.Emit(testId, "reply", "wow! I can emit message by connection Id")
 		}
 	}()
 
