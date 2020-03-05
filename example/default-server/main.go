@@ -4,9 +4,19 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
+	"time"
 
 	socketio "github.com/googollee/go-socket.io"
 )
+
+var (
+	connections sync.Map
+)
+
+func init() {
+	connections = sync.Map{}
+}
 
 func main() {
 	server, err := socketio.NewServer(nil)
@@ -16,20 +26,26 @@ func main() {
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
 		fmt.Println("connected:", s.ID())
+		connections.Store(s.ID(), true)
 		return nil
 	})
 	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
 		fmt.Println("notice:", msg)
-		s.Emit("reply", "have "+msg)
+		server.Emit(s.ID(), "reply", "notice message "+msg)
 	})
 	server.OnEvent("/chat", "msg", func(s socketio.Conn, msg string) string {
 		s.SetContext(msg)
+		server.Emit(s.ID(), "reply", "chat msg "+msg)
+		fmt.Println("connect id", s.ID())
 		return "recv " + msg
 	})
 	server.OnEvent("/", "bye", func(s socketio.Conn) string {
 		last := s.Context().(string)
 		s.Emit("bye", last)
-		s.Close()
+		err := s.Close()
+		if err != nil {
+			log.Print(err)
+		}
 		return last
 	})
 	server.OnError("/", func(s socketio.Conn, e error) {
@@ -40,6 +56,15 @@ func main() {
 	})
 	go server.Serve()
 	defer server.Close()
+
+	timer := time.NewTimer(time.Second * 10)
+	go func() {
+		<-timer.C
+		testId := "1"
+		if _, ok := connections.Load(testId); ok {
+			server.Emit(testId, "reply", "wow! I can emit message by connetion Id")
+		}
+	}()
 
 	http.Handle("/socket.io/", server)
 	http.Handle("/", http.FileServer(http.Dir("../asset")))

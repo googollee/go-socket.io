@@ -14,11 +14,13 @@ type namespaceHandler struct {
 	onDisconnect func(c Conn, msg string)
 	onError      func(c Conn, err error)
 	events       map[string]*funcHandler
+	broadcast    Broadcast
 }
 
 func newHandler() *namespaceHandler {
 	return &namespaceHandler{
-		events: make(map[string]*funcHandler),
+		events:    make(map[string]*funcHandler),
+		broadcast: NewBroadcast(),
 	}
 }
 
@@ -104,7 +106,7 @@ func newNamespaceConn(conn *conn, namespace string, broadcast Broadcast) *namesp
 		acks:      sync.Map{},
 		broadcast: broadcast,
 	}
-	//NOTICE: It is check to some different namespaces. by default all clients are joining "/" namespace when is start connection
+	// It is check to some different namespaces. by default all clients are joining "/" namespace when is start connection
 	if namespace == "/" {
 		ns.broadcast.Join(namespace, ns)
 	}

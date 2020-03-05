@@ -1,4 +1,4 @@
-package engineio
+package socketio
 
 import (
 	"net/http"

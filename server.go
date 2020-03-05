@@ -94,10 +94,10 @@ func (s *Server) ClearRoom(room string) {
 
 // BroadcastToRoom broadcasts given event & args to all the connections in the room
 func (s *Server) BroadcastToRoom(room, event string, args ...interface{}) {
-	s.broadcast.Send(room, event, args...)
+	s.broadcast.SendToRoom(room, event, args...)
 }
 
-// Emit emit to message given connectId, event & args to target connetion
+// Emit emit to message given connectId, event & args to target connection
 func (s *Server) Emit(connectID, event string, args ...interface{}) {
 	s.broadcast.Emit(connectID, event, args...)
 }
