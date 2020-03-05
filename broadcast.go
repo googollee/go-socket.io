@@ -143,14 +143,13 @@ func (broadcast *broadcast) Rooms(connection Conn) []string {
 	var rooms []string
 
 	if connection == nil {
+		rooms = make([]string, 0, len(broadcast.rooms))
 		for room := range broadcast.rooms {
 			rooms = append(rooms, room)
 		}
 	} else {
 		for room, connections := range broadcast.rooms {
-			// check if the connection is joined to the room
 			if _, ok := connections[connection.ID()]; ok {
-				// add the room name to the list
 				rooms = append(rooms, room)
 			}
 		}
