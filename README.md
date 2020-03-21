@@ -160,6 +160,29 @@ so.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
 })
 ```
 
+##### Broadcast to All connected Client
+* Server-side
+
+```go
+//Add all connected user to a room, in example? "bcast"
+server.OnConnect("/", func(s socketio.Conn) error {
+	s.SetContext("")
+	fmt.Println("connected:", s.ID())
+	s.Join("bcast")
+	return nil
+})
+
+//Broadcast message to all connected user
+server.BroadcastToRoom("", "bcast", "event:name", msg)
+```
+* Client-side
+```
+socket.on('some:event', function (msg) {
+	console.log(msg);
+});
+```
+
+
 ##### Cautch Disconnected reason
 
 * Server-side
