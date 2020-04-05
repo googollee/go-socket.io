@@ -98,7 +98,7 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) connect() error {
-	root := newNamespaceConn(c, "/", c.broadcast)
+	root := newNamespaceConn(c, baseNamespace, c.broadcast)
 	c.namespaces[""] = root
 	header := parser.Header{
 		Type: parser.Connect,
@@ -114,7 +114,8 @@ func (c *conn) connect() error {
 	go c.serveRead()
 
 	if ok {
-		handler.dispatch(root, header, "", nil)
+		_, err := handler.dispatch(root, header, "", nil)
+		return err
 	}
 
 	return nil
@@ -196,7 +197,7 @@ func (c *conn) serveRead() {
 			c.onError("", err)
 			return
 		}
-		if header.Namespace == "/" {
+		if header.Namespace == baseNamespace {
 			header.Namespace = ""
 		}
 		switch header.Type {

@@ -124,7 +124,7 @@ func (s *Server) serveConn(c engineio.Conn) {
 }
 
 func (s *Server) getNamespace(nsp string) *namespaceHandler {
-	if nsp == "/" {
+	if nsp == baseNamespace {
 		nsp = ""
 	}
 	ret, ok := s.handlers[nsp]

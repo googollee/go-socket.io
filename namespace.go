@@ -9,6 +9,10 @@ import (
 	"github.com/googollee/go-socket.io/parser"
 )
 
+const (
+	baseNamespace = "/"
+)
+
 type namespaceHandler struct {
 	onConnect    func(c Conn) error
 	onDisconnect func(c Conn, msg string)
@@ -88,7 +92,7 @@ func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, 
 		}
 		return namespaceHandler.Call(append([]reflect.Value{reflect.ValueOf(c)}, args...))
 	}
-	return nil, errors.New("invalid packet type")
+	return nil, errInvalidPacketType
 }
 
 type namespaceConn struct {
@@ -107,7 +111,7 @@ func newNamespaceConn(conn *conn, namespace string, broadcast Broadcast) *namesp
 		broadcast: broadcast,
 	}
 	// It is check to some different namespaces. by default all clients are joining "/" namespace when is start connection
-	if namespace == "/" {
+	if namespace == baseNamespace {
 		ns.broadcast.Join(namespace, ns)
 	}
 	return ns
@@ -129,7 +133,7 @@ func (c *namespaceConn) Emit(event string, v ...interface{}) {
 	header := parser.Header{
 		Type: parser.Event,
 	}
-	if c.namespace != "/" {
+	if c.namespace != baseNamespace {
 		header.Namespace = c.namespace
 	}
 
