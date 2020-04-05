@@ -256,10 +256,6 @@ func (s *session) upgrading(t string, conn base.Conn) {
 		conn.Close()
 		return
 	}
-	if err = r.Close(); err != nil {
-		conn.Close()
-		return
-	}
 	if err = w.Close(); err != nil {
 		conn.Close()
 		return
