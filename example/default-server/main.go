@@ -4,19 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
-	"time"
 
 	socketio "github.com/googollee/go-socket.io"
 )
-
-var (
-	connections sync.Map
-)
-
-func init() {
-	connections = sync.Map{}
-}
 
 func main() {
 	server, err := socketio.NewServer(nil)
@@ -26,7 +16,6 @@ func main() {
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
 		fmt.Println("connected:", s.ID())
-		connections.Store(s.ID(), true)
 		return nil
 	})
 	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
@@ -56,15 +45,6 @@ func main() {
 	})
 	go server.Serve()
 	defer server.Close()
-
-	timer := time.NewTimer(time.Second * 10)
-	go func() {
-		<-timer.C
-		testId := "1"
-		if _, ok := connections.Load(testId); ok {
-			server.Emit(testId, "reply", "wow! I can emit message by connection Id")
-		}
-	}()
 
 	http.Handle("/socket.io/", server)
 	http.Handle("/", http.FileServer(http.Dir("../asset")))
