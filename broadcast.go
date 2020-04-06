@@ -43,6 +43,7 @@ func (broadcast *broadcast) Join(room string, connection Conn) {
 		broadcast.rooms[room] = make(map[string]Conn)
 	}
 
+	broadcast.connections[connection.ID()] = connection
 	broadcast.rooms[room][connection.ID()] = connection
 }
 
