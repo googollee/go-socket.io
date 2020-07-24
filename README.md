@@ -183,7 +183,7 @@ socket.on('some:event', function (msg) {
 ```
 
 
-##### Cautch Disconnected reason
+##### Catch Disconnected reason
 
 * Server-side
 
