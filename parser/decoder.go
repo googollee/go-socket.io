@@ -236,6 +236,11 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 			}
 			return bufferCount, err
 		}
+		queryPos := strings.IndexByte(header.Namespace, '?')
+		if queryPos > -1 {
+			header.Query = header.Namespace[queryPos + 1:]
+			header.Namespace = header.Namespace[:queryPos]
+		}
 	} else {
 		d.packetReader.UnreadByte()
 	}
