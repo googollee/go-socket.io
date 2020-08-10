@@ -31,6 +31,8 @@ type Conn interface {
 	SetContext(v interface{})
 	Namespace() string
 	Emit(msg string, v ...interface{})
+	BroadcastRoom(room string, msg string, v ...interface{})
+	BroadcastAll(msg string, v ...interface{})
 
 	// Broadcast server side apis
 	Join(room string)
@@ -254,7 +256,10 @@ func (c *conn) serveRead() {
 				if !ok {
 					conn = newNamespaceConn(c, header.Namespace, handler.broadcast)
 					c.namespaces[header.Namespace] = conn
+					// join default single-member room:
 					conn.Join(c.ID())
+					// join default all-members room:
+					conn.Join("*")
 				}
 				handler.dispatch(conn, header, "", nil)
 

@@ -148,6 +148,14 @@ func (c *namespaceConn) Emit(event string, v ...interface{}) {
 	c.conn.write(header, args)
 }
 
+func (c *namespaceConn) BroadcastRoom(room string, event string, v ...interface{}) {
+	c.broadcast.SendExcept(c, room, event, v...)
+}
+
+func (c *namespaceConn) BroadcastAll(event string, v ...interface{}) {
+	c.broadcast.SendAllExcept(c, event, v...)
+}
+
 func (c *namespaceConn) Join(room string) {
 	c.broadcast.Join(room, c)
 }

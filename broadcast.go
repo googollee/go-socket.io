@@ -11,7 +11,9 @@ type Broadcast interface {
 	LeaveAll(connection Conn)                     // LeaveAll causes given connection to leave all rooms
 	Clear(room string)                            // Clear causes removal of all connections from the room
 	Send(room, event string, args ...interface{}) // Send will send an event with args to the room
+	SendExcept(exceptConn Conn, room, event string, args ...interface{}) // Send will send an event with args to the room (except specified socket)
 	SendAll(event string, args ...interface{})    // SendAll will send an event with args to all the rooms
+	SendAllExcept(exceptConn Conn, event string, args ...interface{}) // SendAll will send an event with args to all the rooms (except specified socket)
 	ForEach(room string, f EachFunc)
 	Len(room string) int            // Len gives number of connections in the room
 	Rooms(connection Conn) []string // Gives list of all the rooms if no connection given, else list of all the rooms the connection joined
@@ -102,20 +104,26 @@ func (broadcast *broadcast) Send(room, event string, args ...interface{}) {
 	}
 }
 
-// SendAll sends given event & args to all the connections to all the rooms
-func (broadcast *broadcast) SendAll(event string, args ...interface{}) {
-	// get a read lock
+// Send sends given event & args to all connections but one in the specified room
+func (broadcast *broadcast) SendExcept(exceptConn Conn, room, event string, args ...interface{}) {
 	broadcast.lock.RLock()
 	defer broadcast.lock.RUnlock()
 
-	// iterate through each room
-	for _, connections := range broadcast.rooms {
-		// iterate through each connection in the room
-		for _, connection := range connections {
-			// emit the event to the connection
+	for _, connection := range broadcast.rooms[room] {
+		if exceptConn != connection {
 			connection.Emit(event, args...)
 		}
 	}
+}
+
+// SendAll sends given event & args to all the connections to all the rooms
+func (broadcast *broadcast) SendAll(event string, args ...interface{}) {
+	broadcast.Send("*", event, args...)
+}
+
+// SendAll sends given event & args to all the connections but one to all the rooms
+func (broadcast *broadcast) SendAllExcept(exceptConn Conn, event string, args ...interface{}) {
+	broadcast.SendExcept(exceptConn, "*", event, args...)
 }
 
 // SendForEach sends data returned by DataFunc, if the return is 'ok' (second return)
