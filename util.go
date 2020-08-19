@@ -23,7 +23,7 @@ func (w *writer) Close() (err error) {
 	w.closeOnce.Do(func() {
 		w.locker.Lock()
 		defer w.locker.Unlock()
-		err = w.Close()
+		err = w.WriteCloser.Close()
 	})
 
 	return
@@ -52,7 +52,7 @@ func (r *reader) Close() (err error) {
 	r.closeOnce.Do(func() {
 		r.locker.Lock()
 		io.Copy(ioutil.Discard, r)
-		err = r.Close()
+		err = r.ReadCloser.Close()
 		r.locker.Unlock()
 	})
 
