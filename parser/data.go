@@ -32,6 +32,7 @@ const (
 type Header struct {
 	Type      Type
 	Namespace string
+	Query     string
 	ID        uint64
 	NeedAck   bool
 }
