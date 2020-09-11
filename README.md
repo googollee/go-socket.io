@@ -41,13 +41,12 @@ import "github.com/googollee/go-socket.io"
 
 and use `socketio` as the package name inside the code.
 
-## Last changes
-
-*Important changes:*
+## Breaking changes
 
 | Short info | Description | Date |
 |------------|-------------|------------|
 | Changed signature of `OnError`  | Changed signature of `OnError` *From:* `server.OnError(string, func(error))` *To:* `server.OnError(string, func(Conn, error))` | 2019-10-16 |
+| Moved googollee/go-engine.io | Breaking! You need to update imports from github.com/googollee/go-engine.io to github.com/googollee/go-socket.io/engineio and remove github.com/googollee/go-engine.io from your `go.mod` and other dependency files | 2020-09-11 |
 
 
 ## Example
