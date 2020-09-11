@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	engineio "github.com/googollee/go-engine.io"
+	engineio "github.com/googollee/go-socket.io/engineio"
 )
 
 type FrameReader interface {
@@ -238,7 +238,7 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 		}
 		queryPos := strings.IndexByte(header.Namespace, '?')
 		if queryPos > -1 {
-			header.Query = header.Namespace[queryPos + 1:]
+			header.Query = header.Namespace[queryPos+1:]
 			header.Namespace = header.Namespace[:queryPos]
 		}
 	} else {
