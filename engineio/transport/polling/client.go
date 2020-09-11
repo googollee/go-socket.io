@@ -11,8 +11,8 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"github.com/googollee/go-engine.io/base"
-	"github.com/googollee/go-engine.io/payload"
+	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/googollee/go-socket.io/engineio/payload"
 )
 
 type clientConn struct {

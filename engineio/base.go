@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/googollee/go-engine.io/base"
+	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 // FrameType is type of a message frame.

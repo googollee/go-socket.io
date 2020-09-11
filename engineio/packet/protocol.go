@@ -4,7 +4,7 @@ package packet
 import (
 	"io"
 
-	"github.com/googollee/go-engine.io/base"
+	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 // FrameReader is the reader which supports framing.

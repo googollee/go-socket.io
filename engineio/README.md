@@ -1,6 +1,6 @@
 # go-engine.io
 
-[![GoDoc](http://godoc.org/github.com/googollee/go-engine.io?status.svg)](http://godoc.org/github.com/googollee/go-engine.io) [![Build Status](https://travis-ci.org/googollee/go-engine.io.svg)](https://travis-ci.org/googollee/go-engine.io)
+[![GoDoc](http://godoc.org/github.com/googollee/go-socket.io/engineio?status.svg)](http://godoc.org/github.com/googollee/go-socket.io/engineio) [![Build Status](https://travis-ci.org/googollee/go-engine.io.svg)](https://travis-ci.org/googollee/go-engine.io)
 [![Coverage Status](https://coveralls.io/repos/github/googollee/go-engine.io/badge.svg?branch=v1.4)](https://coveralls.io/github/googollee/go-engine.io?branch=v1.4)
 
 go-engine.io is the implement of engine.io in golang, which is transport-based cross-browser/cross-device bi-directional communication layer for [go-socket.io](https://github.com/googollee/go-socket.io).
@@ -12,13 +12,13 @@ It is compatible with node.js implement, and supported long-polling and websocke
 Install the package with:
 
 ```bash
-go get github.com/googollee/go-engine.io@v1
+go get github.com/googollee/go-socket.io/engineio@v1
 ```
 
 Import it with:
 
 ```go
-import "github.com/googollee/go-engine.io"
+import "github.com/googollee/go-socket.io/engineio"
 ```
 
 and use `engineio` as the package name inside the code.
@@ -36,7 +36,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/googollee/go-engine.io"
+	"github.com/googollee/go-socket.io/engineio"
 )
 
 func main() {

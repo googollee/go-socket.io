@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"sync"
 
-	engineio "github.com/googollee/go-engine.io"
+	engineio "github.com/googollee/go-socket.io/engineio"
 
 	"github.com/googollee/go-socket.io/parser"
 )
