@@ -195,3 +195,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	session.serveHTTP(w, r)
 }
+
+// Count counts connected
+func (s *Server) Count() int {
+	return s.sessions.Count()
+}
