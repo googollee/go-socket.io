@@ -61,3 +61,10 @@ func (m *manager) Remove(sid string) {
 	}
 	delete(m.s, sid)
 }
+
+func (m *manager) Count() int {
+	m.locker.Lock()
+	defer m.locker.Unlock()
+
+	return len(m.s)
+}

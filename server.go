@@ -138,6 +138,11 @@ func (s *Server) Rooms(namespace string) []string {
 	return nil
 }
 
+// Count number of connections
+func (s *Server) Count() int {
+	return s.eio.Count()
+}
+
 func (s *Server) ForEach(namespace string, room string, f EachFunc) bool {
 	nspHandler := s.getNamespace(namespace, false)
 	if nspHandler != nil {
