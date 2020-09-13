@@ -22,6 +22,8 @@ Go 1.9+ is required!
 - [Install](#install)
 - [Last changes](#last-changes)
 - [Example](#example)
+- [engineio](#engineo)
+- [Community](#community)
 - [Contributors](#contributors)
 - [License](#license)
 
@@ -200,6 +202,11 @@ Possible reasons:
 |------------|-------------|------------|
 | client namespace disconnect | Client Side | Got disconnect packet from client |
 
+## engineio
+
+This project contains a sub-package called `engineio`. This used to be a separate package under https://github.com/googollee/go-engine.io.
+
+It contains the `engine.io` analog implementation of the original node-package. https://github.com/socketio/engine.io It can be used without the socket.io-implementation. Please check the README.md in `engineio/`.
 
 ## Community
 
