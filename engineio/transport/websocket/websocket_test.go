@@ -8,9 +8,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 var tests = []struct {
@@ -24,15 +25,15 @@ var tests = []struct {
 }
 
 func TestWebsocket(t *testing.T) {
-	at := assert.New(t)
-
 	tran := &Transport{}
-	at.Equal("websocket", tran.Name())
+	assert.Equal(t, "websocket", tran.Name())
+
 	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c, err := tran.Accept(w, r)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		conn <- c
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -40,14 +41,15 @@ func TestWebsocket(t *testing.T) {
 	defer httpSvr.Close()
 
 	u, err := url.Parse(httpSvr.URL)
-	at.Nil(err)
+	require.NoError(t, err)
 	u.Scheme = "ws"
 
 	dialU := *u
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
 	cc, err := tran.Dial(&dialU, header)
-	at.Nil(err)
+	require.NoError(t, err)
+
 	defer cc.Close()
 
 	sc := <-conn
@@ -55,20 +57,24 @@ func TestWebsocket(t *testing.T) {
 
 	ccURL := cc.URL()
 	query := ccURL.Query()
-	at.NotEmpty(query.Get("t"))
-	at.Equal("websocket", query.Get("transport"))
+	assert.NotEmpty(t, query.Get("t"))
+
+	assert.Equal(t, "websocket", query.Get("transport"))
 	ccURL.RawQuery = ""
-	at.Equal(u.String(), ccURL.String())
+
+	assert.Equal(t, u.String(), ccURL.String())
 	scURL := sc.URL()
 	query = scURL.Query()
-	at.NotEmpty(query.Get("t"))
-	at.Equal("websocket", query.Get("transport"))
+
+	assert.NotEmpty(t, query.Get("t"))
+	assert.Equal(t, "websocket", query.Get("transport"))
+
 	scURL.RawQuery = ""
-	at.Equal("/", scURL.String())
-	at.Equal(sc.LocalAddr(), cc.RemoteAddr())
-	at.Equal(cc.LocalAddr(), sc.RemoteAddr())
-	at.Equal("server", cc.RemoteHeader().Get("X-Eio-Test"))
-	at.Equal("client", sc.RemoteHeader().Get("X-Eio-Test"))
+	assert.Equal(t, "/", scURL.String())
+	assert.Equal(t, sc.LocalAddr(), cc.RemoteAddr())
+	assert.Equal(t, cc.LocalAddr(), sc.RemoteAddr())
+	assert.Equal(t, "server", cc.RemoteHeader().Get("X-Eio-Test"))
+	assert.Equal(t, "client", sc.RemoteHeader().Get("X-Eio-Test"))
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -77,42 +83,53 @@ func TestWebsocket(t *testing.T) {
 
 		for _, test := range tests {
 			ft, pt, r, err := cc.NextReader()
-			at.Nil(err)
+			require.NoError(t, err)
 
-			at.Equal(test.ft, ft)
-			at.Equal(test.pt, pt)
+			assert.Equal(t, test.ft, ft)
+			assert.Equal(t, test.pt, pt)
+
 			b, err := ioutil.ReadAll(r)
-			at.Nil(err)
+			require.NoError(t, err)
+
 			err = r.Close()
-			at.Nil(err)
-			at.Equal(test.data, b)
+			require.NoError(t, err)
+
+			assert.Equal(t, test.data, b)
 
 			w, err := cc.NextWriter(ft, pt)
-			at.Nil(err)
+			require.NoError(t, err)
+
 			_, err = w.Write(b)
-			at.Nil(err)
+			require.NoError(t, err)
+
 			err = w.Close()
-			at.Nil(err)
+			require.NoError(t, err)
 		}
 	}()
 
 	for _, test := range tests {
 		w, err := sc.NextWriter(test.ft, test.pt)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		_, err = w.Write(test.data)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		err = w.Close()
-		at.Nil(err)
+		require.NoError(t, err)
 
 		ft, pt, r, err := sc.NextReader()
-		at.Nil(err)
-		at.Equal(test.ft, ft)
-		at.Equal(test.pt, pt)
+		require.NoError(t, err)
+
+		assert.Equal(t, test.ft, ft)
+		assert.Equal(t, test.pt, pt)
+
 		b, err := ioutil.ReadAll(r)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		err = r.Close()
-		at.Nil(err)
-		at.Equal(test.data, b)
+		require.NoError(t, err)
+
+		assert.Equal(t, test.data, b)
 	}
 
 	wg.Wait()

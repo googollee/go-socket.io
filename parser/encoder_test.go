@@ -16,12 +16,13 @@ type fakeWriter struct {
 	typ     engineio.FrameType
 	current *bytes.Buffer
 	types   []engineio.FrameType
-	bufs    []*bytes.Buffer
+	data    []*bytes.Buffer
 }
 
 func (w *fakeWriter) NextWriter(ft engineio.FrameType) (io.WriteCloser, error) {
 	w.current = bytes.NewBuffer(nil)
 	w.typ = ft
+
 	return w, nil
 }
 
@@ -31,7 +32,8 @@ func (w *fakeWriter) Write(p []byte) (int, error) {
 
 func (w *fakeWriter) Close() error {
 	w.types = append(w.types, w.typ)
-	w.bufs = append(w.bufs, w.current)
+	w.data = append(w.data, w.current)
+
 	return nil
 }
 
@@ -48,17 +50,20 @@ func TestEncoder(t *testing.T) {
 				v = append([]interface{}{test.Event}, test.Var...)
 			}
 			err := encoder.Encode(test.Header, v)
-			must.Nil(err)
-			must.Equal(len(test.Datas), len(w.types))
-			must.Equal(len(test.Datas), len(w.bufs))
+
+			must.NoError(err)
+			must.Equal(len(test.Data), len(w.types))
+			must.Equal(len(test.Data), len(w.data))
+
 			for i := range w.types {
 				if i == 0 {
 					should.Equal(engineio.TEXT, w.types[i])
-					should.Equal(string(test.Datas[i]), string(w.bufs[i].Bytes()))
+					should.Equal(string(test.Data[i]), string(w.data[i].Bytes()))
 					continue
 				}
+
 				should.Equal(engineio.BINARY, w.types[i])
-				should.Equal(test.Datas[i], w.bufs[i].Bytes())
+				should.Equal(test.Data[i], w.data[i].Bytes())
 			}
 		})
 	}
@@ -66,10 +71,10 @@ func TestEncoder(t *testing.T) {
 
 func TestAttachBuffer(t *testing.T) {
 	tests := []struct {
-		name    string
-		data    interface{}
-		max     uint64
-		binarys [][]byte
+		name   string
+		data   interface{}
+		max    uint64
+		binary [][]byte
 	}{
 		{"&Buffer", &Buffer{Data: []byte{1, 2}}, 1, [][]byte{[]byte{1, 2}}},
 		{"[]interface{}{Buffer}", []interface{}{&Buffer{Data: []byte{1, 2}}}, 1, [][]byte{[]byte{1, 2}}},
@@ -96,15 +101,19 @@ func TestAttachBuffer(t *testing.T) {
 	}
 
 	e := Encoder{}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			should := assert.New(t)
 			must := require.New(t)
+
 			index := uint64(0)
 			b, err := e.attachBuffer(reflect.ValueOf(test.data), &index)
-			must.Nil(err)
+
+			must.NoError(err)
+
 			should.Equal(test.max, index)
-			should.Equal(test.binarys, b)
+			should.Equal(test.binary, b)
 		})
 	}
 }

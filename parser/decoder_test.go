@@ -13,16 +13,16 @@ import (
 )
 
 type fakeReader struct {
-	datas [][]byte
+	data  [][]byte
 	index int
 	buf   *bytes.Buffer
 }
 
 func (r *fakeReader) NextReader() (engineio.FrameType, io.ReadCloser, error) {
-	if r.index >= len(r.datas) {
+	if r.index >= len(r.data) {
 		return 0, nil, io.EOF
 	}
-	r.buf = bytes.NewBuffer(r.datas[r.index])
+	r.buf = bytes.NewBuffer(r.data[r.index])
 	ft := engineio.BINARY
 	if r.index == 0 {
 		ft = engineio.TEXT
@@ -45,31 +45,41 @@ func TestDecoder(t *testing.T) {
 			should := assert.New(t)
 			must := require.New(t)
 
-			r := fakeReader{datas: test.Datas}
+			r := fakeReader{data: test.Data}
 			decoder := NewDecoder(&r)
+
 			defer func() {
-				decoder.DiscardLast()
-				decoder.Close()
+				_ = decoder.DiscardLast()
+				_ = decoder.Close()
 			}()
+
 			var header Header
 			var event string
+
 			err := decoder.DecodeHeader(&header, &event)
+
 			must.Nil(err, "decode header error: %s", err)
+
 			should.Equal(test.Header, header)
 			should.Equal(test.Event, event)
+
 			types := make([]reflect.Type, len(test.Var))
 			for i := range types {
 				types[i] = reflect.TypeOf(test.Var[i])
 			}
 			ret, err := decoder.DecodeArgs(types)
+
 			must.Nil(err, "decode args error: %s", err)
+
 			vars := make([]interface{}, len(ret))
 			for i := range vars {
 				vars[i] = ret[i].Interface()
 			}
+
 			if len(vars) == 0 {
 				vars = nil
 			}
+
 			should.Equal(test.Var, vars)
 		})
 	}

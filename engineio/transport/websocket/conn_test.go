@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 func TestWebsocketSetReadDeadline(t *testing.T) {
@@ -20,7 +21,8 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	conn := make(chan base.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c, err := tran.Accept(w, r)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		conn <- c
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -28,22 +30,29 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	defer httpSvr.Close()
 
 	u, err := url.Parse(httpSvr.URL)
-	at.Nil(err)
+	require.NoError(t, err)
+
 	u.Scheme = "ws"
 
 	header := make(http.Header)
 	cc, err := tran.Dial(u, header)
-	at.Nil(err)
+	require.NoError(t, err)
+
 	defer cc.Close()
 
 	sc := <-conn
 	defer sc.Close()
 
-	cc.SetReadDeadline(time.Now().Add(time.Second / 10))
+	err = cc.SetReadDeadline(time.Now().Add(time.Second / 10))
+	require.NoError(t, err)
+
 	_, _, _, err = cc.NextReader()
+	require.Error(t, err)
+
 	timeout, ok := err.(net.Error)
 	at.True(ok)
 	at.True(timeout.Timeout())
+
 	op, ok := err.(net.Error)
 	at.True(ok)
 	at.True(op.Timeout())

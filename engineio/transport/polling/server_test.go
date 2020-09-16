@@ -1,6 +1,8 @@
 package polling
 
 import (
+	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -8,74 +10,88 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 func TestServerJSONP(t *testing.T) {
-	at := assert.New(t)
 	var scValue atomic.Value
 
 	transport := Default
 	conn := make(chan base.Conn, 1)
+
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
 			co, err := transport.Accept(w, r)
-			at.Nil(err)
+			require.NoError(t, err)
+
 			scValue.Store(co)
 			c = co
 			conn <- co
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
+
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
 		sc := <-conn
+
 		defer sc.Close()
 
 		w, err := sc.NextWriter(base.FrameBinary, base.MESSAGE)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		_, err = w.Write([]byte("hello"))
-		at.Nil(err)
+		require.NoError(t, err)
+
 		err = w.Close()
-		at.Nil(err)
+		require.NoError(t, err)
 
 		w, err = sc.NextWriter(base.FrameString, base.MESSAGE)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		_, err = w.Write([]byte("world"))
-		at.Nil(err)
+		require.NoError(t, err)
+
 		err = w.Close()
-		at.Nil(err)
+		require.NoError(t, err)
 	}()
 
 	{
 		u := httpSvr.URL + "?j=jsonp_f1"
 		resp, err := http.Get(u)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		defer resp.Body.Close()
 
-		at.Equal("text/javascript; charset=UTF-8", resp.Header.Get("Content-Type"))
+		assert.Equal(t, "text/javascript; charset=UTF-8", resp.Header.Get("Content-Type"))
 		bs, err := ioutil.ReadAll(resp.Body)
-		at.Nil(err)
-		at.Equal("___eio[jsonp_f1](\"10:b4aGVsbG8=\");", string(bs))
+		require.NoError(t, err)
+
+		assert.Equal(t, fmt.Sprintf("___eio[jsonp_f1](\"%s\");", template.JSEscapeString("10:b4aGVsbG8=")), string(bs))
 	}
 	{
 		u := httpSvr.URL + "?j=jsonp_f2"
 		resp, err := http.Get(u)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		defer resp.Body.Close()
 
-		at.Equal("text/javascript; charset=UTF-8", resp.Header.Get("Content-Type"))
+		assert.Equal(t, "text/javascript; charset=UTF-8", resp.Header.Get("Content-Type"))
+
 		bs, err := ioutil.ReadAll(resp.Body)
-		at.Nil(err)
-		at.Equal("___eio[jsonp_f2](\"6:4world\");", string(bs))
+		require.NoError(t, err)
+		assert.Equal(t, "___eio[jsonp_f2](\"6:4world\");", string(bs))
 	}
+
 	wg.Wait()
 }

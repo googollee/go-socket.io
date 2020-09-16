@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -13,8 +12,19 @@ import (
 	engineio "github.com/googollee/go-socket.io/engineio"
 )
 
+const (
+	bufferTypeName = "Buffer"
+)
+
 type FrameReader interface {
 	NextReader() (engineio.FrameType, io.ReadCloser, error)
+}
+
+type byteReader interface {
+	io.Reader
+
+	ReadByte() (byte, error)
+	UnreadByte() error
 }
 
 type Decoder struct {
@@ -22,8 +32,9 @@ type Decoder struct {
 
 	lastFrame    io.ReadCloser
 	packetReader byteReader
-	bufferCount  uint64
-	isEvent      bool
+
+	bufferCount uint64
+	isEvent     bool
 }
 
 func NewDecoder(r FrameReader) *Decoder {
@@ -33,17 +44,14 @@ func NewDecoder(r FrameReader) *Decoder {
 }
 
 func (d *Decoder) Close() error {
+	var err error
+
 	if d.lastFrame != nil {
-		d.lastFrame.Close()
+		err = d.lastFrame.Close()
 		d.lastFrame = nil
 	}
-	return nil
-}
 
-type byteReader interface {
-	io.Reader
-	ReadByte() (byte, error)
-	UnreadByte() error
+	return err
 }
 
 func (d *Decoder) DiscardLast() (err error) {
@@ -51,7 +59,8 @@ func (d *Decoder) DiscardLast() (err error) {
 		err = d.lastFrame.Close()
 		d.lastFrame = nil
 	}
-	return
+
+	return err
 }
 
 func (d *Decoder) DecodeHeader(header *Header, event *string) error {
@@ -60,7 +69,7 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 		return err
 	}
 	if ft != engineio.TEXT {
-		return errors.New("first packet should be TEXT frame")
+		return errInvalidFirstPacketType
 	}
 	d.lastFrame = r
 	br, ok := r.(byteReader)
@@ -106,13 +115,13 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 		if err == io.EOF {
 			err = nil
 		}
-		d.DiscardLast()
+		_ = d.DiscardLast()
 		return nil, err
 	}
 
 	//we can't use defer or call DiscardLast before decoding, because
 	//there are buffered readers involved and if we invoke .Close() json will encounter unexpected EOF.
-	d.DiscardLast()
+	_ = d.DiscardLast()
 
 	for i, typ := range types {
 		if typ.Kind() != reflect.Ptr {
@@ -151,7 +160,7 @@ func (d *Decoder) readUint64FromText(r byteReader) (uint64, bool, error) {
 			return 0, false, err
 		}
 		if !('0' <= b && b <= '9') {
-			r.UnreadByte()
+			_ = r.UnreadByte()
 			return ret, hasRead, nil
 		}
 		hasRead = true
@@ -181,15 +190,14 @@ func (d *Decoder) readString(r byteReader, until byte) (string, error) {
 }
 
 func (d *Decoder) readHeader(header *Header) (uint64, error) {
-	// read type
-	var typ byte
 	typ, err := d.packetReader.ReadByte()
 	if err != nil {
 		return 0, err
 	}
+
 	header.Type = Type(typ - '0')
 	if header.Type >= typeMax {
-		return 0, errors.New("invalid packet type")
+		return 0, ErrInvalidPacketType
 	}
 
 	num, hasNum, err := d.readUint64FromText(d.packetReader)
@@ -197,15 +205,18 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 		if err == io.EOF {
 			err = nil
 		}
+
 		return 0, err
 	}
 	nextByte, err := d.packetReader.ReadByte()
 	if err != nil {
 		header.ID = num
 		header.NeedAck = hasNum
+
 		if err == io.EOF {
 			err = nil
 		}
+
 		return 0, err
 	}
 
@@ -216,7 +227,7 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 		hasNum = false
 		num = 0
 	} else {
-		d.packetReader.UnreadByte()
+		_ = d.packetReader.UnreadByte()
 	}
 
 	// check namespace
@@ -228,7 +239,7 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 		return bufferCount, err
 	}
 	if nextByte == '/' {
-		d.packetReader.UnreadByte()
+		_ = d.packetReader.UnreadByte()
 		header.Namespace, err = d.readString(d.packetReader, ',')
 		if err != nil {
 			if err == io.EOF {
@@ -236,13 +247,15 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 			}
 			return bufferCount, err
 		}
+
 		queryPos := strings.IndexByte(header.Namespace, '?')
 		if queryPos > -1 {
 			header.Query = header.Namespace[queryPos+1:]
 			header.Namespace = header.Namespace[:queryPos]
 		}
+
 	} else {
-		d.packetReader.UnreadByte()
+		_ = d.packetReader.UnreadByte()
 	}
 
 	// read id
@@ -251,10 +264,12 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 		if err == io.EOF {
 			err = nil
 		}
+
 		return bufferCount, err
 	}
+
 	if !header.NeedAck {
-		// 313["data"], id has beed read at beginning, need add back.
+		// 313["data"], id has been read at beginning, need add back.
 		header.ID = num
 		header.NeedAck = hasNum
 	}
@@ -267,33 +282,41 @@ func (d *Decoder) readEvent(event *string) error {
 	if err != nil {
 		return err
 	}
+
 	if b != '[' {
-		d.packetReader.UnreadByte()
+		_ = d.packetReader.UnreadByte()
+
 		return nil
 	}
+
 	var buf bytes.Buffer
 	for {
 		b, err := d.packetReader.ReadByte()
 		if err != nil {
 			return err
 		}
+
 		if b == ',' {
 			break
 		}
 		if b == ']' {
-			d.packetReader.UnreadByte()
+			_ = d.packetReader.UnreadByte()
 			break
 		}
+
 		buf.WriteByte(b)
 	}
+
 	return json.Unmarshal(buf.Bytes(), event)
 }
 
 func (d *Decoder) readBuffer(ft engineio.FrameType, r io.ReadCloser) ([]byte, error) {
 	defer r.Close()
+
 	if ft != engineio.BINARY {
-		return nil, errors.New("buffer packet should be BINARY")
+		return nil, errInvalidBinaryBufferType
 	}
+
 	return ioutil.ReadAll(r)
 }
 
@@ -303,9 +326,9 @@ func (d *Decoder) detachBuffer(v reflect.Value, buffers []Buffer) error {
 	}
 	switch v.Kind() {
 	case reflect.Struct:
-		if v.Type().Name() == "Buffer" {
+		if v.Type().Name() == bufferTypeName {
 			if !v.CanAddr() {
-				return errors.New("can't get Buffer address")
+				return errFailedBufferAddress
 			}
 			buffer := v.Addr().Interface().(*Buffer)
 			if buffer.isBinary {

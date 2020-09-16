@@ -4,16 +4,17 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/googollee/go-socket.io/parser"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/parser"
 )
 
 func TestNamespaceHandler(t *testing.T) {
 	should := assert.New(t)
 	must := require.New(t)
-	h := newHandler()
+
+	h := newNamespaceHandler()
 
 	onConnectCalled := false
 	h.OnConnect(func(c Conn) error {
@@ -35,27 +36,42 @@ func TestNamespaceHandler(t *testing.T) {
 
 	header.Type = parser.Connect
 	args := h.getTypes(header, "")
+
 	should.Nil(args)
-	h.dispatch(&namespaceConn{}, header, "", nil)
+
+	_, err := h.dispatch(&namespaceConn{}, header, "", nil)
+	must.NoError(err)
+
 	should.True(onConnectCalled)
 
 	header.Type = parser.Disconnect
 	args = h.getTypes(header, "")
+
 	should.Equal([]reflect.Type{reflect.TypeOf("")}, args)
-	h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("disconn")})
+
+	_, err = h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("disconn")})
+	must.NoError(err)
+
 	should.Equal("disconn", disconnectMsg)
 
 	header.Type = parser.Error
 	args = h.getTypes(header, "")
+
 	should.Equal([]reflect.Type{reflect.TypeOf("")}, args)
-	h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("failed")})
+
+	_, err = h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("failed")})
+	must.Error(err)
+
 	should.Equal(onerror.Error(), "failed")
 
 	header.Type = parser.Event
 	args = h.getTypes(header, "nonexist")
+
 	should.Nil(args)
+
 	ret, err := h.dispatch(&namespaceConn{}, header, "nonexist", nil)
-	must.Nil(err)
+
+	must.NoError(err)
 	should.Nil(ret)
 }
 
@@ -96,7 +112,7 @@ func TestNamespaceHandlerEvent(t *testing.T) {
 			should := assert.New(t)
 			must := require.New(t)
 
-			h := newHandler()
+			h := newNamespaceHandler()
 			for i, e := range test.events {
 				h.OnEvent(e, test.handlers[i])
 			}
@@ -106,20 +122,24 @@ func TestNamespaceHandlerEvent(t *testing.T) {
 			}
 			target := make([]reflect.Type, len(test.args))
 			args := make([]reflect.Value, len(test.args))
+
 			for i := range test.args {
 				target[i] = reflect.TypeOf(test.args[i])
 				args[i] = reflect.ValueOf(test.args[i])
 			}
+
 			types := h.getTypes(header, test.event)
 			should.Equal(target, types)
-			ret, err := h.dispatch(&namespaceConn{}, header, test.event, args)
-			must.Nil(err)
 
-			rets := make([]interface{}, len(ret))
+			ret, err := h.dispatch(&namespaceConn{}, header, test.event, args)
+			must.NoError(err)
+
+			res := make([]interface{}, len(ret))
 			for i := range ret {
-				rets[i] = ret[i].Interface()
+				res[i] = ret[i].Interface()
 			}
-			should.Equal(test.ret, rets)
+
+			should.Equal(test.ret, res)
 		})
 	}
 }

@@ -1,2 +1,8 @@
+/bin
+/vendor
+/vendor.pb
+.DS_STORE
+/.idea
+/.vscode
+*.o
 profile.cov
-.idea/

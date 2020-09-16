@@ -1,7 +1,7 @@
 all:
 	go install ./...
 
-getdev:
+get_dev:
 	go get -t ./...
 
 test:

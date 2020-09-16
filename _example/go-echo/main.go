@@ -2,18 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
+
+	"github.com/labstack/echo"
 
 	socketio "github.com/googollee/go-socket.io"
-	"github.com/labstack/echo"
 )
 
 func main() {
 
-	server, err := socketio.NewServer(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	server := socketio.NewServer(nil)
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
