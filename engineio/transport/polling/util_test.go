@@ -8,6 +8,7 @@ import (
 
 func TestNormalizeMime(t *testing.T) {
 	at := assert.New(t)
+
 	tests := []struct {
 		mime          string
 		supportBinary bool
@@ -25,9 +26,11 @@ func TestNormalizeMime(t *testing.T) {
 	for _, test := range tests {
 		supportBinary, err := mimeSupportBinary(test.mime)
 		at.Equal(test.ok, err == nil)
+
 		if err != nil {
 			continue
 		}
+
 		at.Equal(test.supportBinary, supportBinary)
 	}
 }

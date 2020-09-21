@@ -23,7 +23,7 @@ func (e *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, 
 	}
 	var b [1]byte
 	if _, err := io.ReadFull(r, b[:]); err != nil {
-		r.Close()
+		_ = r.Close()
 		return 0, 0, nil, err
 	}
 	return ft, base.ByteToPacketType(b[0], ft), r, nil

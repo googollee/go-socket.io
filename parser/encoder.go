@@ -3,11 +3,10 @@ package parser
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"io"
 	"reflect"
 
-	engineio "github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/engineio"
 )
 
 type FrameWriter interface {
@@ -43,6 +42,7 @@ func (e *Encoder) Encode(h Header, args []interface{}) (err error) {
 		if err != nil {
 			return
 		}
+
 		err = e.writeBuffer(w, b)
 		if err != nil {
 			return
@@ -62,6 +62,7 @@ type flusher interface {
 
 func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([][]byte, error) {
 	defer w.Close()
+
 	bw, ok := w.(byteWriter)
 	if !ok {
 		bw = bufio.NewWriter(w)
@@ -140,11 +141,12 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 		v = v.Elem()
 	}
 	var ret [][]byte
+
 	switch v.Kind() {
 	case reflect.Struct:
-		if v.Type().Name() == "Buffer" {
+		if v.Type().Name() == bufferTypeName {
 			if !v.CanAddr() {
-				return nil, errors.New("can't get Buffer address")
+				return nil, errFailedBufferAddress
 			}
 			buffer := v.Addr().Interface().(*Buffer)
 			buffer.num = *index
@@ -168,6 +170,7 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 			if err != nil {
 				return nil, err
 			}
+
 			ret = append(ret, b...)
 		}
 	case reflect.Map:
@@ -176,6 +179,7 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 			if err != nil {
 				return nil, err
 			}
+
 			ret = append(ret, b...)
 		}
 	}
@@ -184,6 +188,7 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 
 func (e *Encoder) writeBuffer(w io.WriteCloser, buffer []byte) error {
 	defer w.Close()
+
 	_, err := w.Write(buffer)
 	return err
 }

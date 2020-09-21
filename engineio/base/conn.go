@@ -111,6 +111,7 @@ func ReadConnParameters(r io.Reader) (ConnParameters, error) {
 	if err := json.NewDecoder(r).Decode(&param); err != nil {
 		return ConnParameters{}, err
 	}
+
 	return ConnParameters{
 		SID:          param.SID,
 		Upgrades:     param.Upgrades,
