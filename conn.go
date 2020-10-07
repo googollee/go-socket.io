@@ -29,7 +29,7 @@ type Conn interface {
 	Context() interface{}
 	SetContext(v interface{})
 	Namespace() string
-	Emit(msg string, v ...interface{})
+	Emit(event string, v ...interface{})
 
 	// Broadcast server side apis
 	Join(room string)
