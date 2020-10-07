@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"sync"
 
-	engineio "github.com/googollee/go-socket.io/connection"
+	engineio "github.com/googollee/go-socket.io/engineio"
 
 	"github.com/googollee/go-socket.io/parser"
 )
@@ -29,7 +29,7 @@ type Conn interface {
 	Context() interface{}
 	SetContext(v interface{})
 	Namespace() string
-	Emit(event string, v ...interface{})
+	Emit(msg string, v ...interface{})
 
 	// Broadcast server side apis
 	Join(room string)
@@ -38,68 +38,84 @@ type Conn interface {
 	Rooms() []string
 }
 
-type errorMessage struct {
-	namespace string
-	error
-}
-
 type writePacket struct {
 	header parser.Header
-	data   []interface{}
+
+	data []interface{}
 }
 
 type conn struct {
 	engineio.Conn
-	broadcast  Broadcast
-	encoder    *parser.Encoder
-	decoder    *parser.Decoder
-	errorChan  chan errorMessage
-	writeChan  chan writePacket
-	quitChan   chan struct{}
+
+	id         uint64
 	handlers   map[string]*namespaceHandler
 	namespaces map[string]*namespaceConn
-	closeOnce  sync.Once
-	id         uint64
+
+	encoder *parser.Encoder
+	decoder *parser.Decoder
+
+	errorChan chan error
+	writeChan chan writePacket
+	quitChan  chan struct{}
+
+	closeOnce sync.Once
 }
 
-func newConn(c engineio.Conn, handlers map[string]*namespaceHandler, broadcast Broadcast) (*conn, error) {
+func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) error {
 	ret := &conn{
 		Conn:       c,
-		broadcast:  broadcast,
 		encoder:    parser.NewEncoder(c),
 		decoder:    parser.NewDecoder(c),
-		errorChan:  make(chan errorMessage),
+		errorChan:  make(chan error),
 		writeChan:  make(chan writePacket),
 		quitChan:   make(chan struct{}),
 		handlers:   handlers,
 		namespaces: make(map[string]*namespaceConn),
 	}
+
 	if err := ret.connect(); err != nil {
-		ret.Close()
-		return nil, err
+		_ = ret.Close()
+		return err
 	}
-	return ret, nil
+
+	return nil
 }
 
 func (c *conn) Close() error {
 	var err error
+
 	c.closeOnce.Do(func() {
-		// For each namespace, leave all rooms, and call the disconnect handler.
+		//for each namespace, leave all rooms, and call the disconnect handler.
 		for ns, nc := range c.namespaces {
 			nc.LeaveAll()
+
 			if nh := c.handlers[ns]; nh != nil && nh.onDisconnect != nil {
-				nh.onDisconnect(nc, "client namespace disconnect")
+				nh.onDisconnect(nc, clientDisconnectMsg)
 			}
 		}
 		err = c.Conn.Close()
+
 		close(c.quitChan)
 	})
+
 	return err
 }
 
 func (c *conn) connect() error {
-	root := newNamespaceConn(c, baseNamespace, c.broadcast)
-	c.namespaces[""] = root
+	rootHandler, ok := c.handlers[rootNamespace]
+	if !ok {
+		return errUnavailableRootHandler
+	}
+
+	root := newNamespaceConn(c, aliasRootNamespace, rootHandler.broadcast)
+	c.namespaces[rootNamespace] = root
+
+	root.Join(root.ID())
+
+	for _, ns := range c.namespaces {
+		ns.SetContext(c.Conn.Context())
+	}
+
 	header := parser.Header{
 		Type: parser.Connect,
 	}
@@ -123,11 +139,13 @@ func (c *conn) connect() error {
 
 func (c *conn) nextID() uint64 {
 	c.id++
+
 	return c.id
 }
 
 func (c *conn) write(header parser.Header, args []reflect.Value) {
 	data := make([]interface{}, len(args))
+
 	for i := range data {
 		data[i] = args[i].Interface()
 	}
@@ -135,6 +153,7 @@ func (c *conn) write(header parser.Header, args []reflect.Value) {
 		header: header,
 		data:   data,
 	}
+
 	select {
 	case c.writeChan <- pkg:
 	case <-c.quitChan:
@@ -143,31 +162,29 @@ func (c *conn) write(header parser.Header, args []reflect.Value) {
 }
 
 func (c *conn) onError(namespace string, err error) {
-	onErr := errorMessage{
-		namespace: namespace,
-		error:     err,
-	}
 	select {
-	case c.errorChan <- onErr:
+	case c.errorChan <- newErrorMessage(namespace, err):
 	case <-c.quitChan:
 		return
 	}
 }
 
-func (c *conn) parseArgs(types []reflect.Type) ([]reflect.Value, error) {
-	return c.decoder.DecodeArgs(types)
-}
-
 func (c *conn) serveError() {
 	defer c.Close()
+
 	for {
 		select {
 		case <-c.quitChan:
 			return
-		case msg := <-c.errorChan:
-			if handler := c.namespace(msg.namespace); handler != nil {
+		case err := <-c.errorChan:
+			errMsg, ok := err.(errorMessage)
+			// todo add log
+			if !ok {
+				continue
+			}
+			if handler := c.namespace(errMsg.namespace); handler != nil {
 				if handler.onError != nil {
-					handler.onError(c.namespaces[msg.namespace], msg.error)
+					handler.onError(c.namespaces[errMsg.namespace], errMsg.err)
 				}
 			}
 		}
@@ -176,6 +193,7 @@ func (c *conn) serveError() {
 
 func (c *conn) serveWrite() {
 	defer c.Close()
+
 	for {
 		select {
 		case <-c.quitChan:
@@ -188,35 +206,41 @@ func (c *conn) serveWrite() {
 	}
 }
 
+//todo maybe refactor this
 func (c *conn) serveRead() {
 	defer c.Close()
+
 	var event string
+
 	for {
 		var header parser.Header
+
 		if err := c.decoder.DecodeHeader(&header, &event); err != nil {
-			c.onError("", err)
+			c.onError(rootNamespace, err)
 			return
 		}
-		if header.Namespace == baseNamespace {
-			header.Namespace = ""
+
+		if header.Namespace == aliasRootNamespace {
+			header.Namespace = rootNamespace
 		}
+
 		switch header.Type {
 		case parser.Ack:
 			conn, ok := c.namespaces[header.Namespace]
 			if !ok {
-				c.decoder.DiscardLast()
+				_ = c.decoder.DiscardLast()
 				continue
 			}
 			conn.dispatch(header)
 		case parser.Event:
 			conn, ok := c.namespaces[header.Namespace]
 			if !ok {
-				c.decoder.DiscardLast()
+				_ = c.decoder.DiscardLast()
 				continue
 			}
 			handler, ok := c.handlers[header.Namespace]
 			if !ok {
-				c.decoder.DiscardLast()
+				_ = c.decoder.DiscardLast()
 				continue
 			}
 			types := handler.getTypes(header, event)
@@ -239,14 +263,21 @@ func (c *conn) serveRead() {
 				c.onError(header.Namespace, err)
 				return
 			}
-			conn, ok := c.namespaces[header.Namespace]
-			if !ok {
-				conn = newNamespaceConn(c, header.Namespace, c.broadcast)
-				c.namespaces[header.Namespace] = conn
-			}
+
 			handler, ok := c.handlers[header.Namespace]
 			if ok {
-				handler.dispatch(conn, header, "", nil)
+				conn, ok := c.namespaces[header.Namespace]
+				if !ok {
+					conn = newNamespaceConn(c, header.Namespace, handler.broadcast)
+					c.namespaces[header.Namespace] = conn
+					conn.Join(c.ID())
+				}
+				_, _ = handler.dispatch(conn, header, "", nil)
+
+				//todo leave default room?!
+			} else {
+				c.onError(header.Namespace, errFailedConnetNamespace)
+				return
 			}
 			c.write(header, nil)
 		case parser.Disconnect:
@@ -258,13 +289,15 @@ func (c *conn) serveRead() {
 			}
 			conn, ok := c.namespaces[header.Namespace]
 			if !ok {
-				c.decoder.DiscardLast()
+				_ = c.decoder.DiscardLast()
 				continue
 			}
+
+			conn.LeaveAll()
 			delete(c.namespaces, header.Namespace)
 			handler, ok := c.handlers[header.Namespace]
 			if ok {
-				handler.dispatch(conn, header, "", args)
+				_, _ = handler.dispatch(conn, header, "", args)
 			}
 		}
 	}
