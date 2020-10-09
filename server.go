@@ -3,7 +3,7 @@ package socketio
 import (
 	"net/http"
 
-	engineio "github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/engineio"
 )
 
 // Server is a go-socket.io server.
@@ -34,10 +34,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // OnConnect set a handler function f to handle open event for
 // namespace nsp.
-func (s *Server) OnConnect(nsp string, f func(Conn) error) {
-	h := s.getNamespace(nsp)
+func (s *Server) OnConnect(namespace string, f func(Conn) error) {
+	h := s.getNamespace(namespace)
 	if h == nil {
-		h = s.createNameSpace(nsp)
+		h = s.createNameSpace(namespace)
 	}
 
 	h.OnConnect(f)
@@ -54,21 +54,21 @@ func (s *Server) OnDisconnect(nsp string, f func(Conn, string)) {
 	h.OnDisconnect(f)
 }
 
-// OnError set a handler function f to handle error for namespace nsp.
-func (s *Server) OnError(nsp string, f func(Conn, error)) {
-	h := s.getNamespace(nsp)
+// OnError set a handler function f to handle error for namespace.
+func (s *Server) OnError(namespace string, f func(Conn, error)) {
+	h := s.getNamespace(namespace)
 	if h == nil {
-		h = s.createNameSpace(nsp)
+		h = s.createNameSpace(namespace)
 	}
 
 	h.OnError(f)
 }
 
-// OnEvent set a handler function f to handle event for namespace nsp.
-func (s *Server) OnEvent(nsp, event string, f interface{}) {
-	h := s.getNamespace(nsp)
+// OnEvent set a handler function f to handle event for namespace.
+func (s *Server) OnEvent(namespace, event string, f interface{}) {
+	h := s.getNamespace(namespace)
 	if h == nil {
-		h = s.createNameSpace(nsp)
+		h = s.createNameSpace(namespace)
 	}
 
 	h.OnEvent(event, f)
@@ -178,8 +178,8 @@ func (s *Server) ForEach(namespace string, room string, f EachFunc) bool {
 	return false
 }
 
-func (s *Server) serveConn(c engineio.Conn) {
-	err := newConn(c, s.handlers)
+func (s *Server) serveConn(conn engineio.Conn) {
+	err := newConn(conn, s.handlers)
 
 	if err != nil {
 		root := s.handlers[rootNamespace]

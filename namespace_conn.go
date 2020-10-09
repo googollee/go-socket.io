@@ -8,6 +8,24 @@ import (
 	"github.com/googollee/go-socket.io/parser"
 )
 
+// Namespace
+type Namespace interface {
+	// Context of this connection. You can save one context for one
+	// connection, and share it between all handlers. The handlers
+	// is called in one goroutine, so no need to lock context if it
+	// only be accessed in one connection.
+	SetContext(ctx interface{})
+	Context() interface{}
+	Namespace() string
+	Emit(eventName string, v ...interface{})
+
+	// Broadcast server side apis
+	Join(room string)
+	Leave(room string)
+	LeaveAll()
+	Rooms() []string
+}
+
 type namespaceConn struct {
 	*conn
 	broadcast Broadcast
@@ -38,7 +56,7 @@ func (c *namespaceConn) Namespace() string {
 	return c.namespace
 }
 
-func (c *namespaceConn) Emit(event string, v ...interface{}) {
+func (c *namespaceConn) Emit(eventName string, v ...interface{}) {
 	header := parser.Header{
 		Type: parser.Event,
 	}
@@ -62,7 +80,7 @@ func (c *namespaceConn) Emit(event string, v ...interface{}) {
 	}
 
 	args := make([]reflect.Value, len(v)+1)
-	args[0] = reflect.ValueOf(event)
+	args[0] = reflect.ValueOf(eventName)
 
 	for i := 1; i < len(args); i++ {
 		args[i] = reflect.ValueOf(v[i-1])
