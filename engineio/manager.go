@@ -1,9 +1,9 @@
 package engineio
 
 import (
-	"strconv"
+	"math/rand"
 	"sync"
-	"sync/atomic"
+	"time"
 )
 
 // SessionIDGenerator generates new session id. Default behavior is simple
@@ -20,8 +20,19 @@ type defaultIDGenerator struct {
 }
 
 func (g *defaultIDGenerator) NewID() string {
-	id := atomic.AddUint64(&g.nextID, 1)
-	return strconv.FormatUint(id, 36)
+	//id := atomic.AddUint64(&g.nextID, 1)
+	//return strconv.FormatUint(id, 36)
+	return RandString(36)
+}
+
+func RandString(n int) string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	letters := []rune("1234567890abcdefghijklmnopqrstuvwxyz")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[r.Intn(len(letters))]
+	}
+	return string(b)
 }
 
 type manager struct {
