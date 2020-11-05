@@ -190,6 +190,10 @@ func (s *Server) serveConn(conn engineio.Conn) {
 }
 
 func (s *Server) createNameSpace(nsp string) *namespaceHandler {
+	if nsp == aliasRootNamespace {
+		nsp = rootNamespace
+	}
+
 	handler := newNamespaceHandler()
 	s.handlers[nsp] = handler
 
