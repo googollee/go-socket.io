@@ -35,7 +35,7 @@ type conn struct {
 	engineio.Conn
 
 	id         uint64
-	handlers   map[string]*namespaceHandler
+	handlers   *namespaceHandlers
 	namespaces map[string]*namespaceConn
 
 	encoder *parser.Encoder
@@ -48,7 +48,7 @@ type conn struct {
 	closeOnce sync.Once
 }
 
-func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) error {
+func newConn(c engineio.Conn, handlers *namespaceHandlers) error {
 	ret := &conn{
 		Conn:       c,
 		encoder:    parser.NewEncoder(c),
@@ -76,7 +76,7 @@ func (c *conn) Close() error {
 		for ns, nc := range c.namespaces {
 			nc.LeaveAll()
 
-			if nh := c.handlers[ns]; nh != nil && nh.onDisconnect != nil {
+			if nh, _ := c.handlers.Get(ns); nh != nil && nh.onDisconnect != nil {
 				nh.onDisconnect(nc, clientDisconnectMsg)
 			}
 		}
@@ -89,7 +89,7 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) connect() error {
-	rootHandler, ok := c.handlers[rootNamespace]
+	rootHandler, ok := c.handlers.Get(rootNamespace)
 	if !ok {
 		return errUnavailableRootHandler
 	}
@@ -110,7 +110,7 @@ func (c *conn) connect() error {
 	if err := c.encoder.Encode(header, nil); err != nil {
 		return err
 	}
-	handler, ok := c.handlers[header.Namespace]
+	handler, ok := c.handlers.Get(header.Namespace)
 
 	go c.serveError()
 	go c.serveWrite()
@@ -225,7 +225,7 @@ func (c *conn) serveRead() {
 				_ = c.decoder.DiscardLast()
 				continue
 			}
-			handler, ok := c.handlers[header.Namespace]
+			handler, ok := c.handlers.Get(header.Namespace)
 			if !ok {
 				_ = c.decoder.DiscardLast()
 				continue
@@ -251,7 +251,7 @@ func (c *conn) serveRead() {
 				return
 			}
 
-			handler, ok := c.handlers[header.Namespace]
+			handler, ok := c.handlers.Get(header.Namespace)
 			if ok {
 				conn, ok := c.namespaces[header.Namespace]
 				if !ok {
@@ -282,7 +282,7 @@ func (c *conn) serveRead() {
 
 			conn.LeaveAll()
 			delete(c.namespaces, header.Namespace)
-			handler, ok := c.handlers[header.Namespace]
+			handler, ok := c.handlers.Get(header.Namespace)
 			if ok {
 				_, _ = handler.dispatch(conn, header, "", args)
 			}
@@ -291,5 +291,6 @@ func (c *conn) serveRead() {
 }
 
 func (c *conn) namespace(nsp string) *namespaceHandler {
-	return c.handlers[nsp]
+	handler, _ := c.handlers.Get(nsp)
+	return handler
 }
