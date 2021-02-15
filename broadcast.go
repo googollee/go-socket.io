@@ -40,6 +40,7 @@ type broadcast struct {
 	pub redis.PubSubConn
 	sub redis.PubSubConn
 
+	nsp string
 	uid string
 	key string
 
@@ -83,8 +84,9 @@ func newBroadcast(nsp string) *broadcast {
 	b.pub = redis.PubSubConn{Conn: pub}
 	b.sub = redis.PubSubConn{Conn: sub}
 
+	b.nsp = nsp
 	b.uid = uuid.NewV4().String()
-	b.key = b.prefix + "#" + b.uid
+	b.key = b.prefix + "#" + b.nsp + "#" + b.uid
 	log.Println("bc key:", b.key)
 
 	b.sub.PSubscribe(b.prefix + "#*")
@@ -111,6 +113,11 @@ func newBroadcast(nsp string) *broadcast {
 
 func (bc *broadcast) onMessage(channel string, msg []byte) error {
 	channelParts := strings.Split(channel, "#")
+	nsp := channelParts[len(channelParts)-2]
+	if bc.nsp != nsp {
+		log.Println("different nsp")
+		return nil
+	}
 	uid := channelParts[len(channelParts)-1]
 	log.Println("bc id:", bc.uid)
 	log.Println("uid:", uid)
