@@ -1,6 +1,17 @@
 package socketio
 
-import "sync"
+import (
+	"errors"
+	"log"
+	"os"
+	"strings"
+	"sync"
+
+	"encoding/json"
+
+	"github.com/gomodule/redigo/redis"
+	uuid "github.com/satori/go.uuid"
+)
 
 // EachFunc typed for each callback function
 type EachFunc func(Conn)
@@ -22,16 +33,113 @@ type Broadcast interface {
 // broadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
 // map of rooms where each room contains a map of connection id to connections in that room
 type broadcast struct {
+	host   string
+	port   string
+	prefix string
+
+	pub redis.PubSubConn
+	sub redis.PubSubConn
+
+	uid string
+	key string
+
 	rooms map[string]map[string]Conn
 
 	lock sync.RWMutex
 }
 
 // newBroadcast creates a new broadcast adapter
-func newBroadcast() *broadcast {
-	return &broadcast{
+func newBroadcast(nsp string) *broadcast {
+	b := broadcast{
 		rooms: make(map[string]map[string]Conn),
 	}
+
+	b.host = os.Getenv("REDIS_HOST")
+	if b.host == "" {
+		b.host = "127.0.0.1"
+	}
+
+	b.port = os.Getenv("REDIS_PORT")
+	if b.port == "" {
+		b.port = "6379"
+	}
+
+	b.prefix = os.Getenv("SOCKET_PREFIX")
+	if b.prefix == "" {
+		b.prefix = "socket.io"
+	}
+
+	redisAddr := b.host + ":" + b.port
+	// log.Println("redis address:", redisAddr)
+	pub, err := redis.Dial("tcp", redisAddr)
+	if err != nil {
+		panic(err)
+	}
+	sub, err := redis.Dial("tcp", redisAddr)
+	if err != nil {
+		panic(err)
+	}
+
+	b.pub = redis.PubSubConn{Conn: pub}
+	b.sub = redis.PubSubConn{Conn: sub}
+
+	b.uid = uuid.NewV4().String()
+	b.key = b.prefix + "#" + b.uid
+	log.Println("bc key:", b.key)
+
+	b.sub.PSubscribe(b.prefix + "#*")
+
+	go func() {
+		for {
+			switch m := b.sub.Receive().(type) {
+			case redis.Message:
+				b.onMessage(m.Channel, m.Data)
+			case redis.Subscription:
+				log.Printf("Subscription: %s %s %d\n", m.Kind, m.Channel, m.Count)
+				if m.Count == 0 {
+					return
+				}
+			case error:
+				log.Printf("error: %v\n", m)
+				return
+			}
+		}
+	}()
+
+	return &b
+}
+
+func (bc *broadcast) onMessage(channel string, msg []byte) error {
+	channelParts := strings.Split(channel, "#")
+	uid := channelParts[len(channelParts)-1]
+	log.Println("bc id:", bc.uid)
+	log.Println("uid:", uid)
+	if bc.uid == uid {
+		log.Println("same uid")
+		return nil
+	}
+
+	var bcMessage map[string][]interface{}
+	err := json.Unmarshal(msg, &bcMessage)
+	if err != nil {
+		return errors.New("invalid broadcast message")
+	}
+
+	args := bcMessage["args"]
+	opts := bcMessage["opts"]
+
+	room, ok := opts[0].(string)
+	log.Println("room:", room)
+	if !ok {
+		log.Println("room is not a string")
+	}
+
+	event, ok := opts[1].(string)
+	log.Println("event:", event)
+
+	// log.Printf("Message: %s %s\n", channel, msg)
+	bc.SendOnSubcribe(room, event, args)
+	return nil
 }
 
 // Join joins the given connection to the broadcast room
@@ -84,6 +192,28 @@ func (bc *broadcast) Clear(room string) {
 
 // Send sends given event & args to all the connections in the specified room
 func (bc *broadcast) Send(room, event string, args ...interface{}) {
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
+
+	for _, connection := range bc.rooms[room] {
+		connection.Emit(event, args...)
+	}
+
+	opts := make([]interface{}, 2)
+	opts[0] = room
+	opts[1] = event
+
+	bcMessage := map[string][]interface{}{
+		"opts": opts,
+		"args": args,
+	}
+
+	bcMessageJSON, _ := json.Marshal(bcMessage)
+
+	bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+}
+
+func (bc *broadcast) SendOnSubcribe(room, event string, args ...interface{}) {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 

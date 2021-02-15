@@ -194,7 +194,7 @@ func (s *Server) createNameSpace(nsp string) *namespaceHandler {
 		nsp = rootNamespace
 	}
 
-	handler := newNamespaceHandler()
+	handler := newNamespaceHandler(nsp)
 	s.handlers[nsp] = handler
 
 	return handler

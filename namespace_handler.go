@@ -17,9 +17,9 @@ type namespaceHandler struct {
 	onError      func(c Conn, err error)
 }
 
-func newNamespaceHandler() *namespaceHandler {
+func newNamespaceHandler(nsp string) *namespaceHandler {
 	return &namespaceHandler{
-		broadcast: newBroadcast(),
+		broadcast: newBroadcast(nsp),
 		events:    make(map[string]*funcHandler),
 	}
 }
