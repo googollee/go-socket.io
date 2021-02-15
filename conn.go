@@ -43,7 +43,7 @@ func newNamespaces() *namespaces {
 }
 
 func (n *namespaces) Get(ns string) (*namespaceConn, bool) {
-	n.mu.RUnlock()
+	n.mu.RLock()
 	defer n.mu.RUnlock()
 	namespace, ok := n.namespaces[ns]
 	return namespace, ok
@@ -62,7 +62,7 @@ func (n *namespaces) Delete(ns string) {
 }
 
 func (n *namespaces) Range(fn func(ns string, nc *namespaceConn)) {
-	n.mu.RUnlock()
+	n.mu.RLock()
 	defer n.mu.RUnlock()
 	for ns, nc := range n.namespaces {
 		fn(ns, nc)

@@ -95,7 +95,7 @@ func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, 
 	case parser.Event:
 		h.eventsMu.RLock()
 		namespaceHandler := h.events[event]
-		h.eventsMu.Unlock()
+		h.eventsMu.RUnlock()
 		if namespaceHandler == nil {
 			return nil, nil
 		}
