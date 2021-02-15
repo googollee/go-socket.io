@@ -3,6 +3,7 @@ package socketio
 import (
 	"errors"
 	"reflect"
+	"sync"
 
 	"github.com/googollee/go-socket.io/parser"
 )
@@ -10,6 +11,7 @@ import (
 type namespaceHandler struct {
 	broadcast Broadcast
 
+	eventsMu sync.RWMutex
 	events map[string]*funcHandler
 
 	onConnect    func(c Conn) error
@@ -37,6 +39,8 @@ func (h *namespaceHandler) OnError(f func(Conn, error)) {
 }
 
 func (h *namespaceHandler) OnEvent(event string, f interface{}) {
+	h.eventsMu.Lock()
+	defer h.eventsMu.Unlock()
 	h.events[event] = newEventFunc(f)
 }
 
@@ -47,7 +51,9 @@ func (h *namespaceHandler) getTypes(header parser.Header, event string) []reflec
 	case parser.Disconnect:
 		return []reflect.Type{reflect.TypeOf("")}
 	case parser.Event:
+		h.eventsMu.RLock()
 		namespaceHandler := h.events[event]
+		h.eventsMu.RUnlock()
 		if namespaceHandler == nil {
 			return nil
 		}
@@ -87,7 +93,9 @@ func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, 
 			h.onError(c, errors.New(msg))
 		}
 	case parser.Event:
+		h.eventsMu.RLock()
 		namespaceHandler := h.events[event]
+		h.eventsMu.Unlock()
 		if namespaceHandler == nil {
 			return nil, nil
 		}
