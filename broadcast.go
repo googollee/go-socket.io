@@ -89,7 +89,7 @@ func newBroadcast(nsp string) *broadcast {
 	b.key = b.prefix + "#" + b.nsp + "#" + b.uid
 	log.Println("bc key:", b.key)
 
-	b.sub.PSubscribe(b.prefix + "#*")
+	b.sub.PSubscribe(b.prefix + "#" + b.nsp + "#*")
 
 	go func() {
 		for {
