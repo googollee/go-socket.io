@@ -13,12 +13,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-//
-const (
-	ClientsReq = iota
-	ClientRoomsReq
-)
-
 // EachFunc typed for each callback function
 type EachFunc func(Conn)
 
@@ -52,33 +46,55 @@ type broadcast struct {
 	reqChannel string
 	resChannel string
 
+	requets map[string]interface{}
+
 	rooms map[string]map[string]Conn
 
 	lock sync.RWMutex
 }
 
+//
+const (
+	clientsReqType = iota
+	clientRoomsReqType
+)
+
+// type clientsBasicRequest struct {
+// 	requestType int
+// 	requestID string
+// 	room	string
+// }
+
+type ClientsRequest struct {
+	RequestType int
+	RequestID   string
+	Room        string
+	NumSub      int       `json:"-"`
+	Done        chan bool `json:"-"`
+}
+
 // newBroadcast creates a new broadcast adapter
 func newBroadcast(nsp string) *broadcast {
-	b := broadcast{
+	bc := broadcast{
 		rooms: make(map[string]map[string]Conn),
 	}
 
-	b.host = os.Getenv("REDIS_HOST")
-	if b.host == "" {
-		b.host = "127.0.0.1"
+	bc.host = os.Getenv("REDIS_HOST")
+	if bc.host == "" {
+		bc.host = "127.0.0.1"
 	}
 
-	b.port = os.Getenv("REDIS_PORT")
-	if b.port == "" {
-		b.port = "6379"
+	bc.port = os.Getenv("REDIS_PORT")
+	if bc.port == "" {
+		bc.port = "6379"
 	}
 
-	b.prefix = os.Getenv("SOCKET_PREFIX")
-	if b.prefix == "" {
-		b.prefix = "socket.io"
+	bc.prefix = os.Getenv("SOCKET_PREFIX")
+	if bc.prefix == "" {
+		bc.prefix = "socket.io"
 	}
 
-	redisAddr := b.host + ":" + b.port
+	redisAddr := bc.host + ":" + bc.port
 	// log.Println("redis address:", redisAddr)
 	pub, err := redis.Dial("tcp", redisAddr)
 	if err != nil {
@@ -89,32 +105,34 @@ func newBroadcast(nsp string) *broadcast {
 		panic(err)
 	}
 
-	b.pub = redis.PubSubConn{Conn: pub}
-	b.sub = redis.PubSubConn{Conn: sub}
+	bc.pub = redis.PubSubConn{Conn: pub}
+	bc.sub = redis.PubSubConn{Conn: sub}
 
-	b.nsp = nsp
-	b.uid = uuid.NewV4().String()
-	b.key = b.prefix + "#" + b.nsp + "#" + b.uid
-	b.reqChannel = b.prefix + "-request#" + b.nsp
-	b.resChannel = b.prefix + "-response#" + b.nsp
-	log.Println("bc key:", b.key)
+	bc.nsp = nsp
+	bc.uid = uuid.NewV4().String()
+	bc.key = bc.prefix + "#" + bc.nsp + "#" + bc.uid
+	bc.reqChannel = bc.prefix + "-request#" + bc.nsp
+	bc.resChannel = bc.prefix + "-response#" + bc.nsp
+	bc.requets = make(map[string]interface{})
 
-	b.sub.PSubscribe(b.prefix + "#" + b.nsp + "#*")
-	b.sub.Subscribe(b.reqChannel, b.resChannel)
+	log.Println("bc key:", bc.key)
+
+	bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*")
+	bc.sub.Subscribe(bc.reqChannel, bc.resChannel)
 
 	go func() {
 		for {
-			switch m := b.sub.Receive().(type) {
+			switch m := bc.sub.Receive().(type) {
 			case redis.Message:
-				if m.Channel == b.reqChannel {
-					b.onRequest(m.Data)
+				if m.Channel == bc.reqChannel {
+					bc.onRequest(m.Data)
 					break
-				} else if m.Channel == b.resChannel {
-					b.onResponse(m.Data)
+				} else if m.Channel == bc.resChannel {
+					bc.onResponse(m.Data)
 					break
 				}
 
-				b.onMessage(m.Channel, m.Data)
+				bc.onMessage(m.Channel, m.Data)
 			case redis.Subscription:
 				log.Printf("Subscription: %s %s %d\n", m.Kind, m.Channel, m.Count)
 				if m.Count == 0 {
@@ -127,7 +145,7 @@ func newBroadcast(nsp string) *broadcast {
 		}
 	}()
 
-	return &b
+	return &bc
 }
 
 func (bc *broadcast) onMessage(channel string, msg []byte) error {
@@ -170,7 +188,7 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 
 // Get the number of subcribers of a channel
 func (bc *broadcast) getNumSub(channel string) (int, error) {
-	rs, err := bc.sub.Conn.Do("PUBSUB", "NUMSUB", bc.reqChannel)
+	rs, err := bc.sub.Conn.Do("PUBSUB", "NUMSUB", channel)
 	if err != nil {
 		return 0, err
 	}
@@ -182,6 +200,21 @@ func (bc *broadcast) getNumSub(channel string) (int, error) {
 
 // Handle request from redis channel
 func (bc *broadcast) onRequest(msg []byte) {
+	var pReq map[string]interface{}
+	err := json.Unmarshal(msg, &pReq)
+	if err != nil {
+		log.Println("on request:", err)
+		return
+	}
+
+	switch req := pReq["req"]; req.(type) {
+	case ClientsRequest:
+		clientReq := req.(ClientsRequest)
+		log.Println("room:", clientReq.Room)
+
+	default:
+		log.Println("unknown reuqest")
+	}
 
 }
 
@@ -301,6 +334,23 @@ func (bc *broadcast) ForEach(room string, f EachFunc) {
 func (bc *broadcast) Len(room string) int {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
+
+	req := ClientsRequest{
+		RequestType: clientsReqType,
+		RequestID:   uuid.NewV4().String(),
+		Room:        room,
+	}
+	reqJSON, _ := json.Marshal(map[string]interface{}{
+		"req": req,
+	})
+	log.Println(reqJSON)
+
+	numSub, _ := bc.getNumSub(bc.reqChannel)
+	req.NumSub = numSub
+	req.Done = make(chan bool)
+
+	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	<-req.Done
 
 	return len(bc.rooms[room])
 }
