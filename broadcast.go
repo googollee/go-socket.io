@@ -156,10 +156,7 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 		return nil
 	}
 	uid := channelParts[len(channelParts)-1]
-	log.Println("bc id:", bc.uid)
-	log.Println("uid:", uid)
 	if bc.uid == uid {
-		log.Println("same uid")
 		return nil
 	}
 
@@ -173,16 +170,14 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 	opts := bcMessage["opts"]
 
 	room, ok := opts[0].(string)
-	log.Println("room:", room)
 	if !ok {
 		log.Println("room is not a string")
 	}
 
 	event, ok := opts[1].(string)
-	log.Println("event:", event)
 
 	// log.Printf("Message: %s %s\n", channel, msg)
-	bc.SendOnSubcribe(room, event, args)
+	bc.SendOnSubcribe(room, event, args...)
 	return nil
 }
 
@@ -280,6 +275,8 @@ func (bc *broadcast) Send(room, event string, args ...interface{}) {
 		connection.Emit(event, args...)
 	}
 
+	// bc.lock.RUnlock()
+
 	opts := make([]interface{}, 2)
 	opts[0] = room
 	opts[1] = event
@@ -294,12 +291,15 @@ func (bc *broadcast) Send(room, event string, args ...interface{}) {
 	bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
 }
 
-func (bc *broadcast) SendOnSubcribe(room, event string, args ...interface{}) {
+func (bc *broadcast) SendOnSubcribe(room string, event string, args ...interface{}) {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 
-	for _, connection := range bc.rooms[room] {
-		connection.Emit(event, args...)
+	connections, ok := bc.rooms[room]
+	if ok {
+		for _, connection := range connections {
+			connection.Emit(event, args...)
+		}
 	}
 }
 
