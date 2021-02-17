@@ -13,6 +13,12 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+//
+const (
+	ClientsReq = iota
+	ClientRoomsReq
+)
+
 // EachFunc typed for each callback function
 type EachFunc func(Conn)
 
@@ -40,9 +46,11 @@ type broadcast struct {
 	pub redis.PubSubConn
 	sub redis.PubSubConn
 
-	nsp string
-	uid string
-	key string
+	nsp        string
+	uid        string
+	key        string
+	reqChannel string
+	resChannel string
 
 	rooms map[string]map[string]Conn
 
@@ -87,14 +95,25 @@ func newBroadcast(nsp string) *broadcast {
 	b.nsp = nsp
 	b.uid = uuid.NewV4().String()
 	b.key = b.prefix + "#" + b.nsp + "#" + b.uid
+	b.reqChannel = b.prefix + "-request#" + b.nsp
+	b.resChannel = b.prefix + "-response#" + b.nsp
 	log.Println("bc key:", b.key)
 
 	b.sub.PSubscribe(b.prefix + "#" + b.nsp + "#*")
+	b.sub.Subscribe(b.reqChannel, b.resChannel)
 
 	go func() {
 		for {
 			switch m := b.sub.Receive().(type) {
 			case redis.Message:
+				if m.Channel == b.reqChannel {
+					b.onRequest(m.Data)
+					break
+				} else if m.Channel == b.resChannel {
+					b.onResponse(m.Data)
+					break
+				}
+
 				b.onMessage(m.Channel, m.Data)
 			case redis.Subscription:
 				log.Printf("Subscription: %s %s %d\n", m.Kind, m.Channel, m.Count)
@@ -147,6 +166,28 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 	// log.Printf("Message: %s %s\n", channel, msg)
 	bc.SendOnSubcribe(room, event, args)
 	return nil
+}
+
+// Get the number of subcribers of a channel
+func (bc *broadcast) getNumSub(channel string) (int, error) {
+	rs, err := bc.sub.Conn.Do("PUBSUB", "NUMSUB", bc.reqChannel)
+	if err != nil {
+		return 0, err
+	}
+
+	var numSub64 int64
+	numSub64 = rs.([]interface{})[1].(int64)
+	return int(numSub64), nil
+}
+
+// Handle request from redis channel
+func (bc *broadcast) onRequest(msg []byte) {
+
+}
+
+// Handle response from redis channel
+func (bc *broadcast) onResponse(msg []byte) {
+
 }
 
 // Join joins the given connection to the broadcast room
