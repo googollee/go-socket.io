@@ -53,18 +53,13 @@ type broadcast struct {
 	lock sync.RWMutex
 }
 
-//
+// request types
 const (
-	clientsReqType     = "0"
-	clientRoomsReqType = "1"
+	clientsReqType   = "0"
+	clearRoomReqType = "1"
 )
 
-// type clientsBasicRequest struct {
-// 	RequestType int
-// 	RequestID string
-// 	room	string
-// }
-
+// request structs
 type clientsRequest struct {
 	RequestType string
 	RequestID   string
@@ -76,6 +71,14 @@ type clientsRequest struct {
 	done        chan bool  `json:"-"`
 }
 
+type clearRoomRequest struct {
+	RequestType string
+	RequestID   string
+	Room        string
+	UUID        string
+}
+
+// response struct
 type clientsResponse struct {
 	RequestType string
 	RequestID   string
@@ -211,7 +214,7 @@ func (bc *broadcast) onRequest(msg []byte) {
 	var req map[string]string
 	err := json.Unmarshal(msg, &req)
 	if err != nil {
-		log.Println("on request:", err)
+		log.Println("err on request:", err)
 		return
 	}
 	log.Printf("on req: %s\n", req)
@@ -224,19 +227,25 @@ func (bc *broadcast) onRequest(msg []byte) {
 			RequestID:   req["RequestID"],
 			Connections: len(bc.rooms[req["Room"]]),
 		}
+		bc.publish(bc.resChannel, &res)
+
+	case clearRoomReqType:
+		if bc.uid == req["UUID"] {
+			return
+		}
+		bc.clear(req["Room"])
 
 	default:
 		log.Println("unknown reuqest")
 		return
 	}
 
-	bc.publishResponse(res)
 }
 
-func (bc *broadcast) publishResponse(res interface{}) {
-	resJSON, _ := json.Marshal(res)
-	log.Printf("publish res: %s\n", resJSON)
-	bc.pub.Conn.Do("PUBLISH", bc.resChannel, resJSON)
+func (bc *broadcast) publish(channel string, msg interface{}) {
+	resJSON, _ := json.Marshal(msg)
+	log.Printf("publish msg: %s\n", resJSON)
+	bc.pub.Conn.Do("PUBLISH", channel, resJSON)
 }
 
 // Handle response from redis channel
@@ -320,6 +329,25 @@ func (bc *broadcast) LeaveAll(connection Conn) {
 
 // Clear clears the room
 func (bc *broadcast) Clear(room string) {
+	bc.lock.Lock()
+	defer bc.lock.Unlock()
+
+	delete(bc.rooms, room)
+	go bc.publishClear(room)
+}
+
+func (bc *broadcast) publishClear(room string) {
+	req := clearRoomRequest{
+		RequestType: clearRoomReqType,
+		RequestID:   uuid.NewV4().String(),
+		Room:        room,
+		UUID:        bc.uid,
+	}
+
+	bc.publish(bc.reqChannel, &req)
+}
+
+func (bc *broadcast) clear(room string) {
 	bc.lock.Lock()
 	defer bc.lock.Unlock()
 
