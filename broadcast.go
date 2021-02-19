@@ -55,22 +55,28 @@ type broadcast struct {
 
 //
 const (
-	clientsReqType = iota
-	clientRoomsReqType
+	clientsReqType     = "0"
+	clientRoomsReqType = "1"
 )
 
 // type clientsBasicRequest struct {
-// 	requestType int
-// 	requestID string
+// 	RequestType int
+// 	RequestID string
 // 	room	string
 // }
 
-type ClientsRequest struct {
-	RequestType int
+type clientsRequest struct {
+	RequestType string
 	RequestID   string
 	Room        string
-	NumSub      int       `json:"-"`
-	Done        chan bool `json:"-"`
+	numSub      int       `json:"-"`
+	done        chan bool `json:"-"`
+}
+
+type clientsResponse struct {
+	RequestType string
+	RequestID   string
+	Connections int
 }
 
 // newBroadcast creates a new broadcast adapter
@@ -156,7 +162,10 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 		return nil
 	}
 	uid := channelParts[len(channelParts)-1]
+	// log.Println("bc id:", bc.uid)
+	// log.Println("uid:", uid)
 	if bc.uid == uid {
+		// log.Println("same uid")
 		return nil
 	}
 
@@ -170,6 +179,7 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 	opts := bcMessage["opts"]
 
 	room, ok := opts[0].(string)
+	// log.Println("room:", room)
 	if !ok {
 		log.Println("room is not a string")
 	}
@@ -183,7 +193,8 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 
 // Get the number of subcribers of a channel
 func (bc *broadcast) getNumSub(channel string) (int, error) {
-	rs, err := bc.sub.Conn.Do("PUBSUB", "NUMSUB", channel)
+	log.Println("getting num sub")
+	rs, err := bc.pub.Conn.Do("PUBSUB", "NUMSUB", channel)
 	if err != nil {
 		return 0, err
 	}
@@ -195,26 +206,57 @@ func (bc *broadcast) getNumSub(channel string) (int, error) {
 
 // Handle request from redis channel
 func (bc *broadcast) onRequest(msg []byte) {
-	var pReq map[string]interface{}
-	err := json.Unmarshal(msg, &pReq)
+	var req map[string]string
+	err := json.Unmarshal(msg, &req)
 	if err != nil {
 		log.Println("on request:", err)
 		return
 	}
+	log.Printf("on req: %s\n", req)
 
-	switch req := pReq["req"]; req.(type) {
-	case ClientsRequest:
-		clientReq := req.(ClientsRequest)
-		log.Println("room:", clientReq.Room)
+	var res interface{}
+	switch req["RequestType"] {
+	case clientsReqType:
+		// clientReq := req.(clientsRequest)
+		// log.Println("room:", clientReq.Room, "length:", len(bc.rooms[clientReq.Room]))
+		// log.Println("room:", req["Room"])
+		res = clientsResponse{
+			RequestType: req["RequestType"],
+			RequestID:   req["RequestID"],
+			Connections: len(bc.rooms[req["Room"]]),
+		}
 
 	default:
 		log.Println("unknown reuqest")
+		return
 	}
 
+	bc.publishResponse(res)
+}
+
+func (bc *broadcast) publishResponse(res interface{}) {
+	resJSON, _ := json.Marshal(res)
+	log.Printf("publish res: %s\n", resJSON)
+	bc.pub.Conn.Do("PUBLISH", bc.resChannel, resJSON)
 }
 
 // Handle response from redis channel
 func (bc *broadcast) onResponse(msg []byte) {
+	var res map[string]interface{}
+	err := json.Unmarshal(msg, &res)
+	if err != nil {
+		log.Println("on response:", err)
+		return
+	}
+
+	log.Printf("on resp: %s\n", res)
+	switch res["RequestType"] {
+	case clientsReqType:
+
+	default:
+		log.Println("unknown response")
+		return
+	}
 
 }
 
@@ -335,22 +377,22 @@ func (bc *broadcast) Len(room string) int {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 
-	req := ClientsRequest{
+	req := clientsRequest{
 		RequestType: clientsReqType,
 		RequestID:   uuid.NewV4().String(),
 		Room:        room,
 	}
-	reqJSON, _ := json.Marshal(map[string]interface{}{
-		"req": req,
-	})
-	log.Println(reqJSON)
+
+	reqJSON, _ := json.Marshal(req)
+	log.Printf("req json: %s\n", reqJSON)
 
 	numSub, _ := bc.getNumSub(bc.reqChannel)
-	req.NumSub = numSub
-	req.Done = make(chan bool)
+	req.numSub = numSub
+	log.Println("num sub:", req.numSub)
+	// req.Done = make(chan bool)
 
 	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
-	<-req.Done
+	// <-req.Done
 
 	return len(bc.rooms[room])
 }
