@@ -69,8 +69,11 @@ type clientsRequest struct {
 	RequestType string
 	RequestID   string
 	Room        string
-	numSub      int       `json:"-"`
-	done        chan bool `json:"-"`
+	numSub      int        `json:"-"`
+	msgCount    int        `json:"-"`
+	connections int        `json:"-"`
+	mutex       sync.Mutex `json:"-"`
+	done        chan bool  `json:"-"`
 }
 
 type clientsResponse struct {
@@ -193,7 +196,6 @@ func (bc *broadcast) onMessage(channel string, msg []byte) error {
 
 // Get the number of subcribers of a channel
 func (bc *broadcast) getNumSub(channel string) (int, error) {
-	log.Println("getting num sub")
 	rs, err := bc.pub.Conn.Do("PUBSUB", "NUMSUB", channel)
 	if err != nil {
 		return 0, err
@@ -217,9 +219,6 @@ func (bc *broadcast) onRequest(msg []byte) {
 	var res interface{}
 	switch req["RequestType"] {
 	case clientsReqType:
-		// clientReq := req.(clientsRequest)
-		// log.Println("room:", clientReq.Room, "length:", len(bc.rooms[clientReq.Room]))
-		// log.Println("room:", req["Room"])
 		res = clientsResponse{
 			RequestType: req["RequestType"],
 			RequestID:   req["RequestID"],
@@ -249,9 +248,28 @@ func (bc *broadcast) onResponse(msg []byte) {
 		return
 	}
 
+	req, ok := bc.requets[res["RequestID"].(string)]
+	if !ok {
+		return
+	}
+
 	log.Printf("on resp: %s\n", res)
+	// log.Println("saved req:", req)
 	switch res["RequestType"] {
 	case clientsReqType:
+		cReq := req.(*clientsRequest)
+
+		cReq.mutex.Lock()
+		// bc.lock.Lock()
+		cReq.msgCount++
+		cReq.connections += int(res["Connections"].(float64))
+		// bc.lock.Unlock()
+		cReq.mutex.Unlock()
+		if cReq.numSub == cReq.msgCount {
+			cReq.done <- true
+		}
+
+	// case clieclientRoomsReqType:
 
 	default:
 		log.Println("unknown response")
@@ -374,8 +392,8 @@ func (bc *broadcast) ForEach(room string, f EachFunc) {
 
 // Len gives number of connections in the room
 func (bc *broadcast) Len(room string) int {
-	bc.lock.RLock()
-	defer bc.lock.RUnlock()
+	// bc.lock.RLock()
+	// defer bc.lock.RUnlock()
 
 	req := clientsRequest{
 		RequestType: clientsReqType,
@@ -383,18 +401,18 @@ func (bc *broadcast) Len(room string) int {
 		Room:        room,
 	}
 
-	reqJSON, _ := json.Marshal(req)
+	reqJSON, _ := json.Marshal(&req)
 	log.Printf("req json: %s\n", reqJSON)
 
 	numSub, _ := bc.getNumSub(bc.reqChannel)
 	req.numSub = numSub
-	log.Println("num sub:", req.numSub)
-	// req.Done = make(chan bool)
+	req.done = make(chan bool)
 
+	bc.requets[req.RequestID] = &req
 	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
-	// <-req.Done
+	<-req.done
 
-	return len(bc.rooms[room])
+	return req.connections
 }
 
 // Rooms gives the list of all the rooms available for broadcast in case of
