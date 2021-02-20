@@ -11,6 +11,8 @@ type Server struct {
 	engine *engineio.Server
 
 	handlers map[string]*namespaceHandler
+
+	redisAdapter *RedisAdapter
 }
 
 // NewServer returns a server.
@@ -21,6 +23,11 @@ func NewServer(c *engineio.Options) *Server {
 		handlers: make(map[string]*namespaceHandler),
 		engine:   engine,
 	}
+}
+
+// Set broadcast adapter
+func (s *Server) Adapter(adapter *RedisAdapter) {
+	s.redisAdapter = adapter
 }
 
 // Close closes server.
@@ -194,7 +201,7 @@ func (s *Server) createNameSpace(nsp string) *namespaceHandler {
 		nsp = rootNamespace
 	}
 
-	handler := newNamespaceHandler(nsp)
+	handler := newNamespaceHandler(nsp, s.redisAdapter)
 	s.handlers[nsp] = handler
 
 	return handler
