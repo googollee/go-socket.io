@@ -12,7 +12,7 @@ type Server struct {
 
 	handlers map[string]*namespaceHandler
 
-	redisAdapter *RedisAdapter
+	redisAdapter *RedisAdapterOptions
 }
 
 // NewServer returns a server.
@@ -26,7 +26,7 @@ func NewServer(c *engineio.Options) *Server {
 }
 
 // Adapter sets redis broadcast adapter
-func (s *Server) Adapter(adapter *RedisAdapter) {
+func (s *Server) Adapter(adapter *RedisAdapterOptions) {
 	s.redisAdapter = adapter
 }
 

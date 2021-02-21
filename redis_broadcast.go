@@ -11,7 +11,7 @@ import (
 )
 
 // RedisAdapter is configuration to create new adapter
-type RedisAdapter struct {
+type RedisAdapterOptions struct {
 	Host   string
 	Port   string
 	Prefix string
@@ -89,7 +89,7 @@ type allRoomResponse struct {
 	Rooms       []string
 }
 
-func newRedisBroadcast(nsp string, adapter *RedisAdapter) *redisBroadcast {
+func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) *redisBroadcast {
 	bc := redisBroadcast{
 		rooms: make(map[string]map[string]Conn),
 	}
