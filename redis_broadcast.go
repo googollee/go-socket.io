@@ -3,7 +3,6 @@ package socketio
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"strings"
 	"sync"
 
@@ -43,12 +42,13 @@ type redisBroadcast struct {
 
 // request types
 const (
-	clientsReqType   = "0"
+	roomLenReqType   = "0"
 	clearRoomReqType = "1"
+	allRoomReqType   = "2"
 )
 
 // request structs
-type clientsRequest struct {
+type roomLenRequest struct {
 	RequestType string
 	RequestID   string
 	Room        string
@@ -66,11 +66,27 @@ type clearRoomRequest struct {
 	UUID        string
 }
 
+type allRoomRequest struct {
+	RequestType string
+	RequestID   string
+	rooms       map[string]bool `json:"-"`
+	numSub      int             `json:"-"`
+	msgCount    int             `json:"-"`
+	mutex       sync.Mutex      `json:"-"`
+	done        chan bool       `json:"-"`
+}
+
 // response struct
-type clientsResponse struct {
+type roomLenResponse struct {
 	RequestType string
 	RequestID   string
 	Connections int
+}
+
+type allRoomResponse struct {
+	RequestType string
+	RequestID   string
+	Rooms       []string
 }
 
 func newRedisBroadcast(nsp string, adapter *RedisAdapter) *redisBroadcast {
@@ -171,7 +187,6 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 	event, ok := opts[1].(string)
 
 	if room != "" {
-		log.Println("receving msg:", args)
 		bc.send(room, event, args...)
 	} else {
 		bc.sendAll(event, args...)
@@ -199,14 +214,25 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 	if err != nil {
 		return
 	}
+	// log.Println("on request:", req)
 
 	var res interface{}
 	switch req["RequestType"] {
-	case clientsReqType:
-		res = clientsResponse{
+	case roomLenReqType:
+		res = roomLenResponse{
 			RequestType: req["RequestType"],
 			RequestID:   req["RequestID"],
 			Connections: len(bc.rooms[req["Room"]]),
+		}
+		bc.publish(bc.resChannel, &res)
+
+	case allRoomReqType:
+		rooms := bc.allRooms()
+		// log.Println("current rooms:", rooms)
+		res := allRoomResponse{
+			RequestType: req["RequestType"],
+			RequestID:   req["RequestID"],
+			Rooms:       rooms,
 		}
 		bc.publish(bc.resChannel, &res)
 
@@ -239,17 +265,37 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 		return
 	}
 
+	// log.Println("on resp:", res)
 	switch res["RequestType"] {
-	case clientsReqType:
-		cReq := req.(*clientsRequest)
+	case roomLenReqType:
+		roomLenReq := req.(*roomLenRequest)
 
-		cReq.mutex.Lock()
-		cReq.msgCount++
-		cReq.connections += int(res["Connections"].(float64))
-		cReq.mutex.Unlock()
+		roomLenReq.mutex.Lock()
+		roomLenReq.msgCount++
+		roomLenReq.connections += int(res["Connections"].(float64))
+		roomLenReq.mutex.Unlock()
 
-		if cReq.numSub == cReq.msgCount {
-			cReq.done <- true
+		if roomLenReq.numSub == roomLenReq.msgCount {
+			roomLenReq.done <- true
+		}
+	case allRoomReqType:
+		allRoomReq := req.(*allRoomRequest)
+		rooms, ok := res["Rooms"].([]interface{})
+		if !ok {
+			// log.Println("invalid rooms")
+			allRoomReq.done <- true
+			return
+		}
+
+		allRoomReq.mutex.Lock()
+		allRoomReq.msgCount++
+		for _, room := range rooms {
+			allRoomReq.rooms[room.(string)] = true
+		}
+		allRoomReq.mutex.Unlock()
+
+		if allRoomReq.numSub == allRoomReq.msgCount {
+			allRoomReq.done <- true
 		}
 
 	default:
@@ -408,8 +454,8 @@ func (bc *redisBroadcast) Len(room string) int {
 	// bc.lock.RLock()
 	// defer bc.lock.RUnlock()
 
-	req := clientsRequest{
-		RequestType: clientsReqType,
+	req := roomLenRequest{
+		RequestType: roomLenReqType,
 		RequestID:   uuid.NewV4().String(),
 		Room:        room,
 	}
@@ -417,12 +463,13 @@ func (bc *redisBroadcast) Len(room string) int {
 	reqJSON, _ := json.Marshal(&req)
 	numSub, _ := bc.getNumSub(bc.reqChannel)
 	req.numSub = numSub
-	req.done = make(chan bool)
+	req.done = make(chan bool, 1)
 
 	bc.requets[req.RequestID] = &req
 	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
 	<-req.done
 
+	delete(bc.requets, req.RequestID)
 	return req.connections
 }
 
@@ -442,6 +489,34 @@ func (bc *redisBroadcast) Rooms(connection Conn) []string {
 
 // AllRooms gives list of all rooms available for redisBroadcast
 func (bc *redisBroadcast) AllRooms() []string {
+	// bc.lock.RLock()
+	// defer bc.lock.RUnlock()
+
+	req := allRoomRequest{
+		RequestType: allRoomReqType,
+		RequestID:   uuid.NewV4().String(),
+	}
+	reqJSON, _ := json.Marshal(&req)
+
+	req.rooms = make(map[string]bool)
+	numSub, _ := bc.getNumSub(bc.reqChannel)
+	req.numSub = numSub
+	req.done = make(chan bool, 1)
+
+	bc.requets[req.RequestID] = &req
+	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+
+	<-req.done
+	rooms := make([]string, 0, len(req.rooms))
+	for room := range req.rooms {
+		rooms = append(rooms, room)
+	}
+
+	delete(bc.requets, req.RequestID)
+	return rooms
+}
+
+func (bc *redisBroadcast) allRooms() []string {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 
