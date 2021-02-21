@@ -11,7 +11,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// Redis Adapter
+// RedisAdapter is configuration to create new adapter
 type RedisAdapter struct {
 	Host   string
 	Port   string
@@ -77,8 +77,7 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapter) *redisBroadcast {
 	bc := redisBroadcast{
 		rooms: make(map[string]map[string]Conn),
 	}
-	log.Println("Host:", adapter.Host)
-	log.Println("Prefix:", adapter.Prefix)
+
 	bc.host = adapter.Host
 	if bc.host == "" {
 		bc.host = "127.0.0.1"
@@ -95,7 +94,6 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapter) *redisBroadcast {
 	}
 
 	redisAddr := bc.host + ":" + bc.port
-	// log.Println("redis address:", redisAddr)
 	pub, err := redis.Dial("tcp", redisAddr)
 	if err != nil {
 		panic(err)
@@ -115,8 +113,6 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapter) *redisBroadcast {
 	bc.resChannel = bc.prefix + "-response#" + bc.nsp
 	bc.requets = make(map[string]interface{})
 
-	log.Println("bc key:", bc.key)
-
 	bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*")
 	bc.sub.Subscribe(bc.reqChannel, bc.resChannel)
 
@@ -134,12 +130,10 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapter) *redisBroadcast {
 
 				bc.onMessage(m.Channel, m.Data)
 			case redis.Subscription:
-				log.Printf("Subscription: %s %s %d\n", m.Kind, m.Channel, m.Count)
 				if m.Count == 0 {
 					return
 				}
 			case error:
-				log.Printf("error: %v\n", m)
 				return
 			}
 		}
@@ -152,36 +146,37 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 	channelParts := strings.Split(channel, "#")
 	nsp := channelParts[len(channelParts)-2]
 	if bc.nsp != nsp {
-		log.Println("different nsp")
 		return nil
 	}
+
 	uid := channelParts[len(channelParts)-1]
-	// log.Println("bc id:", bc.uid)
-	// log.Println("uid:", uid)
 	if bc.uid == uid {
-		// log.Println("same uid")
 		return nil
 	}
 
 	var bcMessage map[string][]interface{}
 	err := json.Unmarshal(msg, &bcMessage)
 	if err != nil {
-		return errors.New("invalid redisBroadcast message")
+		return errors.New("invalid broadcast message")
 	}
 
 	args := bcMessage["args"]
 	opts := bcMessage["opts"]
 
 	room, ok := opts[0].(string)
-	// log.Println("room:", room)
 	if !ok {
-		log.Println("room is not a string")
+		return errors.New("invalid room")
 	}
 
 	event, ok := opts[1].(string)
 
-	// log.Printf("Message: %s %s\n", channel, msg)
-	bc.SendOnSubcribe(room, event, args...)
+	if room != "" {
+		log.Println("receving msg:", args)
+		bc.send(room, event, args...)
+	} else {
+		bc.sendAll(event, args...)
+	}
+
 	return nil
 }
 
@@ -202,10 +197,8 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 	var req map[string]string
 	err := json.Unmarshal(msg, &req)
 	if err != nil {
-		log.Println("err on request:", err)
 		return
 	}
-	log.Printf("on req: %s\n", req)
 
 	var res interface{}
 	switch req["RequestType"] {
@@ -224,14 +217,12 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 		bc.clear(req["Room"])
 
 	default:
-		log.Println("unknown reuqest")
 		return
 	}
 }
 
 func (bc *redisBroadcast) publish(channel string, msg interface{}) {
 	resJSON, _ := json.Marshal(msg)
-	log.Printf("publish msg: %s\n", resJSON)
 	bc.pub.Conn.Do("PUBLISH", channel, resJSON)
 }
 
@@ -240,7 +231,6 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 	var res map[string]interface{}
 	err := json.Unmarshal(msg, &res)
 	if err != nil {
-		log.Println("on response:", err)
 		return
 	}
 
@@ -249,26 +239,20 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 		return
 	}
 
-	log.Printf("on resp: %s\n", res)
-	// log.Println("saved req:", req)
 	switch res["RequestType"] {
 	case clientsReqType:
 		cReq := req.(*clientsRequest)
 
 		cReq.mutex.Lock()
-		// bc.lock.Lock()
 		cReq.msgCount++
 		cReq.connections += int(res["Connections"].(float64))
-		// bc.lock.Unlock()
 		cReq.mutex.Unlock()
+
 		if cReq.numSub == cReq.msgCount {
 			cReq.done <- true
 		}
 
-	// case clieclientRoomsReqType:
-
 	default:
-		log.Println("unknown response")
 		return
 	}
 }
@@ -345,27 +329,16 @@ func (bc *redisBroadcast) Send(room, event string, args ...interface{}) {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 
-	for _, connection := range bc.rooms[room] {
-		connection.Emit(event, args...)
+	connections, ok := bc.rooms[room]
+	if ok {
+		for _, connection := range connections {
+			connection.Emit(event, args...)
+		}
 	}
-
-	// bc.lock.RUnlock()
-
-	opts := make([]interface{}, 2)
-	opts[0] = room
-	opts[1] = event
-
-	bcMessage := map[string][]interface{}{
-		"opts": opts,
-		"args": args,
-	}
-
-	bcMessageJSON, _ := json.Marshal(bcMessage)
-
-	bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+	bc.publishMessage(room, event, args...)
 }
 
-func (bc *redisBroadcast) SendOnSubcribe(room string, event string, args ...interface{}) {
+func (bc *redisBroadcast) send(room string, event string, args ...interface{}) {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 
@@ -377,8 +350,34 @@ func (bc *redisBroadcast) SendOnSubcribe(room string, event string, args ...inte
 	}
 }
 
+func (bc *redisBroadcast) publishMessage(room string, event string, args ...interface{}) {
+	opts := make([]interface{}, 2)
+	opts[0] = room
+	opts[1] = event
+
+	bcMessage := map[string][]interface{}{
+		"opts": opts,
+		"args": args,
+	}
+	bcMessageJSON, _ := json.Marshal(bcMessage)
+
+	bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+}
+
 // SendAll sends given event & args to all the connections to all the rooms
 func (bc *redisBroadcast) SendAll(event string, args ...interface{}) {
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
+
+	for _, connections := range bc.rooms {
+		for _, connection := range connections {
+			connection.Emit(event, args...)
+		}
+	}
+	bc.publishMessage("", event, args...)
+}
+
+func (bc *redisBroadcast) sendAll(event string, args ...interface{}) {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 
@@ -416,8 +415,6 @@ func (bc *redisBroadcast) Len(room string) int {
 	}
 
 	reqJSON, _ := json.Marshal(&req)
-	log.Printf("req json: %s\n", reqJSON)
-
 	numSub, _ := bc.getNumSub(bc.reqChannel)
 	req.numSub = numSub
 	req.done = make(chan bool)

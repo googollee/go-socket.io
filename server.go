@@ -25,7 +25,7 @@ func NewServer(c *engineio.Options) *Server {
 	}
 }
 
-// Set broadcast adapter
+// Adapter sets redis broadcast adapter
 func (s *Server) Adapter(adapter *RedisAdapter) {
 	s.redisAdapter = adapter
 }
@@ -143,6 +143,17 @@ func (s *Server) BroadcastToRoom(namespace string, room, event string, args ...i
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
 		nspHandler.broadcast.Send(room, event, args...)
+		return true
+	}
+
+	return false
+}
+
+// BroadcastToNamespace broadcasts given event & args to all the connections in the same namespace
+func (s *Server) BroadcastToNamespace(namespace string, event string, args ...interface{}) bool {
+	nspHandler := s.getNamespace(namespace)
+	if nspHandler != nil {
+		nspHandler.broadcast.SendAll(event, args...)
 		return true
 	}
 

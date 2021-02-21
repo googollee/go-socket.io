@@ -20,7 +20,7 @@ type namespaceHandler struct {
 func newNamespaceHandler(nsp string, redisAdapter *RedisAdapter) *namespaceHandler {
 	var broadcast Broadcast
 	if redisAdapter == nil {
-		broadcast = newBroadcast(nsp)
+		broadcast = newBroadcast()
 	} else {
 		broadcast = newRedisBroadcast(nsp, redisAdapter)
 	}
