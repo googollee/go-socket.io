@@ -10,7 +10,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// RedisAdapter is configuration to create new adapter
+// RedisAdapterOptions is configuration to create new adapter
 type RedisAdapterOptions struct {
 	Host   string
 	Port   string
