@@ -89,7 +89,7 @@ type allRoomResponse struct {
 	Rooms       []string
 }
 
-func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) *redisBroadcast {
+func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcast, error) {
 	bc := redisBroadcast{
 		rooms: make(map[string]map[string]Conn),
 	}
@@ -112,11 +112,11 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) *redisBroadcast
 	redisAddr := bc.host + ":" + bc.port
 	pub, err := redis.Dial("tcp", redisAddr)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	sub, err := redis.Dial("tcp", redisAddr)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	bc.pub = redis.PubSubConn{Conn: pub}
@@ -155,7 +155,7 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) *redisBroadcast
 		}
 	}()
 
-	return &bc
+	return &bc, nil
 }
 
 func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {

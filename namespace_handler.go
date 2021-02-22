@@ -22,7 +22,7 @@ func newNamespaceHandler(nsp string, adapterOpts *RedisAdapterOptions) *namespac
 	if adapterOpts == nil {
 		broadcast = newBroadcast()
 	} else {
-		broadcast = newRedisBroadcast(nsp, adapterOpts)
+		broadcast, _ = newRedisBroadcast(nsp, adapterOpts)
 	}
 
 	return &namespaceHandler{
