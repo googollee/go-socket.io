@@ -27,16 +27,16 @@ func NewServer(c *engineio.Options) *Server {
 }
 
 // Adapter sets redis broadcast adapter
-func (s *Server) Adapter(opts *RedisAdapterOptions) error {
+func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
 	conn, err := redis.Dial("tcp", opts.Host+":"+opts.Port)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	s.redisAdapter = opts
 
 	conn.Close()
-	return nil
+	return true, nil
 }
 
 // Close closes server.
