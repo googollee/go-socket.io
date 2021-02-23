@@ -44,11 +44,16 @@ Please check more examples into folder in project for details. [Examples](https:
 ## How to use Redis broadcast adapter
 ```
 server := socketio.NewServer(nil)
-server.Adapter(&socketio.RedisAdapterOptions{
+ok, err := server.Adapter(&socketio.RedisAdapterOptions{
     Host:   "127.0.0.1",
     Port:   "6379",
     Prefix: "socket.io",
 })
+
+if !ok {
+    fmt.Println("error:", err)
+    return
+}
 ```
 
 ## FAQ
