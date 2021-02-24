@@ -58,7 +58,7 @@ func TestEncoder(t *testing.T) {
 			for i := range w.types {
 				if i == 0 {
 					should.Equal(engineio.TEXT, w.types[i])
-					should.Equal(string(test.Data[i]), string(w.data[i].Bytes()))
+					should.Equal(string(test.Data[i]), w.data[i].String())
 					continue
 				}
 

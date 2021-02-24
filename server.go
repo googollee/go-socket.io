@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/gomodule/redigo/redis"
 	"github.com/googollee/go-socket.io/engineio"
 )
 
@@ -36,6 +37,8 @@ type Server struct {
 	engine *engineio.Server
 
 	handlers *namespaceHandlers
+
+	redisAdapter *RedisAdapterOptions
 }
 
 // NewServer returns a server.
@@ -46,6 +49,19 @@ func NewServer(c *engineio.Options) *Server {
 		handlers: newNamespaceHandlers(),
 		engine:   engine,
 	}
+}
+
+// Adapter sets redis broadcast adapter
+func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
+	conn, err := redis.Dial("tcp", opts.Host+":"+opts.Port)
+	if err != nil {
+		return false, err
+	}
+
+	s.redisAdapter = opts
+
+	conn.Close()
+	return true, nil
 }
 
 // Close closes server.
@@ -167,6 +183,17 @@ func (s *Server) BroadcastToRoom(namespace string, room, event string, args ...i
 	return false
 }
 
+// BroadcastToNamespace broadcasts given event & args to all the connections in the same namespace
+func (s *Server) BroadcastToNamespace(namespace string, event string, args ...interface{}) bool {
+	nspHandler := s.getNamespace(namespace)
+	if nspHandler != nil {
+		nspHandler.broadcast.SendAll(event, args...)
+		return true
+	}
+
+	return false
+}
+
 // RoomLen gives number of connections in the room
 func (s *Server) RoomLen(namespace string, room string) int {
 	nspHandler := s.getNamespace(namespace)
@@ -219,7 +246,7 @@ func (s *Server) createNameSpace(nsp string) *namespaceHandler {
 		nsp = rootNamespace
 	}
 
-	handler := newNamespaceHandler()
+	handler := newNamespaceHandler(nsp, s.redisAdapter)
 	s.handlers.Set(nsp, handler)
 
 	return handler

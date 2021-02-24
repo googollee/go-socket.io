@@ -254,7 +254,7 @@ func (p *Payload) Store(op string, err error) error {
 
 func (p *Payload) readTimeout() (<-chan time.Time, bool) {
 	deadline := p.readDeadline.Load().(time.Time)
-	wait := deadline.Sub(time.Now())
+	wait := time.Until(deadline)
 	if deadline.IsZero() {
 		// wait for every
 		wait = math.MaxInt64
@@ -267,7 +267,7 @@ func (p *Payload) readTimeout() (<-chan time.Time, bool) {
 
 func (p *Payload) writeTimeout() (<-chan time.Time, bool) {
 	deadline := p.writeDeadline.Load().(time.Time)
-	wait := deadline.Sub(time.Now())
+	wait := time.Until(deadline)
 	if deadline.IsZero() {
 		// wait for every
 		wait = math.MaxInt64
