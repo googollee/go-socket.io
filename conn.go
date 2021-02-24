@@ -209,7 +209,10 @@ func (c *conn) serveError() {
 			}
 			if handler := c.namespace(errMsg.namespace); handler != nil {
 				if handler.onError != nil {
-					ns, _ := c.namespaces.Get(errMsg.namespace)
+					ns, ok := c.namespaces.Get(errMsg.namespace)
+					if !ok {
+						continue
+					}
 					handler.onError(ns, errMsg.err)
 				}
 			}
