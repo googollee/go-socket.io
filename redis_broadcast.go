@@ -123,7 +123,7 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 	bc.sub = redis.PubSubConn{Conn: sub}
 
 	bc.nsp = nsp
-	bc.uid = bc.createRequestID()
+	bc.uid = uuid.NewV4().String()
 	bc.key = bc.prefix + "#" + bc.nsp + "#" + bc.uid
 	bc.reqChannel = bc.prefix + "-request#" + bc.nsp
 	bc.resChannel = bc.prefix + "-response#" + bc.nsp
@@ -156,13 +156,6 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 	}()
 
 	return &bc, nil
-}
-
-// Create a unique identifier for the request.
-func (bc *redisBroadcast) createRequestID() string {
-	uid, _ := uuid.NewV4()
-	
-	return uid.String()
 }
 
 func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
@@ -362,7 +355,7 @@ func (bc *redisBroadcast) Clear(room string) {
 func (bc *redisBroadcast) publishClear(room string) {
 	req := clearRoomRequest{
 		RequestType: clearRoomReqType,
-		RequestID:   bc.createRequestID(),
+		RequestID:   uuid.NewV4().String(),
 		Room:        room,
 		UUID:        bc.uid,
 	}
@@ -463,7 +456,7 @@ func (bc *redisBroadcast) Len(room string) int {
 
 	req := roomLenRequest{
 		RequestType: roomLenReqType,
-		RequestID:   bc.createRequestID()
+		RequestID:   uuid.NewV4().String(),
 		Room:        room,
 	}
 
@@ -501,7 +494,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 
 	req := allRoomRequest{
 		RequestType: allRoomReqType,
-		RequestID:   bc.createRequestID(),
+		RequestID:   uuid.NewV4().String(),
 	}
 	reqJSON, _ := json.Marshal(&req)
 
