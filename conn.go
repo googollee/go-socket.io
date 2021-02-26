@@ -32,8 +32,8 @@ type writePacket struct {
 }
 
 type namespaces struct {
-	mu sync.RWMutex
 	namespaces map[string]*namespaceConn
+	mu sync.RWMutex
 }
 
 func newNamespaces() *namespaces {

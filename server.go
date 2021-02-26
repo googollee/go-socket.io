@@ -9,8 +9,8 @@ import (
 )
 
 type namespaceHandlers struct {
-	mu       sync.RWMutex
 	handlers map[string]*namespaceHandler
+	mu       sync.RWMutex
 }
 
 func newNamespaceHandlers() *namespaceHandlers {
