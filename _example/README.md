@@ -12,7 +12,10 @@ import (
 )
 
 func main() {
-	server := socketio.NewServer(nil)
+	server, serveError  := socketio.NewServer(nil)
+	if serveError != nil {
+		log.Fatalln(serveError)
+	}
 	
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
