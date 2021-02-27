@@ -31,12 +31,50 @@ type writePacket struct {
 	data []interface{}
 }
 
+type namespaces struct {
+	namespaces map[string]*namespaceConn
+	mu sync.RWMutex
+}
+
+func newNamespaces() *namespaces {
+	return &namespaces{
+		namespaces: make(map[string]*namespaceConn),
+	}
+}
+
+func (n *namespaces) Get(ns string) (*namespaceConn, bool) {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	namespace, ok := n.namespaces[ns]
+	return namespace, ok
+}
+
+func (n *namespaces) Set(ns string, conn *namespaceConn) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.namespaces[ns] = conn
+}
+
+func (n *namespaces) Delete(ns string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	delete(n.namespaces, ns)
+}
+
+func (n *namespaces) Range(fn func(ns string, nc *namespaceConn)) {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	for ns, nc := range n.namespaces {
+		fn(ns, nc)
+	}
+}
+
 type conn struct {
 	engineio.Conn
 
 	id         uint64
-	handlers   map[string]*namespaceHandler
-	namespaces map[string]*namespaceConn
+	handlers   *namespaceHandlers
+	namespaces *namespaces
 
 	encoder *parser.Encoder
 	decoder *parser.Decoder
@@ -48,7 +86,7 @@ type conn struct {
 	closeOnce sync.Once
 }
 
-func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) error {
+func newConn(c engineio.Conn, handlers *namespaceHandlers) error {
 	ret := &conn{
 		Conn:       c,
 		encoder:    parser.NewEncoder(c),
@@ -57,7 +95,7 @@ func newConn(c engineio.Conn, handlers map[string]*namespaceHandler) error {
 		writeChan:  make(chan writePacket),
 		quitChan:   make(chan struct{}),
 		handlers:   handlers,
-		namespaces: make(map[string]*namespaceConn),
+		namespaces: newNamespaces(),
 	}
 
 	if err := ret.connect(); err != nil {
@@ -73,13 +111,13 @@ func (c *conn) Close() error {
 
 	c.closeOnce.Do(func() {
 		//for each namespace, leave all rooms, and call the disconnect handler.
-		for ns, nc := range c.namespaces {
+		c.namespaces.Range(func(ns string, nc *namespaceConn) {
 			nc.LeaveAll()
 
-			if nh := c.handlers[ns]; nh != nil && nh.onDisconnect != nil {
+			if nh, _ := c.handlers.Get(ns); nh != nil && nh.onDisconnect != nil {
 				nh.onDisconnect(nc, clientDisconnectMsg)
 			}
-		}
+		})
 		err = c.Conn.Close()
 
 		close(c.quitChan)
@@ -89,19 +127,19 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) connect() error {
-	rootHandler, ok := c.handlers[rootNamespace]
+	rootHandler, ok := c.handlers.Get(rootNamespace)
 	if !ok {
 		return errUnavailableRootHandler
 	}
 
 	root := newNamespaceConn(c, aliasRootNamespace, rootHandler.broadcast)
-	c.namespaces[rootNamespace] = root
+	c.namespaces.Set(rootNamespace, root)
 
 	root.Join(root.ID())
-
-	for _, ns := range c.namespaces {
-		ns.SetContext(c.Conn.Context())
-	}
+	
+	c.namespaces.Range(func(ns string, nc *namespaceConn) {
+		nc.SetContext(c.Conn.Context())
+	})
 
 	header := parser.Header{
 		Type: parser.Connect,
@@ -110,7 +148,7 @@ func (c *conn) connect() error {
 	if err := c.encoder.Encode(header, nil); err != nil {
 		return err
 	}
-	handler, ok := c.handlers[header.Namespace]
+	handler, ok := c.handlers.Get(header.Namespace)
 
 	go c.serveError()
 	go c.serveWrite()
@@ -171,7 +209,11 @@ func (c *conn) serveError() {
 			}
 			if handler := c.namespace(errMsg.namespace); handler != nil {
 				if handler.onError != nil {
-					handler.onError(c.namespaces[errMsg.namespace], errMsg.err)
+					ns, ok := c.namespaces.Get(errMsg.namespace)
+					if !ok {
+						continue
+					}
+					handler.onError(ns, errMsg.err)
 				}
 			}
 		}
@@ -213,19 +255,19 @@ func (c *conn) serveRead() {
 
 		switch header.Type {
 		case parser.Ack:
-			conn, ok := c.namespaces[header.Namespace]
+			conn, ok := c.namespaces.Get(header.Namespace)
 			if !ok {
 				_ = c.decoder.DiscardLast()
 				continue
 			}
 			conn.dispatch(header)
 		case parser.Event:
-			conn, ok := c.namespaces[header.Namespace]
+			conn, ok := c.namespaces.Get(header.Namespace)
 			if !ok {
 				_ = c.decoder.DiscardLast()
 				continue
 			}
-			handler, ok := c.handlers[header.Namespace]
+			handler, ok := c.handlers.Get(header.Namespace)
 			if !ok {
 				_ = c.decoder.DiscardLast()
 				continue
@@ -251,12 +293,12 @@ func (c *conn) serveRead() {
 				return
 			}
 
-			handler, ok := c.handlers[header.Namespace]
+			handler, ok := c.handlers.Get(header.Namespace)
 			if ok {
-				conn, ok := c.namespaces[header.Namespace]
+				conn, ok := c.namespaces.Get(header.Namespace)
 				if !ok {
 					conn = newNamespaceConn(c, header.Namespace, handler.broadcast)
-					c.namespaces[header.Namespace] = conn
+					c.namespaces.Set(header.Namespace, conn)
 					conn.Join(c.ID())
 				}
 				_, _ = handler.dispatch(conn, header, "", nil)
@@ -274,15 +316,15 @@ func (c *conn) serveRead() {
 				c.onError(header.Namespace, err)
 				return
 			}
-			conn, ok := c.namespaces[header.Namespace]
+			conn, ok := c.namespaces.Get(header.Namespace)
 			if !ok {
 				_ = c.decoder.DiscardLast()
 				continue
 			}
 
 			conn.LeaveAll()
-			delete(c.namespaces, header.Namespace)
-			handler, ok := c.handlers[header.Namespace]
+			c.namespaces.Delete(header.Namespace)
+			handler, ok := c.handlers.Get(header.Namespace)
 			if ok {
 				_, _ = handler.dispatch(conn, header, "", args)
 			}
@@ -291,5 +333,6 @@ func (c *conn) serveRead() {
 }
 
 func (c *conn) namespace(nsp string) *namespaceHandler {
-	return c.handlers[nsp]
+	handler, _ := c.handlers.Get(nsp)
+	return handler
 }
