@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/leftkalai/go-socket.io/engineio/base"
 )
 
 func TestServerJSONP(t *testing.T) {

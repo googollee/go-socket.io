@@ -5,7 +5,7 @@ package main
 
 import (
 	"fmt"
-	socketio "github.com/googollee/go-socket.io"
+	socketio "github.com/leftkalai/go-socket.io"
 )
 
 func main() {

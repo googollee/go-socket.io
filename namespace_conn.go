@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/googollee/go-socket.io/parser"
+	"github.com/leftkalai/go-socket.io/parser"
 )
 
 // Namespace

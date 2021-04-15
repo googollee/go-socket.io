@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/leftkalai/go-socket.io/engineio/base"
 )
 
 // Transport is the transport of polling.

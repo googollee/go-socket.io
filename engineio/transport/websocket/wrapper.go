@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/gorilla/websocket"
+	"github.com/leftkalai/go-socket.io/engineio/base"
+	"github.com/leftkalai/go-socket.io/engineio/transport"
 )
 
 type wrapper struct {

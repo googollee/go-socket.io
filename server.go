@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/gomodule/redigo/redis"
-	"github.com/googollee/go-socket.io/engineio"
+	"github.com/leftkalai/go-socket.io/engineio"
 )
 
 type namespaceHandlers struct {

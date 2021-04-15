@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/googollee/go-socket.io/engineio"
-	"github.com/googollee/go-socket.io/parser"
+	"github.com/leftkalai/go-socket.io/engineio"
+	"github.com/leftkalai/go-socket.io/parser"
 )
 
 // Conn is a connection in go-socket.io
@@ -33,7 +33,7 @@ type writePacket struct {
 
 type namespaces struct {
 	namespaces map[string]*namespaceConn
-	mu sync.RWMutex
+	mu         sync.RWMutex
 }
 
 func newNamespaces() *namespaces {
@@ -136,7 +136,7 @@ func (c *conn) connect() error {
 	c.namespaces.Set(rootNamespace, root)
 
 	root.Join(root.ID())
-	
+
 	c.namespaces.Range(func(ns string, nc *namespaceConn) {
 		nc.SetContext(c.Conn.Context())
 	})

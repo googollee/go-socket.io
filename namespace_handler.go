@@ -5,14 +5,14 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/googollee/go-socket.io/parser"
+	"github.com/leftkalai/go-socket.io/parser"
 )
 
 type namespaceHandler struct {
 	broadcast Broadcast
 
 	eventsMu sync.RWMutex
-	events map[string]*funcHandler
+	events   map[string]*funcHandler
 
 	onConnect    func(c Conn) error
 	onDisconnect func(c Conn, msg string)

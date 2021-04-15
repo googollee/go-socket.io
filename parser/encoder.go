@@ -6,7 +6,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/googollee/go-socket.io/engineio"
+	"github.com/leftkalai/go-socket.io/engineio"
 )
 
 type FrameWriter interface {

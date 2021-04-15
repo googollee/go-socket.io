@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/leftkalai/go-socket.io/engineio/base"
 
 	"github.com/stretchr/testify/assert"
 )
