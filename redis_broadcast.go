@@ -89,6 +89,10 @@ type allRoomResponse struct {
 	Rooms       []string
 }
 
+func genUUID() string{
+	return uuid.Must(uuid.NewV4()).String()
+}
+
 func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcast, error) {
 	bc := redisBroadcast{
 		rooms: make(map[string]map[string]Conn),
@@ -115,13 +119,10 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 		return nil, err
 	}
 	sub, err := redis.Dial("tcp", redisAddr)
-	if err != nil {
-		return nil, err
-	}
 	bc.pub = redis.PubSubConn{Conn: pub}
 	bc.sub = redis.PubSubConn{Conn: sub}
 	bc.nsp = nsp
-	bc.uid = uuid.Must(uuid.NewV4()).String()
+	bc.uid = genUUID()
 	bc.key = bc.prefix + "#" + bc.nsp + "#" + bc.uid
 	bc.reqChannel = bc.prefix + "-request#" + bc.nsp
 	bc.resChannel = bc.prefix + "-response#" + bc.nsp
@@ -353,7 +354,7 @@ func (bc *redisBroadcast) Clear(room string) {
 func (bc *redisBroadcast) publishClear(room string) {
 	req := clearRoomRequest{
 		RequestType: clearRoomReqType,
-		RequestID:   uuid.Must(uuid.NewV4()).String(),
+		RequestID:   genUUID(),
 		Room:        room,
 		UUID:        bc.uid,
 	}
@@ -454,7 +455,7 @@ func (bc *redisBroadcast) Len(room string) int {
 
 	req := roomLenRequest{
 		RequestType: roomLenReqType,
-		RequestID:   uuid.Must(uuid.NewV4()).String(),
+		RequestID:   genUUID(),
 		Room:        room,
 	}
 
@@ -492,7 +493,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 
 	req := allRoomRequest{
 		RequestType: allRoomReqType,
-		RequestID:   uuid.Must(uuid.NewV4()).String(),
+		RequestID:   genUUID(),
 	}
 	reqJSON, _ := json.Marshal(&req)
 
