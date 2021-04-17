@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+
 	socketio "github.com/googollee/go-socket.io"
 )
 
@@ -15,13 +16,14 @@ func main() {
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
+		s.Join("chatroom")
 		fmt.Println("connected:", s.ID())
 		return nil
 	})
 
 	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
 		fmt.Println("notice:", msg)
-		s.Emit("reply", "have "+msg)
+		server.BroadcastToRoom("/", "chatroom", msg)
 	})
 
 	server.OnEvent("/chat", "msg", func(s socketio.Conn, msg string) string {
