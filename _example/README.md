@@ -19,13 +19,14 @@ func main() {
 	
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
+		s.Join("chatroom")
 		fmt.Println("connected:", s.ID())
 		return nil
 	})
 
 	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
 		fmt.Println("notice:", msg)
-		s.Emit("reply", "have "+msg)
+		server.BroadcastToRoom("/", "chatroom", msg)
 	})
 
 	server.OnEvent("/chat", "msg", func(s socketio.Conn, msg string) string {
@@ -79,7 +80,7 @@ func main() {
 // The return type may vary depending on whether you will return
 // In golang implementation of Socket.IO don't used callbacks for acknowledgement,
 // but used return value, which wrapped into ack package and returned to the client's callback in JavaScript
-so.On("some:event", func(msg string) string {
+server.OnEvent("/namespace", "some:event", func(s socketio.Conn, msg string) string {
 	return msg //Sending ack with data in msg back to client, using "return statement"
 })
 ```
