@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
+	uuid "github.com/gofrs/uuid"
 	"github.com/gomodule/redigo/redis"
-	uuid "github.com/satori/go.uuid"
 )
 
 // RedisAdapterOptions is configuration to create new adapter
@@ -123,7 +123,7 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 	bc.sub = redis.PubSubConn{Conn: sub}
 
 	bc.nsp = nsp
-	bc.uid = uuid.NewV4().String()
+	bc.uid = uuid.Must(uuid.NewV4()).String()
 	bc.key = bc.prefix + "#" + bc.nsp + "#" + bc.uid
 	bc.reqChannel = bc.prefix + "-request#" + bc.nsp
 	bc.resChannel = bc.prefix + "-response#" + bc.nsp
@@ -355,7 +355,7 @@ func (bc *redisBroadcast) Clear(room string) {
 func (bc *redisBroadcast) publishClear(room string) {
 	req := clearRoomRequest{
 		RequestType: clearRoomReqType,
-		RequestID:   uuid.NewV4().String(),
+		RequestID:   uuid.Must(uuid.NewV4()).String(),
 		Room:        room,
 		UUID:        bc.uid,
 	}
@@ -456,7 +456,7 @@ func (bc *redisBroadcast) Len(room string) int {
 
 	req := roomLenRequest{
 		RequestType: roomLenReqType,
-		RequestID:   uuid.NewV4().String(),
+		RequestID:   uuid.Must(uuid.NewV4()).String(),
 		Room:        room,
 	}
 
@@ -494,7 +494,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 
 	req := allRoomRequest{
 		RequestType: allRoomReqType,
-		RequestID:   uuid.NewV4().String(),
+		RequestID:   uuid.Must(uuid.NewV4()).String(),
 	}
 	reqJSON, _ := json.Marshal(&req)
 
