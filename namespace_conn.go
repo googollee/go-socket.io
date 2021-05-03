@@ -8,7 +8,7 @@ import (
 	"github.com/googollee/go-socket.io/parser"
 )
 
-// Namespace is interface describe namespace functionality
+// Namespace describes a socket.io room.
 type Namespace interface {
 	// Context of this connection. You can save one context for one
 	// connection, and share it between all handlers. The handlers
