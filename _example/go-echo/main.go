@@ -58,5 +58,4 @@ func main() {
 		return nil
 	})
 	e.Logger.Fatal(e.Start(":3000"))
-
 }

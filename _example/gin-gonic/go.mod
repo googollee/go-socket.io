@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/gin-cors
+module github.com/googollee/go-socket.io/_example/gin-gonic
 
 go 1.16
 

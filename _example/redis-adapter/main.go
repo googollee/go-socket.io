@@ -13,6 +13,7 @@ func main() {
 	router := gin.New()
 
 	server := socketio.NewServer(nil)
+
 	_, err := server.Adapter(&socketio.RedisAdapterOptions{
 		Host:   "127.0.0.1",
 		Port:   "6379",
