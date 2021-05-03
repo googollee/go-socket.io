@@ -42,8 +42,8 @@ type Server struct {
 }
 
 // NewServer returns a server.
-func NewServer(opts *engineio.Options) *Server {
-	engine, _ := engineio.NewServer(opts)
+func NewServer(c *engineio.Options) *Server {
+	engine, _ := engineio.NewServer(c)
 
 	return &Server{
 		handlers: newNamespaceHandlers(),
