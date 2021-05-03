@@ -1,6 +1,6 @@
 module github.com/googollee/go-socket.io
 
-go 1.13
+go 1.16
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

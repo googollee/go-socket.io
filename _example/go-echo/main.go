@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/labstack/echo"
 
@@ -9,17 +9,16 @@ import (
 )
 
 func main() {
-
 	server := socketio.NewServer(nil)
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
-		fmt.Println("connected:", s.ID())
+		log.Println("connected:", s.ID())
 		return nil
 	})
 
 	server.OnEvent("/", "notice", func(s socketio.Conn, msg string) {
-		fmt.Println("notice:", msg)
+		log.Println("notice:", msg)
 		s.Emit("reply", "have "+msg)
 	})
 
@@ -40,11 +39,11 @@ func main() {
 	})
 
 	server.OnError("/", func(s socketio.Conn, e error) {
-		fmt.Println("meet error:", e)
+		log.Println("meet error:", e)
 	})
 
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
-		fmt.Println("closed", reason)
+		log.Println("closed", reason)
 	})
 
 	go server.Serve()
