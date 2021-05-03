@@ -1,4 +1,4 @@
-## Simple example
+## Base example with using std net/http
 
 ```go
 package main
@@ -52,6 +52,21 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir("./asset")))
 	log.Println("Serving at localhost:8000...")
 	log.Fatal(http.ListenAndServe(":8000", nil))
+}
+```
+
+
+## How to use Redis broadcast adapter
+```go
+server := socketio.NewServer(nil)
+
+_, err := server.Adapter(&socketio.RedisAdapterOptions{
+    Host:   "127.0.0.1",
+    Port:   "6379",
+    Prefix: "socket.io",
+})
+if err != nil {
+    log.Fatal("error:", err)
 }
 ```
 
