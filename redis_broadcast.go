@@ -373,13 +373,12 @@ func (bc *redisBroadcast) Send(room, event string, args ...interface{}) {
 	defer bc.lock.RUnlock()
 
 	connections, ok := bc.rooms[room]
-	if !ok {
-		return
+	if ok {
+		for _, connection := range connections {
+			connection.Emit(event, args...)
+		}
 	}
 
-	for _, connection := range connections {
-		connection.Emit(event, args...)
-	}
 	bc.publishMessage(room, event, args...)
 }
 
