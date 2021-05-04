@@ -32,7 +32,7 @@ type redisBroadcast struct {
 	reqChannel string
 	resChannel string
 
-	requets map[string]interface{}
+	requests map[string]interface{}
 
 	rooms map[string]map[string]Conn
 
@@ -126,7 +126,7 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 	bc.key = bc.prefix + "#" + bc.nsp + "#" + bc.uid
 	bc.reqChannel = bc.prefix + "-request#" + bc.nsp
 	bc.resChannel = bc.prefix + "-response#" + bc.nsp
-	bc.requets = make(map[string]interface{})
+	bc.requests = make(map[string]interface{})
 
 	bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*")
 	bc.sub.Subscribe(bc.reqChannel, bc.resChannel)
@@ -242,7 +242,6 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 		bc.clear(req["Room"])
 
 	default:
-		return
 	}
 }
 
@@ -259,7 +258,7 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 		return
 	}
 
-	req, ok := bc.requets[res["RequestID"].(string)]
+	req, ok := bc.requests[res["RequestID"].(string)]
 	if !ok {
 		return
 	}
@@ -298,7 +297,6 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 		}
 
 	default:
-		return
 	}
 }
 
@@ -380,6 +378,7 @@ func (bc *redisBroadcast) Send(room, event string, args ...interface{}) {
 			connection.Emit(event, args...)
 		}
 	}
+
 	bc.publishMessage(room, event, args...)
 }
 
@@ -388,10 +387,12 @@ func (bc *redisBroadcast) send(room string, event string, args ...interface{}) {
 	defer bc.lock.RUnlock()
 
 	connections, ok := bc.rooms[room]
-	if ok {
-		for _, connection := range connections {
-			connection.Emit(event, args...)
-		}
+	if !ok {
+		return
+	}
+
+	for _, connection := range connections {
+		connection.Emit(event, args...)
 	}
 }
 
@@ -450,9 +451,6 @@ func (bc *redisBroadcast) ForEach(room string, f EachFunc) {
 
 // Len gives number of connections in the room
 func (bc *redisBroadcast) Len(room string) int {
-	// bc.lock.RLock()
-	// defer bc.lock.RUnlock()
-
 	req := roomLenRequest{
 		RequestType: roomLenReqType,
 		RequestID:   newV4UUID(),
@@ -464,11 +462,11 @@ func (bc *redisBroadcast) Len(room string) int {
 	req.numSub = numSub
 	req.done = make(chan bool, 1)
 
-	bc.requets[req.RequestID] = &req
+	bc.requests[req.RequestID] = &req
 	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
 	<-req.done
 
-	delete(bc.requets, req.RequestID)
+	delete(bc.requests, req.RequestID)
 	return req.connections
 }
 
@@ -488,9 +486,6 @@ func (bc *redisBroadcast) Rooms(connection Conn) []string {
 
 // AllRooms gives list of all rooms available for redisBroadcast
 func (bc *redisBroadcast) AllRooms() []string {
-	// bc.lock.RLock()
-	// defer bc.lock.RUnlock()
-
 	req := allRoomRequest{
 		RequestType: allRoomReqType,
 		RequestID:   newV4UUID(),
@@ -502,7 +497,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 	req.numSub = numSub
 	req.done = make(chan bool, 1)
 
-	bc.requets[req.RequestID] = &req
+	bc.requests[req.RequestID] = &req
 	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
 
 	<-req.done
@@ -511,7 +506,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 		rooms = append(rooms, room)
 	}
 
-	delete(bc.requets, req.RequestID)
+	delete(bc.requests, req.RequestID)
 	return rooms
 }
 

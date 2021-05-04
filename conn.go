@@ -33,7 +33,7 @@ type writePacket struct {
 
 type namespaces struct {
 	namespaces map[string]*namespaceConn
-	mu sync.RWMutex
+	mu         sync.RWMutex
 }
 
 func newNamespaces() *namespaces {
@@ -136,7 +136,7 @@ func (c *conn) connect() error {
 	c.namespaces.Set(rootNamespace, root)
 
 	root.Join(root.ID())
-	
+
 	c.namespaces.Range(func(ns string, nc *namespaceConn) {
 		nc.SetContext(c.Conn.Context())
 	})
@@ -305,7 +305,7 @@ func (c *conn) serveRead() {
 
 				//todo leave default room?!
 			} else {
-				c.onError(header.Namespace, errFailedConnetNamespace)
+				c.onError(header.Namespace, errFailedConnectNamespace)
 				return
 			}
 			c.write(header, nil)
