@@ -38,23 +38,7 @@ and use `socketio` as the package name inside the code.
 
 ## Example
 
-Please check more examples into folder in project for details. [Examples](https://github.com/googollee/go-socket.io/tree/master/_example)
-
-
-## How to use Redis broadcast adapter
-```
-server := socketio.NewServer(nil)
-ok, err := server.Adapter(&socketio.RedisAdapterOptions{
-    Host:   "127.0.0.1",
-    Port:   "6379",
-    Prefix: "socket.io",
-})
-
-if !ok {
-    fmt.Println("error:", err)
-    return
-}
-```
+Please check more examples into folder in project for details. [Examples](https://github.com/googollee/go-socket.io/tree/master/_examples)
 
 ## FAQ
 
