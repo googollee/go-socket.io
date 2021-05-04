@@ -55,7 +55,7 @@ func TestOpError(t *testing.T) {
 	for i, test := range tests {
 		err := OpErr(test.url, test.op, test.err)
 		e, ok := err.(*OpError)
-		require.True(t, ok, fmt.Sprintf(`%d`, i))
+		require.True(t, ok, fmt.Sprintf(`cast err to OpErr by case: %d`, i))
 
 		assert.Equal(t, test.timeout, e.Timeout())
 		assert.Equal(t, test.temporary, e.Temporary())
