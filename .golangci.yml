@@ -1,0 +1,18 @@
+run:
+  timeout: 180s
+  skip-files:
+    - engineio/base/conn_test.go
+    - engineio/client.go
+    - engineio/payload/decoder_test.go
+    - engineio/payload/encoder_test.go
+    - engineio/payload/errors.go
+    - engineio/payload/payload_test.go
+    - engineio/payload/util_test.go
+    - engineio/transport/polling/client.go
+    - engineio/transport/polling/client_test.go
+    - engineio/transport/polling/server.go
+    - engineio/transport/websocket/wrapper.go
+    - engineio/util.go
+    - namespace_conn.go
+    - parser/data_test.go
+    - redis_broadcast.go
