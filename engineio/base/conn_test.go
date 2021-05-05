@@ -38,11 +38,10 @@ func TestOpError(t *testing.T) {
 		temporary bool
 		errString string
 	}{
-		{"http://domain/abc", "post(write) to", io.EOF, false, false,
-			"post(write) to http://domain/abc: EOF",
-		},
-		{"http://domain/abc", "get(read) from", io.EOF, false, false,
-			"get(read) from http://domain/abc: EOF",
+		{"http://domain/abc", "post(write) to", io.EOF,
+			false, false, "post(write) to http://domain/abc: EOF"},
+		{"http://domain/abc", "get(read) from", io.EOF,
+			false, false, "get(read) from http://domain/abc: EOF",
 		},
 		{"http://domain/abc", "post(write) to", fakeOpError{true, false},
 			true, false, "post(write) to http://domain/abc: fake error",
