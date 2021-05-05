@@ -2,6 +2,7 @@ package polling
 
 import (
 	"fmt"
+	"github.com/googollee/go-socket.io/engineio/transport"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -13,19 +14,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
 func TestServerJSONP(t *testing.T) {
 	var scValue atomic.Value
 
-	transport := Default
-	conn := make(chan base.Conn, 1)
+	pollingTransport := Default
+	conn := make(chan transport.Conn, 1)
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 		if c == nil {
-			co, err := transport.Accept(w, r)
+			co, err := pollingTransport.Accept(w, r)
 			require.NoError(t, err)
 
 			scValue.Store(co)
@@ -47,7 +48,7 @@ func TestServerJSONP(t *testing.T) {
 
 		defer sc.Close()
 
-		w, err := sc.NextWriter(base.FrameBinary, base.MESSAGE)
+		w, err := sc.NextWriter(packet.FrameBinary, packet.MESSAGE)
 		require.NoError(t, err)
 
 		_, err = w.Write([]byte("hello"))
@@ -56,7 +57,7 @@ func TestServerJSONP(t *testing.T) {
 		err = w.Close()
 		require.NoError(t, err)
 
-		w, err = sc.NextWriter(base.FrameString, base.MESSAGE)
+		w, err = sc.NextWriter(packet.FrameString, packet.MESSAGE)
 		require.NoError(t, err)
 
 		_, err = w.Write([]byte("world"))

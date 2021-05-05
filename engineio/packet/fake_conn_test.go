@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-
-	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 type fakeConnReader struct {
@@ -18,9 +16,9 @@ func newFakeConnReader(frames []Frame) *fakeConnReader {
 	}
 }
 
-func (r *fakeConnReader) NextReader() (base.FrameType, io.ReadCloser, error) {
+func (r *fakeConnReader) NextReader() (FrameType, io.ReadCloser, error) {
 	if len(r.frames) == 0 {
-		return base.FrameString, nil, io.EOF
+		return FrameString, nil, io.EOF
 	}
 	f := r.frames[0]
 	r.frames = r.frames[1:]
@@ -29,14 +27,14 @@ func (r *fakeConnReader) NextReader() (base.FrameType, io.ReadCloser, error) {
 
 type fakeFrame struct {
 	w    *fakeConnWriter
-	typ  base.FrameType
+	typ  FrameType
 	data *bytes.Buffer
 }
 
-func newFakeFrame(w *fakeConnWriter, typ base.FrameType) *fakeFrame {
+func newFakeFrame(w *fakeConnWriter, fType FrameType) *fakeFrame {
 	return &fakeFrame{
 		w:    w,
-		typ:  typ,
+		typ:  fType,
 		data: bytes.NewBuffer(nil),
 	}
 }
@@ -68,8 +66,8 @@ func newFakeConnWriter() *fakeConnWriter {
 	return &fakeConnWriter{}
 }
 
-func (w *fakeConnWriter) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
-	return newFakeFrame(w, typ), nil
+func (w *fakeConnWriter) NextWriter(fType FrameType) (io.WriteCloser, error) {
+	return newFakeFrame(w, fType), nil
 }
 
 type fakeOneFrameConst struct {
@@ -82,28 +80,28 @@ func (c *fakeOneFrameConst) Read(p []byte) (int, error) {
 }
 
 type fakeConstReader struct {
-	ft base.FrameType
+	ft FrameType
 	r  *fakeOneFrameConst
 }
 
 func newFakeConstReader() *fakeConstReader {
 	return &fakeConstReader{
-		ft: base.FrameString,
+		ft: FrameString,
 		r: &fakeOneFrameConst{
-			b: base.MESSAGE.StringByte(),
+			b: MESSAGE.StringByte(),
 		},
 	}
 }
 
-func (r *fakeConstReader) NextReader() (base.FrameType, io.ReadCloser, error) {
+func (r *fakeConstReader) NextReader() (FrameType, io.ReadCloser, error) {
 	ft := r.ft
 	switch ft {
-	case base.FrameBinary:
-		r.ft = base.FrameString
-		r.r.b = base.MESSAGE.StringByte()
-	case base.FrameString:
-		r.ft = base.FrameBinary
-		r.r.b = base.MESSAGE.BinaryByte()
+	case FrameBinary:
+		r.ft = FrameString
+		r.r.b = MESSAGE.StringByte()
+	case FrameString:
+		r.ft = FrameBinary
+		r.r.b = MESSAGE.BinaryByte()
 	}
 	return ft, ioutil.NopCloser(r.r), nil
 }
@@ -120,6 +118,6 @@ func (d fakeOneFrameDiscarder) Close() error {
 
 type fakeDiscardWriter struct{}
 
-func (w *fakeDiscardWriter) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
+func (w *fakeDiscardWriter) NextWriter(fType FrameType) (io.WriteCloser, error) {
 	return fakeOneFrameDiscarder{}, nil
 }

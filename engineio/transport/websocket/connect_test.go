@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"github.com/googollee/go-socket.io/engineio/transport"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -10,21 +11,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 func TestWebsocketSetReadDeadline(t *testing.T) {
 	at := assert.New(t)
 
 	tran := &Transport{}
-	conn := make(chan base.Conn, 1)
+	conn := make(chan transport.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c, err := tran.Accept(w, r)
 		require.NoError(t, err)
 
 		conn <- c
-		c.(http.Handler).ServeHTTP(w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()

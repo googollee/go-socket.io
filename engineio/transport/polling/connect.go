@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/googollee/go-socket.io/engineio/transport"
 	"io"
 	"io/ioutil"
 	"net"
@@ -11,8 +12,9 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/payload"
+	"github.com/googollee/go-socket.io/engineio/transport/utils"
 )
 
 type clientConn struct {
@@ -23,52 +25,31 @@ type clientConn struct {
 	remoteHeader atomic.Value
 }
 
-func dial(client *http.Client, url *url.URL, requestHeader http.Header) (*clientConn, error) {
-	if client == nil {
-		client = &http.Client{}
-	}
-	req, err := http.NewRequest("", url.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range requestHeader {
-		req.Header[k] = v
-	}
-	supportBinary := req.URL.Query().Get("b64") == ""
-	if supportBinary {
-		req.Header.Set("Content-Type", "application/octet-stream")
-	} else {
-		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
-	}
-
-	ret := &clientConn{
-		Payload:    payload.New(supportBinary),
-		httpClient: client,
-		request:    *req,
-	}
-	return ret, nil
-}
-
-func (c *clientConn) Open() (base.ConnParameters, error) {
+func (c *clientConn) Open() (transport.ConnParameters, error) {
 	go c.getOpen()
 
 	_, pt, r, err := c.NextReader()
 	if err != nil {
-		return base.ConnParameters{}, err
+		return transport.ConnParameters{}, err
 	}
-	if pt != base.OPEN {
+
+	if pt != packet.OPEN {
 		r.Close()
-		return base.ConnParameters{}, errors.New("invalid open")
+		return transport.ConnParameters{}, errors.New("invalid open")
 	}
-	conn, err := base.ReadConnParameters(r)
+
+	conn, err := transport.ReadConnParameters(r)
 	if err != nil {
 		r.Close()
-		return base.ConnParameters{}, err
+		return transport.ConnParameters{}, err
 	}
+
 	err = r.Close()
+
 	if err != nil {
-		return base.ConnParameters{}, err
+		return transport.ConnParameters{}, err
 	}
+
 	query := c.request.URL.Query()
 	query.Set("sid", conn.SID)
 	c.request.URL.RawQuery = query.Encode()
@@ -106,20 +87,25 @@ func (c *clientConn) Resume() {
 }
 
 func (c *clientConn) servePost() {
-	var buf bytes.Buffer
 	req := c.request
 	url := *req.URL
+
 	req.URL = &url
-	query := url.Query()
 	req.Method = "POST"
+
+	var buf bytes.Buffer
 	req.Body = ioutil.NopCloser(&buf)
+
+	query := url.Query()
 	for {
 		buf.Reset()
+
 		if err := c.Payload.FlushOut(&buf); err != nil {
 			return
 		}
-		query.Set("t", base.Timestamp())
+		query.Set("t", utils.Timestamp())
 		req.URL.RawQuery = query.Encode()
+
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			c.Payload.Store("post", err)
@@ -140,35 +126,44 @@ func (c *clientConn) servePost() {
 func (c *clientConn) getOpen() {
 	req := c.request
 	query := req.URL.Query()
+
 	url := *req.URL
 	req.URL = &url
 	req.Method = "GET"
-	query.Set("t", base.Timestamp())
+
+	query.Set("t", utils.Timestamp())
 	req.URL.RawQuery = query.Encode()
+
 	resp, err := c.httpClient.Do(&req)
 	if err != nil {
 		c.Payload.Store("get", err)
 		c.Close()
 		return
 	}
+
 	defer func() {
 		io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
 	}()
+
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("invalid request: %s(%d)", resp.Status, resp.StatusCode)
 	}
+
 	var supportBinary bool
 	if err == nil {
 		mime := resp.Header.Get("Content-Type")
 		supportBinary, err = mimeSupportBinary(mime)
 	}
+
 	if err != nil {
 		c.Payload.Store("get", err)
 		c.Close()
 		return
 	}
+
 	c.remoteHeader.Store(resp.Header)
+
 	if err = c.Payload.FeedIn(resp.Body, supportBinary); err != nil {
 		return
 	}
@@ -176,27 +171,33 @@ func (c *clientConn) getOpen() {
 
 func (c *clientConn) serveGet() {
 	req := c.request
-	query := req.URL.Query()
 	url := *req.URL
+
 	req.URL = &url
 	req.Method = "GET"
+
+	query := req.URL.Query()
 	for {
-		query.Set("t", base.Timestamp())
+		query.Set("t", utils.Timestamp())
 		req.URL.RawQuery = query.Encode()
+
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			c.Payload.Store("get", err)
 			c.Close()
 			return
 		}
+
 		if resp.StatusCode != http.StatusOK {
 			err = fmt.Errorf("invalid request: %s(%d)", resp.Status, resp.StatusCode)
 		}
+
 		var supportBinary bool
 		if err == nil {
 			mime := resp.Header.Get("Content-Type")
 			supportBinary, err = mimeSupportBinary(mime)
 		}
+
 		if err != nil {
 			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
@@ -204,11 +205,13 @@ func (c *clientConn) serveGet() {
 			c.Close()
 			return
 		}
+
 		if err = c.Payload.FeedIn(resp.Body, supportBinary); err != nil {
 			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 			return
 		}
+
 		c.remoteHeader.Store(resp.Header)
 	}
 }

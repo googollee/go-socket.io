@@ -8,16 +8,16 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
 type fakeWriterFeeder struct {
 	w           io.Writer
 	returnError error
-	passinErr   error
+	passingErr  error
 }
 
 func (f *fakeWriterFeeder) getWriter() (io.Writer, error) {
@@ -29,7 +29,7 @@ func (f *fakeWriterFeeder) getWriter() (io.Writer, error) {
 }
 
 func (f *fakeWriterFeeder) putWriter(err error) error {
-	f.passinErr = err
+	f.passingErr = err
 	return f.returnError
 }
 
@@ -51,10 +51,10 @@ func TestEncoder(t *testing.T) {
 		for _, packet := range test.packets {
 			fw, err := e.NextWriter(packet.ft, packet.pt)
 			must.Nil(err)
+
 			_, err = fw.Write(packet.data)
 			must.Nil(err)
-			err = fw.Close()
-			must.Nil(err)
+			must.Nil(fw.Close())
 		}
 
 		assert.Equal(test.data, buf.Bytes())
@@ -76,7 +76,7 @@ func TestEncoderBeginError(t *testing.T) {
 	targetErr := newOpError("payload", errPaused)
 	f.returnError = targetErr
 
-	_, err := e.NextWriter(base.FrameBinary, base.OPEN)
+	_, err := e.NextWriter(packet.FrameBinary, packet.OPEN)
 	assert.Equal(targetErr, err)
 }
 
@@ -91,6 +91,7 @@ func (f *errorWrite) Write(p []byte) (int, error) {
 func TestEncoderEndError(t *testing.T) {
 	assert := assert.New(t)
 	must := require.New(t)
+
 	werr := errors.New("write error")
 	f := &fakeWriterFeeder{
 		w: &errorWrite{
@@ -104,12 +105,13 @@ func TestEncoderEndError(t *testing.T) {
 
 	targetErr := errors.New("error")
 
-	fw, err := e.NextWriter(base.FrameBinary, base.OPEN)
+	fw, err := e.NextWriter(packet.FrameBinary, packet.OPEN)
 	must.Nil(err)
+
 	f.returnError = targetErr
-	err = fw.Close()
-	assert.Equal(targetErr, err)
-	assert.Equal(f.passinErr, werr)
+
+	assert.Equal(targetErr, fw.Close())
+	assert.Equal(f.passingErr, werr)
 }
 
 func TestEncoderNOOP(t *testing.T) {
@@ -133,7 +135,8 @@ func TestEncoderNOOP(t *testing.T) {
 	// NOOP should be thread-safe
 	var wg sync.WaitGroup
 	max := 100
-	wg.Add(100)
+	wg.Add(max)
+
 	for i := 0; i < max; i++ {
 		go func(i int) {
 			defer wg.Done()
@@ -143,15 +146,16 @@ func TestEncoderNOOP(t *testing.T) {
 			e.NOOP()
 		}(i)
 	}
+
 	wg.Wait()
 }
 
 func BenchmarkStringEncoder(b *testing.B) {
 	must := require.New(b)
 	packets := []Packet{
-		{base.FrameString, base.OPEN, []byte{}},
-		{base.FrameString, base.MESSAGE, []byte("你好\n")},
-		{base.FrameString, base.PING, []byte("probe")},
+		{packet.FrameString, packet.OPEN, []byte{}},
+		{packet.FrameString, packet.MESSAGE, []byte("你好\n")},
+		{packet.FrameString, packet.PING, []byte("probe")},
 	}
 	e := encoder{
 		supportBinary: false,
@@ -183,9 +187,9 @@ func BenchmarkStringEncoder(b *testing.B) {
 func BenchmarkB64Encoder(b *testing.B) {
 	must := require.New(b)
 	packets := []Packet{
-		{base.FrameBinary, base.OPEN, []byte{}},
-		{base.FrameBinary, base.MESSAGE, []byte("你好\n")},
-		{base.FrameBinary, base.PING, []byte("probe")},
+		{packet.FrameBinary, packet.OPEN, []byte{}},
+		{packet.FrameBinary, packet.MESSAGE, []byte("你好\n")},
+		{packet.FrameBinary, packet.PING, []byte("probe")},
 	}
 	e := encoder{
 		supportBinary: false,
@@ -216,10 +220,11 @@ func BenchmarkB64Encoder(b *testing.B) {
 
 func BenchmarkBinaryEncoder(b *testing.B) {
 	must := require.New(b)
+
 	packets := []Packet{
-		{base.FrameString, base.OPEN, []byte{}},
-		{base.FrameBinary, base.MESSAGE, []byte("你好\n")},
-		{base.FrameString, base.PING, []byte("probe")},
+		{packet.FrameString, packet.OPEN, []byte{}},
+		{packet.FrameBinary, packet.MESSAGE, []byte("你好\n")},
+		{packet.FrameString, packet.PING, []byte("probe")},
 	}
 	e := encoder{
 		supportBinary: true,

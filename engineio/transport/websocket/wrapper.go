@@ -7,9 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/gorilla/websocket"
+
+	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 type wrapper struct {
@@ -26,7 +27,7 @@ func newWrapper(conn *websocket.Conn) wrapper {
 	}
 }
 
-func (w wrapper) NextReader() (base.FrameType, io.ReadCloser, error) {
+func (w wrapper) NextReader() (packet.FrameType, io.ReadCloser, error) {
 	w.readLocker.Lock()
 	typ, r, err := w.Conn.NextReader()
 	// The wrapper remains locked until the returned ReadCloser is Closed.
@@ -36,9 +37,9 @@ func (w wrapper) NextReader() (base.FrameType, io.ReadCloser, error) {
 	}
 	switch typ {
 	case websocket.TextMessage:
-		return base.FrameString, newRcWrapper(w.readLocker, r), nil
+		return packet.FrameString, newRcWrapper(w.readLocker, r), nil
 	case websocket.BinaryMessage:
-		return base.FrameBinary, newRcWrapper(w.readLocker, r), nil
+		return packet.FrameBinary, newRcWrapper(w.readLocker, r), nil
 	}
 	w.readLocker.Unlock()
 	return 0, nil, transport.ErrInvalidFrame
@@ -80,12 +81,12 @@ func (r rcWrapper) Close() error {
 	return nil
 }
 
-func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
+func (w wrapper) NextWriter(typ packet.FrameType) (io.WriteCloser, error) {
 	var t int
 	switch typ {
-	case base.FrameString:
+	case packet.FrameString:
 		t = websocket.TextMessage
-	case base.FrameBinary:
+	case packet.FrameBinary:
 		t = websocket.BinaryMessage
 	default:
 		return nil, transport.ErrInvalidFrame

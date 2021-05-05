@@ -4,12 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"github.com/googollee/go-socket.io/engineio/session"
 	"io"
 	"io/ioutil"
 	"reflect"
 	"strings"
-
-	engineio "github.com/googollee/go-socket.io/engineio"
 )
 
 const (
@@ -17,7 +16,7 @@ const (
 )
 
 type FrameReader interface {
-	NextReader() (engineio.FrameType, io.ReadCloser, error)
+	NextReader() (session.FrameType, io.ReadCloser, error)
 }
 
 type byteReader interface {
@@ -68,7 +67,7 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 	if err != nil {
 		return err
 	}
-	if ft != engineio.TEXT {
+	if ft != session.TEXT {
 		return errInvalidFirstPacketType
 	}
 	d.lastFrame = r
@@ -310,10 +309,10 @@ func (d *Decoder) readEvent(event *string) error {
 	return json.Unmarshal(buf.Bytes(), event)
 }
 
-func (d *Decoder) readBuffer(ft engineio.FrameType, r io.ReadCloser) ([]byte, error) {
+func (d *Decoder) readBuffer(ft session.FrameType, r io.ReadCloser) ([]byte, error) {
 	defer r.Close()
 
-	if ft != engineio.BINARY {
+	if ft != session.BINARY {
 		return nil, errInvalidBinaryBufferType
 	}
 

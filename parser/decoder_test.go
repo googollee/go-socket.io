@@ -2,11 +2,10 @@ package parser
 
 import (
 	"bytes"
+	"github.com/googollee/go-socket.io/engineio/session"
 	"io"
 	"reflect"
 	"testing"
-
-	engineio "github.com/googollee/go-socket.io/engineio"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,14 +17,14 @@ type fakeReader struct {
 	buf   *bytes.Buffer
 }
 
-func (r *fakeReader) NextReader() (engineio.FrameType, io.ReadCloser, error) {
+func (r *fakeReader) NextReader() (session.FrameType, io.ReadCloser, error) {
 	if r.index >= len(r.data) {
 		return 0, nil, io.EOF
 	}
 	r.buf = bytes.NewBuffer(r.data[r.index])
-	ft := engineio.BINARY
+	ft := session.BINARY
 	if r.index == 0 {
-		ft = engineio.TEXT
+		ft = session.TEXT
 	}
 	return ft, r, nil
 }

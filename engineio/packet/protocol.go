@@ -3,26 +3,24 @@ package packet
 
 import (
 	"io"
-
-	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 // FrameReader is the reader which supports framing.
 type FrameReader interface {
-	NextReader() (base.FrameType, io.ReadCloser, error)
+	NextReader() (FrameType, io.ReadCloser, error)
 }
 
 // FrameWriter is the writer which supports framing.
 type FrameWriter interface {
-	NextWriter(typ base.FrameType) (io.WriteCloser, error)
+	NextWriter(typ FrameType) (io.WriteCloser, error)
 }
 
 // NewEncoder creates a packet encoder which writes to w.
-func NewEncoder(w FrameWriter) base.FrameWriter {
+func NewEncoder(w FrameWriter) *encoder {
 	return newEncoder(w)
 }
 
 // NewDecoder creates a packet decoder which reads from r.
-func NewDecoder(r FrameReader) base.FrameReader {
+func NewDecoder(r FrameReader) *decoder {
 	return newDecoder(r)
 }

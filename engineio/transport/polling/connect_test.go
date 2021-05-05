@@ -10,14 +10,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 func TestDialOpen(t *testing.T) {
-	cp := base.ConnParameters{
+	cp := transport.ConnParameters{
 		PingInterval: time.Second,
 		PingTimeout:  time.Minute,
 		SID:          "abcdefg",
@@ -31,14 +32,17 @@ func TestDialOpen(t *testing.T) {
 		query := r.URL.Query()
 		should.NotEmpty(r.URL.Query().Get("t"))
 		sid := query.Get("sid")
+
 		if sid == "" {
 			buf := bytes.NewBuffer(nil)
 			cp.WriteTo(buf)
 			fmt.Fprintf(w, "%d", buf.Len()+1)
+
 			w.Write([]byte(":0"))
 			w.Write(buf.Bytes())
 			return
 		}
+
 		if r.Method == "POST" {
 			must.Equal(cp.SID, sid)
 			b, err := ioutil.ReadAll(r.Body)
@@ -62,15 +66,18 @@ func TestDialOpen(t *testing.T) {
 
 	params, err := cc.Open()
 	must.Nil(err)
+
 	should.Equal(cp, params)
+
 	ccURL := cc.URL()
 	sid := ccURL.Query().Get("sid")
+
 	should.Equal(cp.SID, sid)
 
-	w, err := cc.NextWriter(base.FrameString, base.MESSAGE)
+	w, err := cc.NextWriter(packet.FrameString, packet.MESSAGE)
 	should.Nil(err)
+
 	_, err = w.Write([]byte("hello"))
 	should.Nil(err)
-	err = w.Close()
-	should.Nil(err)
+	should.Nil(w.Close())
 }

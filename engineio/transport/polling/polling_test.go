@@ -1,6 +1,7 @@
 package polling
 
 import (
+	"github.com/googollee/go-socket.io/engineio/transport"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -9,33 +10,34 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
+
+	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
 var tests = []struct {
-	ft   base.FrameType
-	pt   base.PacketType
+	ft   packet.FrameType
+	pt   packet.PacketType
 	data []byte
 }{
-	{base.FrameString, base.OPEN, []byte{}},
-	{base.FrameString, base.MESSAGE, []byte("hello")},
-	{base.FrameBinary, base.MESSAGE, []byte{1, 2, 3, 4}},
+	{packet.FrameString, packet.OPEN, []byte{}},
+	{packet.FrameString, packet.MESSAGE, []byte("hello")},
+	{packet.FrameBinary, packet.MESSAGE, []byte{1, 2, 3, 4}},
 }
 
 func TestPollingBinary(t *testing.T) {
 	should := assert.New(t)
 	var scValue atomic.Value
 
-	transport := Default
-	should.Equal("polling", transport.Name())
-	conn := make(chan base.Conn, 1)
+	pollingTransport := Default
+	should.Equal("polling", pollingTransport.Name())
+
+	conn := make(chan transport.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			co, err := transport.Accept(w, r)
+			co, err := pollingTransport.Accept(w, r)
 			should.Nil(err)
 			scValue.Store(co)
 			c = co
@@ -43,6 +45,7 @@ func TestPollingBinary(t *testing.T) {
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
+
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()
 
@@ -53,8 +56,9 @@ func TestPollingBinary(t *testing.T) {
 
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := transport.Dial(&dialU, header)
+	cc, err := pollingTransport.Dial(&dialU, header)
 	should.Nil(err)
+
 	cc.(*clientConn).Resume()
 	defer cc.Close()
 
@@ -119,13 +123,13 @@ func TestPollingString(t *testing.T) {
 	should := assert.New(t)
 	var scValue atomic.Value
 
-	transport := Default
-	conn := make(chan base.Conn, 1)
+	pollingTransport := Default
+	conn := make(chan transport.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			co, err := transport.Accept(w, r)
+			co, err := pollingTransport.Accept(w, r)
 			should.Nil(err)
 			scValue.Store(co)
 			c = co
@@ -146,8 +150,9 @@ func TestPollingString(t *testing.T) {
 	dialU := *u
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := transport.Dial(&dialU, header)
+	cc, err := pollingTransport.Dial(&dialU, header)
 	should.Nil(err)
+
 	cc.(*clientConn).Resume()
 	defer cc.Close()
 
@@ -188,19 +193,19 @@ func TestPollingString(t *testing.T) {
 	for _, test := range tests {
 		w, err := sc.NextWriter(test.ft, test.pt)
 		should.Nil(err)
+
 		_, err = w.Write(test.data)
 		should.Nil(err)
-		err = w.Close()
-		should.Nil(err)
+		should.Nil(w.Close())
 
 		ft, pt, r, err := sc.NextReader()
 		should.Nil(err)
 		should.Equal(test.ft, ft)
 		should.Equal(test.pt, pt)
+
 		b, err := ioutil.ReadAll(r)
 		should.Nil(err)
-		err = r.Close()
-		should.Nil(err)
+		should.Nil(r.Close())
 		should.Equal(test.data, b)
 	}
 

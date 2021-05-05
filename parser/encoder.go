@@ -3,14 +3,13 @@ package parser
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/googollee/go-socket.io/engineio/session"
 	"io"
 	"reflect"
-
-	"github.com/googollee/go-socket.io/engineio"
 )
 
 type FrameWriter interface {
-	NextWriter(ft engineio.FrameType) (io.WriteCloser, error)
+	NextWriter(ft session.FrameType) (io.WriteCloser, error)
 }
 
 type Encoder struct {
@@ -25,7 +24,7 @@ func NewEncoder(w FrameWriter) *Encoder {
 
 func (e *Encoder) Encode(h Header, args []interface{}) (err error) {
 	var w io.WriteCloser
-	w, err = e.w.NextWriter(engineio.TEXT)
+	w, err = e.w.NextWriter(session.TEXT)
 	if err != nil {
 		return
 	}
@@ -38,7 +37,7 @@ func (e *Encoder) Encode(h Header, args []interface{}) (err error) {
 	}
 
 	for _, b := range buffers {
-		w, err = e.w.NextWriter(engineio.BINARY)
+		w, err = e.w.NextWriter(session.BINARY)
 		if err != nil {
 			return
 		}
