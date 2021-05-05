@@ -18,7 +18,6 @@ func main() {
 		conn, err := eio.Accept()
 		if err != nil {
 			log.Fatalln("accept error:", err)
-			return
 		}
 
 		go func(conn engineio.Conn) {

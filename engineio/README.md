@@ -1,6 +1,6 @@
 # go-engine.io
 
-[![GoDoc](http://godoc.org/github.com/googollee/go-socket.io/engineio?status.svg)](http://godoc.org/github.com/googollee/go-socket.io/engineio) [![Build Status](https://travis-ci.org/googollee/go-engine.io.svg)](https://travis-ci.org/googollee/go-engine.io)
+[![GoDoc](http://godoc.org/github.com/googollee/go-socket.io/engineio?status.svg)](http://godoc.org/github.com/googollee/go-socket.io/engineio)
 [![Coverage Status](https://coveralls.io/repos/github/googollee/go-engine.io/badge.svg?branch=v1.4)](https://coveralls.io/github/googollee/go-engine.io?branch=v1.4)
 
 go-engine.io is the implement of engine.io in golang, which is transport-based cross-browser/cross-device bi-directional communication layer for [go-socket.io](https://github.com/googollee/go-socket.io).
@@ -31,7 +31,6 @@ Please check example folder for details.
 package main
 
 import (
-	"encoding/hex"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -40,13 +39,18 @@ import (
 )
 
 func main() {
-	server, _ := engineio.NewServer(nil)
+	server := engineio.NewServer(nil)
 
 	go func() {
 		for {
-			conn, _ := server.Accept()
+			conn, err := server.Accept()
+			if err != nil {
+				log.Fatalln("accept error:", err)
+			}
+			
 			go func() {
 				defer conn.Close()
+				
 				for {
 					t, r, _ := conn.NextReader()
 					b, _ := ioutil.ReadAll(r)
@@ -62,6 +66,7 @@ func main() {
 
 	http.Handle("/engine.io/", server)
 	log.Println("Serving at localhost:5000...")
+	
 	log.Fatal(http.ListenAndServe(":5000", nil))
 }
 ```
