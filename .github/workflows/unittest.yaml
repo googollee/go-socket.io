@@ -32,5 +32,11 @@ jobs:
       - name: Check go version
         run: go version
 
+      - name: ci lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+          skip-go-installation: true
+
       - name: Test
         run: make test
