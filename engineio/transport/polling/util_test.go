@@ -23,13 +23,13 @@ func TestNormalizeMime(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		supportBinary, err := mimeSupportBinary(test.mime)
+		isSupportBinary, err := mimeIsSupportBinary(test.mime)
 		at.Equal(test.ok, err == nil)
 
 		if err != nil {
 			continue
 		}
 
-		at.Equal(test.supportBinary, supportBinary)
+		at.Equal(test.supportBinary, isSupportBinary)
 	}
 }

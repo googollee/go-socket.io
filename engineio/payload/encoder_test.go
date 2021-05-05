@@ -238,13 +238,16 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 	for _, p := range packets {
 		f, err := e.NextWriter(p.ft, p.pt)
 		must.Nil(err)
+
 		_, err = f.Write(p.data)
 		must.Nil(err)
+
 		err = f.Close()
 		must.Nil(err)
 	}
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		for _, p := range packets {
 			f, _ := e.NextWriter(p.ft, p.pt)

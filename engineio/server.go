@@ -3,6 +3,7 @@ package engineio
 import (
 	"context"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -150,9 +151,8 @@ func (s *Server) newSession(ctx context.Context, conn transport.Conn, reqTranspo
 	s.sessions.Add(newSession)
 
 	go func() {
-		err := newSession.InitSession()
-		if err != nil {
-			//handle error
+		if err := newSession.InitSession(); err != nil {
+			log.Println("init new session", err)
 		}
 
 		s.connChan <- newSession
