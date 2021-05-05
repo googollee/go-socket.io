@@ -1,4 +1,4 @@
-package packet
+package frame
 
 import (
 	"testing"
@@ -10,11 +10,11 @@ func TestFrameType(t *testing.T) {
 	at := assert.New(t)
 	tests := []struct {
 		b    byte
-		typ  FrameType
+		typ  Type
 		outb byte
 	}{
-		{0, FrameString, 0},
-		{1, FrameBinary, 1},
+		{0, String, 0},
+		{1, Binary, 1},
 	}
 
 	for _, test := range tests {

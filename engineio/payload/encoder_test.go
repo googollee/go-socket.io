@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
@@ -76,7 +77,7 @@ func TestEncoderBeginError(t *testing.T) {
 	targetErr := newOpError("payload", errPaused)
 	f.returnError = targetErr
 
-	_, err := e.NextWriter(packet.FrameBinary, packet.OPEN)
+	_, err := e.NextWriter(frame.Binary, packet.OPEN)
 	assert.Equal(targetErr, err)
 }
 
@@ -105,7 +106,7 @@ func TestEncoderEndError(t *testing.T) {
 
 	targetErr := errors.New("error")
 
-	fw, err := e.NextWriter(packet.FrameBinary, packet.OPEN)
+	fw, err := e.NextWriter(frame.Binary, packet.OPEN)
 	must.Nil(err)
 
 	f.returnError = targetErr
@@ -153,9 +154,9 @@ func TestEncoderNOOP(t *testing.T) {
 func BenchmarkStringEncoder(b *testing.B) {
 	must := require.New(b)
 	packets := []Packet{
-		{packet.FrameString, packet.OPEN, []byte{}},
-		{packet.FrameString, packet.MESSAGE, []byte("你好\n")},
-		{packet.FrameString, packet.PING, []byte("probe")},
+		{frame.String, packet.OPEN, []byte{}},
+		{frame.String, packet.MESSAGE, []byte("你好\n")},
+		{frame.String, packet.PING, []byte("probe")},
 	}
 	e := encoder{
 		supportBinary: false,
@@ -187,9 +188,9 @@ func BenchmarkStringEncoder(b *testing.B) {
 func BenchmarkB64Encoder(b *testing.B) {
 	must := require.New(b)
 	packets := []Packet{
-		{packet.FrameBinary, packet.OPEN, []byte{}},
-		{packet.FrameBinary, packet.MESSAGE, []byte("你好\n")},
-		{packet.FrameBinary, packet.PING, []byte("probe")},
+		{frame.Binary, packet.OPEN, []byte{}},
+		{frame.Binary, packet.MESSAGE, []byte("你好\n")},
+		{frame.Binary, packet.PING, []byte("probe")},
 	}
 	e := encoder{
 		supportBinary: false,
@@ -222,9 +223,9 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 	must := require.New(b)
 
 	packets := []Packet{
-		{packet.FrameString, packet.OPEN, []byte{}},
-		{packet.FrameBinary, packet.MESSAGE, []byte("你好\n")},
-		{packet.FrameString, packet.PING, []byte("probe")},
+		{frame.String, packet.OPEN, []byte{}},
+		{frame.Binary, packet.MESSAGE, []byte("你好\n")},
+		{frame.String, packet.PING, []byte("probe")},
 	}
 	e := encoder{
 		supportBinary: true,

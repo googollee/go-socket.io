@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/session"
 	"github.com/googollee/go-socket.io/engineio/transport"
@@ -62,6 +63,7 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 		if err != nil {
 			return 0, nil, err
 		}
+
 		switch pt {
 		case packet.PONG:
 			c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
@@ -71,12 +73,13 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 		case packet.MESSAGE:
 			return session.FrameType(ft), r, nil
 		}
+
 		r.Close()
 	}
 }
 
 func (c *client) NextWriter(typ session.FrameType) (io.WriteCloser, error) {
-	return c.conn.NextWriter(packet.FrameType(typ), packet.MESSAGE)
+	return c.conn.NextWriter(frame.Type(typ), packet.MESSAGE)
 }
 
 func (c *client) URL() url.URL {
@@ -97,16 +100,19 @@ func (c *client) RemoteHeader() http.Header {
 
 func (c *client) serve() {
 	defer c.conn.Close()
+
 	for {
 		select {
 		case <-c.close:
 			return
 		case <-time.After(c.params.PingInterval):
 		}
-		w, err := c.conn.NextWriter(packet.FrameString, packet.PING)
+
+		w, err := c.conn.NextWriter(frame.String, packet.PING)
 		if err != nil {
 			return
 		}
+
 		if err := w.Close(); err != nil {
 			return
 		}

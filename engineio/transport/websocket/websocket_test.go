@@ -11,18 +11,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 var tests = []struct {
-	ft   packet.FrameType
-	pt   packet.PacketType
+	ft   frame.Type
+	pt   packet.Type
 	data []byte
 }{
-	{packet.FrameString, packet.OPEN, []byte{}},
-	{packet.FrameString, packet.MESSAGE, []byte("hello")},
-	{packet.FrameBinary, packet.MESSAGE, []byte{1, 2, 3, 4}},
+	{frame.String, packet.OPEN, []byte{}},
+	{frame.String, packet.MESSAGE, []byte("hello")},
+	{frame.Binary, packet.MESSAGE, []byte{1, 2, 3, 4}},
 }
 
 func TestWebsocket(t *testing.T) {

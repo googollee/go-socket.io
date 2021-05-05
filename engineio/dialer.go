@@ -47,7 +47,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 				continue
 			}
 		} else {
-			var pt packet.PacketType
+			var pt packet.Type
 			var r io.ReadCloser
 			_, pt, r, err = conn.NextReader()
 			if err != nil {

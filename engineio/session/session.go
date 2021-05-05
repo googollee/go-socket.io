@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/payload"
 	"github.com/googollee/go-socket.io/engineio/transport"
@@ -156,7 +157,7 @@ func (s *Session) RemoteHeader() http.Header {
 // When finished writing, the caller MUST Close the WriteCloser to unlock the
 // connection's FrameWriter.
 func (s *Session) NextWriter(typ FrameType) (io.WriteCloser, error) {
-	return s.nextWriter(packet.FrameType(typ), packet.MESSAGE)
+	return s.nextWriter(frame.Type(typ), packet.MESSAGE)
 }
 
 func (s *Session) Upgrade(transport string, conn transport.Conn) {
@@ -164,7 +165,7 @@ func (s *Session) Upgrade(transport string, conn transport.Conn) {
 }
 
 func (s *Session) InitSession() error {
-	w, err := s.nextWriter(packet.FrameString, packet.OPEN)
+	w, err := s.nextWriter(frame.String, packet.OPEN)
 	if err != nil {
 		s.Close()
 		return err
@@ -194,7 +195,7 @@ func (s *Session) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Session) nextReader() (packet.FrameType, packet.PacketType, io.ReadCloser, error) {
+func (s *Session) nextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 	for {
 		s.upgradeLocker.RLock()
 		conn := s.conn
@@ -211,7 +212,7 @@ func (s *Session) nextReader() (packet.FrameType, packet.PacketType, io.ReadClos
 	}
 }
 
-func (s *Session) nextWriter(ft packet.FrameType, pt packet.PacketType) (io.WriteCloser, error) {
+func (s *Session) nextWriter(ft frame.Type, pt packet.Type) (io.WriteCloser, error) {
 	for {
 		s.upgradeLocker.RLock()
 		conn := s.conn

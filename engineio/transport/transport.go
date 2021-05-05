@@ -7,17 +7,18 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
 // FrameReader reads a frame. It need be closed before next reading.
 type FrameReader interface {
-	NextReader() (packet.FrameType, packet.PacketType, io.ReadCloser, error)
+	NextReader() (frame.Type, packet.Type, io.ReadCloser, error)
 }
 
 // FrameWriter writes a frame. It need be closed before next writing.
 type FrameWriter interface {
-	NextWriter(ft packet.FrameType, pt packet.PacketType) (io.WriteCloser, error)
+	NextWriter(ft frame.Type, pt packet.Type) (io.WriteCloser, error)
 }
 
 // Conn is a transport connection.
