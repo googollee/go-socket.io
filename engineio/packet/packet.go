@@ -1,4 +1,4 @@
-package base
+package packet
 
 // PacketType is the type of packet
 type PacketType int

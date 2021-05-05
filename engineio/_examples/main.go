@@ -1,17 +1,16 @@
-package engineio
+package main
 
 import (
 	"fmt"
 	"io"
 	"log"
 	"net/http/httptest"
+
+	"github.com/googollee/go-socket.io/engineio"
 )
 
-func ExampleServer() {
-	eio, err := NewServer(nil)
-	if err != nil {
-		log.Fatalln("server error:", err)
-	}
+func main() {
+	eio := engineio.NewServer(nil)
 	httpSvr := httptest.NewServer(eio)
 	defer httpSvr.Close()
 
@@ -21,7 +20,8 @@ func ExampleServer() {
 			log.Fatalln("accept error:", err)
 			return
 		}
-		go func(conn Conn) {
+
+		go func(conn engineio.Conn) {
 			defer conn.Close()
 			fmt.Println(conn.ID(), conn.RemoteAddr(), "->", conn.LocalAddr(), "with", conn.RemoteHeader())
 

@@ -5,19 +5,17 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
 )
 
 type Frame struct {
-	typ  base.FrameType
+	typ  FrameType
 	data []byte
 }
 
 type Packet struct {
-	ft   base.FrameType
-	pt   base.PacketType
+	ft   FrameType
+	pt   PacketType
 	data []byte
 }
 
@@ -27,39 +25,39 @@ var tests = []struct {
 }{
 	{nil, nil},
 	{[]Packet{
-		{base.FrameString, base.OPEN, []byte{}},
+		{FrameString, OPEN, []byte{}},
 	}, []Frame{
-		{base.FrameString, []byte("0")},
+		{FrameString, []byte("0")},
 	}},
 	{[]Packet{
-		{base.FrameString, base.MESSAGE, []byte("hello 你好")},
+		{FrameString, MESSAGE, []byte("hello 你好")},
 	}, []Frame{
-		{base.FrameString, []byte("4hello 你好")},
+		{FrameString, []byte("4hello 你好")},
 	}},
 	{[]Packet{
-		{base.FrameBinary, base.MESSAGE, []byte("hello 你好")},
+		{FrameBinary, MESSAGE, []byte("hello 你好")},
 	}, []Frame{
-		{base.FrameBinary, []byte{0x04, 'h', 'e', 'l', 'l', 'o', ' ', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd}},
+		{FrameBinary, []byte{0x04, 'h', 'e', 'l', 'l', 'o', ' ', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd}},
 	}},
 	{[]Packet{
-		{base.FrameString, base.OPEN, []byte{}},
-		{base.FrameBinary, base.MESSAGE, []byte("hello\n")},
-		{base.FrameString, base.MESSAGE, []byte("你好\n")},
-		{base.FrameString, base.PING, []byte("probe")},
+		{FrameString, OPEN, []byte{}},
+		{FrameBinary, MESSAGE, []byte("hello\n")},
+		{FrameString, MESSAGE, []byte("你好\n")},
+		{FrameString, PING, []byte("probe")},
 	}, []Frame{
-		{base.FrameString, []byte("0")},
-		{base.FrameBinary, []byte{0x04, 'h', 'e', 'l', 'l', 'o', '\n'}},
-		{base.FrameString, []byte("4你好\n")},
-		{base.FrameString, []byte("2probe")},
+		{FrameString, []byte("0")},
+		{FrameBinary, []byte{0x04, 'h', 'e', 'l', 'l', 'o', '\n'}},
+		{FrameString, []byte("4你好\n")},
+		{FrameString, []byte("2probe")},
 	}},
 	{[]Packet{
-		{base.FrameBinary, base.MESSAGE, []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
-		{base.FrameString, base.MESSAGE, []byte("hello")},
-		{base.FrameString, base.CLOSE, []byte{}},
+		{FrameBinary, MESSAGE, []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+		{FrameString, MESSAGE, []byte("hello")},
+		{FrameString, CLOSE, []byte{}},
 	}, []Frame{
-		{base.FrameBinary, []byte{4, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
-		{base.FrameString, []byte("4hello")},
-		{base.FrameString, []byte("1")},
+		{FrameBinary, []byte{4, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}},
+		{FrameString, []byte("4hello")},
+		{FrameString, []byte("1")},
 	}},
 }
 
@@ -108,21 +106,23 @@ func TestDecoder(t *testing.T) {
 }
 
 func BenchmarkEncoder(b *testing.B) {
-	discarder := &fakeDiscardWriter{}
-	encoder := NewEncoder(discarder)
+	encoder := NewEncoder(&fakeDiscardWriter{})
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		w, _ := encoder.NextWriter(base.FrameString, base.MESSAGE)
+		w, _ := encoder.NextWriter(FrameString, MESSAGE)
 		w.Close()
-		w, _ = encoder.NextWriter(base.FrameBinary, base.MESSAGE)
+
+		w, _ = encoder.NextWriter(FrameBinary, MESSAGE)
 		w.Close()
 	}
 }
 
 func BenchmarkDecoder(b *testing.B) {
-	r := newFakeConstReader()
-	decoder := NewDecoder(r)
+	decoder := NewDecoder(newFakeConstReader())
+
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		_, _, fr, _ := decoder.NextReader()
 		fr.Close()

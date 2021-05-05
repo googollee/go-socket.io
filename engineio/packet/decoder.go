@@ -2,8 +2,6 @@ package packet
 
 import (
 	"io"
-
-	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 type decoder struct {
@@ -16,7 +14,7 @@ func newDecoder(r FrameReader) *decoder {
 	}
 }
 
-func (e *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
+func (e *decoder) NextReader() (FrameType, PacketType, io.ReadCloser, error) {
 	ft, r, err := e.r.NextReader()
 	if err != nil {
 		return 0, 0, nil, err
@@ -26,5 +24,5 @@ func (e *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, 
 		_ = r.Close()
 		return 0, 0, nil, err
 	}
-	return ft, base.ByteToPacketType(b[0], ft), r, nil
+	return ft, ByteToPacketType(b[0], ft), r, nil
 }

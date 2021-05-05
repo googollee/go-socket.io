@@ -1,7 +1,6 @@
 package engineio
 
 import (
-	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -9,77 +8,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/session"
 	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
-// Dialer is dialer configure.
-type Dialer struct {
-	Transports []transport.Transport
+// Pauser is connection which can be paused and resumes.
+type Pauser interface {
+	Pause()
+	Resume()
 }
 
-// Dial returns a connection which dials to url with requestHeader.
-func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
-	query := u.Query()
-	query.Set("EIO", "3")
-	u.RawQuery = query.Encode()
-	var conn base.Conn
-	for i := len(d.Transports) - 1; i >= 0; i-- {
-		if conn != nil {
-			conn.Close()
-		}
-		t := d.Transports[i]
-		conn, err = t.Dial(u, requestHeader)
-		if err != nil {
-			continue
-		}
-		var params base.ConnParameters
-		if p, ok := conn.(transport.Opener); ok {
-			params, err = p.Open()
-			if err != nil {
-				continue
-			}
-		} else {
-			var pt base.PacketType
-			var r io.ReadCloser
-			_, pt, r, err = conn.NextReader()
-			if err != nil {
-				continue
-			}
-			func() {
-				defer r.Close()
-				if pt != base.OPEN {
-					err = errors.New("invalid open")
-					return
-				}
-				params, err = base.ReadConnParameters(r)
-				if err != nil {
-					return
-				}
-			}()
-		}
-		if err != nil {
-			continue
-		}
-		ret := &client{
-			conn:      conn,
-			params:    params,
-			transport: t.Name(),
-			close:     make(chan struct{}),
-		}
-		go ret.serve()
-		return ret, nil
-	}
-	return nil, err
+// Opener is client connection which need receive open message first.
+type Opener interface {
+	Open() (transport.ConnParameters, error)
 }
 
 type client struct {
-	conn      base.Conn
-	params    base.ConnParameters
+	conn      transport.Conn
+	params    transport.ConnParameters
 	transport string
 	context   interface{}
 	close     chan struct{}
@@ -109,27 +56,27 @@ func (c *client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *client) NextReader() (FrameType, io.ReadCloser, error) {
+func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 	for {
 		ft, pt, r, err := c.conn.NextReader()
 		if err != nil {
 			return 0, nil, err
 		}
 		switch pt {
-		case base.PONG:
+		case packet.PONG:
 			c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
-		case base.CLOSE:
+		case packet.CLOSE:
 			c.Close()
 			return 0, nil, io.EOF
-		case base.MESSAGE:
-			return FrameType(ft), r, nil
+		case packet.MESSAGE:
+			return session.FrameType(ft), r, nil
 		}
 		r.Close()
 	}
 }
 
-func (c *client) NextWriter(typ FrameType) (io.WriteCloser, error) {
-	return c.conn.NextWriter(base.FrameType(typ), base.MESSAGE)
+func (c *client) NextWriter(typ session.FrameType) (io.WriteCloser, error) {
+	return c.conn.NextWriter(packet.FrameType(typ), packet.MESSAGE)
 }
 
 func (c *client) URL() url.URL {
@@ -156,7 +103,7 @@ func (c *client) serve() {
 			return
 		case <-time.After(c.params.PingInterval):
 		}
-		w, err := c.conn.NextWriter(base.FrameString, base.PING)
+		w, err := c.conn.NextWriter(packet.FrameString, packet.PING)
 		if err != nil {
 			return
 		}

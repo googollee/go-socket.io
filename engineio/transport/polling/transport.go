@@ -5,7 +5,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/googollee/go-socket.io/engineio/payload"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 // Transport is the transport of polling.
@@ -28,13 +29,13 @@ func (t *Transport) Name() string {
 }
 
 // Accept accepts a http request and create Conn.
-func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (base.Conn, error) {
+func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (transport.Conn, error) {
 	conn := newServerConn(t, r)
 	return conn, nil
 }
 
 // Dial dials connection to url.
-func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (base.Conn, error) {
+func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (transport.Conn, error) {
 	query := u.Query()
 	query.Set("transport", t.Name())
 	u.RawQuery = query.Encode()
@@ -45,4 +46,29 @@ func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (base.Conn, erro
 	}
 
 	return dial(client, u, requestHeader)
+}
+
+func dial(client *http.Client, url *url.URL, requestHeader http.Header) (*clientConn, error) {
+	if client == nil {
+		client = &http.Client{}
+	}
+	req, err := http.NewRequest("", url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range requestHeader {
+		req.Header[k] = v
+	}
+	supportBinary := req.URL.Query().Get("b64") == ""
+	if supportBinary {
+		req.Header.Set("Content-Type", "application/octet-stream")
+	} else {
+		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
+	}
+
+	return &clientConn{
+		Payload:    payload.New(supportBinary),
+		httpClient: client,
+		request:    *req,
+	}, nil
 }

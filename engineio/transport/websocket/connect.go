@@ -7,25 +7,30 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/gorilla/websocket"
+
+	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 // conn implements base.Conn
 type conn struct {
+	transport.FrameReader
+	transport.FrameWriter
+
+	ws wrapper
+
 	url          url.URL
 	remoteHeader http.Header
-	ws           wrapper
-	closed       chan struct{}
-	closeOnce    sync.Once
-	base.FrameWriter
-	base.FrameReader
+
+	closed    chan struct{}
+	closeOnce sync.Once
 }
 
-func newConn(ws *websocket.Conn, url url.URL, header http.Header) base.Conn {
+func newConn(ws *websocket.Conn, url url.URL, header http.Header) *conn {
 	w := newWrapper(ws)
 	closed := make(chan struct{})
+
 	return &conn{
 		url:          url,
 		remoteHeader: header,
@@ -62,6 +67,7 @@ func (c *conn) SetWriteDeadline(t time.Time) error {
 	c.ws.writeLocker.Lock()
 	err := c.ws.SetWriteDeadline(t)
 	c.ws.writeLocker.Unlock()
+
 	return err
 }
 

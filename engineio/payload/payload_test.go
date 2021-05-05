@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
 func TestPayloadFeedIn(t *testing.T) {
@@ -68,13 +68,17 @@ func TestPayloadFlushOutText(t *testing.T) {
 	p := New(supportBinary)
 	p.Pause()
 	p.Resume()
-	wg := sync.WaitGroup{}
+
+	var wg sync.WaitGroup
 
 	wg.Add(1)
+
 	go func() {
+		defer wg.Done()
+
 		should := assert.New(t)
 		must := require.New(t)
-		defer wg.Done()
+
 		for _, test := range tests {
 			if len(test.packets) != 1 {
 				continue
@@ -97,16 +101,18 @@ func TestPayloadFlushOutText(t *testing.T) {
 			continue
 		}
 		p.SetWriteDeadline(time.Now().Add(time.Second / 10))
+
 		w, err := p.NextWriter(test.packets[0].ft, test.packets[0].pt)
 		must.Nil(err)
+
 		_, err = w.Write(test.packets[0].data)
 		must.Nil(err)
-		err = w.Close()
-		must.Nil(err)
+		must.Nil(w.Close())
 	}
 
 	p.SetWriteDeadline(time.Now().Add(time.Second / 10))
-	_, err := p.NextWriter(base.FrameBinary, base.OPEN)
+
+	_, err := p.NextWriter(packet.FrameBinary, packet.OPEN)
 	should.Equal("write: timeout", err.Error())
 
 	wg.Wait()
@@ -158,7 +164,7 @@ func TestPayloadFlushOutBinary(t *testing.T) {
 	}
 
 	p.SetWriteDeadline(time.Now().Add(time.Second / 10))
-	_, err := p.NextWriter(base.FrameBinary, base.OPEN)
+	_, err := p.NextWriter(packet.FrameBinary, packet.OPEN)
 	should.Equal("write: timeout", err.Error())
 
 	wg.Wait()
@@ -182,7 +188,7 @@ func TestPayloadWaitNextClose(t *testing.T) {
 	go func() {
 		should := assert.New(t)
 		defer wg.Done()
-		_, err := p.NextWriter(base.FrameBinary, base.OPEN)
+		_, err := p.NextWriter(packet.FrameBinary, packet.OPEN)
 		should.Equal(io.EOF, err)
 	}()
 
@@ -195,7 +201,7 @@ func TestPayloadWaitNextClose(t *testing.T) {
 
 	_, _, _, err = p.NextReader()
 	should.Equal(io.EOF, err)
-	_, err = p.NextWriter(base.FrameBinary, base.OPEN)
+	_, err = p.NextWriter(packet.FrameBinary, packet.OPEN)
 	should.Equal(io.EOF, err)
 
 	err = p.FeedIn(bytes.NewReader([]byte("1:0")), false)
@@ -235,7 +241,7 @@ func TestPayloadWaitInOutClose(t *testing.T) {
 
 	_, _, _, err = p.NextReader()
 	should.Equal(io.EOF, err)
-	_, err = p.NextWriter(base.FrameBinary, base.OPEN)
+	_, err = p.NextWriter(packet.FrameBinary, packet.OPEN)
 	should.Equal(io.EOF, err)
 
 	err = p.FeedIn(bytes.NewReader([]byte("1:0")), false)
@@ -255,7 +261,7 @@ func TestPayloadPauseClose(t *testing.T) {
 
 	_, _, _, err = p.NextReader()
 	should.Equal(io.EOF, err)
-	_, err = p.NextWriter(base.FrameBinary, base.OPEN)
+	_, err = p.NextWriter(packet.FrameBinary, packet.OPEN)
 	should.Equal(io.EOF, err)
 
 	err = p.FeedIn(bytes.NewReader([]byte("1:0")), false)
@@ -286,7 +292,7 @@ func TestPayloadNextPause(t *testing.T) {
 		should := assert.New(t)
 		must := require.New(t)
 		defer wg.Done()
-		_, err := p.NextWriter(base.FrameBinary, base.OPEN)
+		_, err := p.NextWriter(packet.FrameBinary, packet.OPEN)
 		op, ok := err.(Error)
 		must.True(ok)
 		should.True(op.Temporary())
@@ -302,7 +308,7 @@ func TestPayloadNextPause(t *testing.T) {
 	op, ok := err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
-	_, err = p.NextWriter(base.FrameBinary, base.OPEN)
+	_, err = p.NextWriter(packet.FrameBinary, packet.OPEN)
 	op, ok = err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
@@ -366,7 +372,7 @@ func TestPayloadInOutPause(t *testing.T) {
 	op, ok := err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
-	_, err = p.NextWriter(base.FrameBinary, base.OPEN)
+	_, err = p.NextWriter(packet.FrameBinary, packet.OPEN)
 	op, ok = err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
@@ -423,16 +429,20 @@ func TestPayloadNextClosePause(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+
 		should := assert.New(t)
 		must := require.New(t)
-		defer wg.Done()
-		w, err := p.NextWriter(base.FrameBinary, base.OPEN)
+
+		w, err := p.NextWriter(packet.FrameBinary, packet.OPEN)
 		must.Nil(err)
+
 		time.Sleep(time.Second / 2)
+
 		err = w.Close()
 		must.Nil(err)
 
-		w, err = p.NextWriter(base.FrameBinary, base.OPEN)
+		w, err = p.NextWriter(packet.FrameBinary, packet.OPEN)
 		op, ok := err.(Error)
 		must.True(ok)
 		should.True(op.Temporary())
@@ -440,6 +450,7 @@ func TestPayloadNextClosePause(t *testing.T) {
 
 	// let next run
 	time.Sleep(time.Second / 10)
+
 	begin := time.Now()
 	p.Pause()
 	end := time.Now()
@@ -451,7 +462,7 @@ func TestPayloadNextClosePause(t *testing.T) {
 	op, ok := err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())
-	_, err = p.NextWriter(base.FrameBinary, base.OPEN)
+	_, err = p.NextWriter(packet.FrameBinary, packet.OPEN)
 	op, ok = err.(Error)
 	should.True(ok)
 	should.True(op.Temporary())

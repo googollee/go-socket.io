@@ -11,27 +11,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 var tests = []struct {
-	ft   base.FrameType
-	pt   base.PacketType
+	ft   packet.FrameType
+	pt   packet.PacketType
 	data []byte
 }{
-	{base.FrameString, base.OPEN, []byte{}},
-	{base.FrameString, base.MESSAGE, []byte("hello")},
-	{base.FrameBinary, base.MESSAGE, []byte{1, 2, 3, 4}},
+	{packet.FrameString, packet.OPEN, []byte{}},
+	{packet.FrameString, packet.MESSAGE, []byte("hello")},
+	{packet.FrameBinary, packet.MESSAGE, []byte{1, 2, 3, 4}},
 }
 
 func TestWebsocket(t *testing.T) {
-	tran := &Transport{}
-	assert.Equal(t, "websocket", tran.Name())
+	wsTransport := &Transport{}
+	assert.Equal(t, "websocket", wsTransport.Name())
 
-	conn := make(chan base.Conn, 1)
+	conn := make(chan transport.Conn, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
-		c, err := tran.Accept(w, r)
+		c, err := wsTransport.Accept(w, r)
 		require.NoError(t, err)
 
 		conn <- c
@@ -47,7 +48,8 @@ func TestWebsocket(t *testing.T) {
 	dialU := *u
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := tran.Dial(&dialU, header)
+
+	cc, err := wsTransport.Dial(&dialU, header)
 	require.NoError(t, err)
 
 	defer cc.Close()
@@ -76,8 +78,10 @@ func TestWebsocket(t *testing.T) {
 	assert.Equal(t, "server", cc.RemoteHeader().Get("X-Eio-Test"))
 	assert.Equal(t, "client", sc.RemoteHeader().Get("X-Eio-Test"))
 
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
+
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
 

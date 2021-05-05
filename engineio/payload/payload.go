@@ -2,13 +2,12 @@ package payload
 
 import (
 	"fmt"
+	"github.com/googollee/go-socket.io/engineio/packet"
 	"io"
 	"math"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/googollee/go-socket.io/engineio/base"
 )
 
 type readArg struct {
@@ -175,7 +174,7 @@ func (p *Payload) FlushOut(w io.Writer) error {
 // If Close called when NextReader,  it return io.EOF.
 // Pause doesn't effect to NextReader. NextReader should wait till resumed
 // and next FeedIn.
-func (p *Payload) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
+func (p *Payload) NextReader() (packet.FrameType, packet.PacketType, io.ReadCloser, error) {
 	ft, pt, r, err := p.decoder.NextReader()
 	return ft, pt, r, err
 }
@@ -201,7 +200,7 @@ func (p *Payload) SetReadDeadline(t time.Time) error {
 // If Close called when NextWriter,  it returns io.EOF.
 // If beyond the time set by SetWriteDeadline, it returns ErrTimeout.
 // If Pause called when NextWriter, it returns ErrPaused.
-func (p *Payload) NextWriter(ft base.FrameType, pt base.PacketType) (io.WriteCloser, error) {
+func (p *Payload) NextWriter(ft packet.FrameType, pt packet.PacketType) (io.WriteCloser, error) {
 	return p.encoder.NextWriter(ft, pt)
 }
 
