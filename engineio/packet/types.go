@@ -5,7 +5,6 @@ import (
 )
 
 type Frame struct {
-	t
 	FType frame.Type
 	Data  []byte
 }
