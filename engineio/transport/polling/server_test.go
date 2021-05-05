@@ -2,7 +2,6 @@ package polling
 
 import (
 	"fmt"
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -14,7 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 func TestServerJSONP(t *testing.T) {
@@ -48,7 +49,7 @@ func TestServerJSONP(t *testing.T) {
 
 		defer sc.Close()
 
-		w, err := sc.NextWriter(packet.FrameBinary, packet.MESSAGE)
+		w, err := sc.NextWriter(frame.Binary, packet.MESSAGE)
 		require.NoError(t, err)
 
 		_, err = w.Write([]byte("hello"))
@@ -57,7 +58,7 @@ func TestServerJSONP(t *testing.T) {
 		err = w.Close()
 		require.NoError(t, err)
 
-		w, err = sc.NextWriter(packet.FrameString, packet.MESSAGE)
+		w, err = sc.NextWriter(frame.String, packet.MESSAGE)
 		require.NoError(t, err)
 
 		_, err = w.Write([]byte("world"))

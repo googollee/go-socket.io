@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/transport"
 )
@@ -74,7 +75,7 @@ func TestDialOpen(t *testing.T) {
 
 	should.Equal(cp.SID, sid)
 
-	w, err := cc.NextWriter(packet.FrameString, packet.MESSAGE)
+	w, err := cc.NextWriter(frame.String, packet.MESSAGE)
 	should.Nil(err)
 
 	_, err = w.Write([]byte("hello"))

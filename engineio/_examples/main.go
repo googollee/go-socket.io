@@ -23,6 +23,7 @@ func main() {
 
 		go func(conn engineio.Conn) {
 			defer conn.Close()
+
 			fmt.Println(conn.ID(), conn.RemoteAddr(), "->", conn.LocalAddr(), "with", conn.RemoteHeader())
 
 			for {

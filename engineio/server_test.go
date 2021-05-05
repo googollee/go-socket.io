@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/session"
 	"github.com/googollee/go-socket.io/engineio/transport"
@@ -250,7 +251,7 @@ func TestEngineUpgrade(t *testing.T) {
 		ft, pt, r, err := p.NextReader()
 		must.Nil(err)
 
-		should.Equal(packet.FrameString, ft)
+		should.Equal(frame.String, ft)
 		should.Equal(packet.NOOP, pt)
 		must.Nil(r.Close())
 
@@ -268,7 +269,7 @@ func TestEngineUpgrade(t *testing.T) {
 	ws, err := websocket.Default.Dial(&upU, nil)
 	must.Nil(err)
 
-	w, err := ws.NextWriter(packet.FrameString, packet.PING)
+	w, err := ws.NextWriter(frame.String, packet.PING)
 	must.Nil(err)
 
 	_, err = w.Write([]byte("probe"))
@@ -279,7 +280,7 @@ func TestEngineUpgrade(t *testing.T) {
 	ft, pt, r, err := ws.NextReader()
 	must.Nil(err)
 
-	should.Equal(packet.FrameString, ft)
+	should.Equal(frame.String, ft)
 	should.Equal(packet.PONG, pt)
 
 	b, err := ioutil.ReadAll(r)
@@ -289,7 +290,7 @@ func TestEngineUpgrade(t *testing.T) {
 
 	must.Nil(r.Close())
 
-	w, err = ws.NextWriter(packet.FrameString, packet.UPGRADE)
+	w, err = ws.NextWriter(frame.String, packet.UPGRADE)
 	must.Nil(err)
 
 	must.Nil(w.Close())
@@ -298,7 +299,7 @@ func TestEngineUpgrade(t *testing.T) {
 
 	must.Nil(p.Close())
 
-	w, err = ws.NextWriter(packet.FrameString, packet.MESSAGE)
+	w, err = ws.NextWriter(frame.String, packet.MESSAGE)
 	must.Nil(err)
 
 	_, err = w.Write([]byte("hello你好"))
@@ -309,7 +310,7 @@ func TestEngineUpgrade(t *testing.T) {
 	ft, pt, r, err = ws.NextReader()
 	must.Nil(err)
 
-	should.Equal(packet.FrameBinary, ft)
+	should.Equal(frame.Binary, ft)
 	should.Equal(packet.MESSAGE, pt)
 
 	b, err = ioutil.ReadAll(r)

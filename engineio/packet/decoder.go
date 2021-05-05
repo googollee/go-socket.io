@@ -2,19 +2,26 @@ package packet
 
 import (
 	"io"
+
+	"github.com/googollee/go-socket.io/engineio/frame"
 )
 
-type decoder struct {
+// FrameReader is the reader which supports framing.
+type FrameReader interface {
+	NextReader() (frame.Type, io.ReadCloser, error)
+}
+
+type Decoder struct {
 	r FrameReader
 }
 
-func newDecoder(r FrameReader) *decoder {
-	return &decoder{
+func NewDecoder(r FrameReader) *Decoder {
+	return &Decoder{
 		r: r,
 	}
 }
 
-func (e *decoder) NextReader() (FrameType, PacketType, io.ReadCloser, error) {
+func (e *Decoder) NextReader() (frame.Type, Type, io.ReadCloser, error) {
 	ft, r, err := e.r.NextReader()
 	if err != nil {
 		return 0, 0, nil, err

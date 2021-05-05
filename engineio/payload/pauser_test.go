@@ -19,10 +19,13 @@ func TestPauserTrigger(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
+
 		ok := p.Pause()
 		should.True(ok)
+
 		defer p.Resume()
 	}()
 
