@@ -9,3 +9,6 @@ test:
 
 bench:
 	go test -bench . -benchmem ./...
+
+lint:
+	golangci-lint run --config=.golangci.yml ./...
