@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/payload"
+	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/utils"
 )
 
@@ -82,21 +83,22 @@ func (c *clientConn) RemoteHeader() http.Header {
 
 func (c *clientConn) Resume() {
 	c.Payload.Resume()
+
 	go c.serveGet()
 	go c.servePost()
 }
 
 func (c *clientConn) servePost() {
 	req := c.request
-	url := *req.URL
+	reqUrl := *req.URL
 
-	req.URL = &url
-	req.Method = "POST"
+	req.URL = &reqUrl
+	req.Method = http.MethodPost
 
 	var buf bytes.Buffer
 	req.Body = ioutil.NopCloser(&buf)
 
-	query := url.Query()
+	query := reqUrl.Query()
 	for {
 		buf.Reset()
 
@@ -108,17 +110,24 @@ func (c *clientConn) servePost() {
 
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
-			c.Payload.Store("post", err)
+			if err = c.Payload.Store("post", err); err != nil {
+				log.Println("store post error", err)
+			}
 			c.Close()
 			return
 		}
-		io.Copy(ioutil.Discard, resp.Body)
-		resp.Body.Close()
+
+		discardBody(resp.Body)
+
 		if resp.StatusCode != http.StatusOK {
-			c.Payload.Store("post", fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
+			err = c.Payload.Store("post", fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
+			if err != nil {
+				log.Println("store post error", err)
+			}
 			c.Close()
 			return
 		}
+
 		c.remoteHeader.Store(resp.Header)
 	}
 }
@@ -127,54 +136,62 @@ func (c *clientConn) getOpen() {
 	req := c.request
 	query := req.URL.Query()
 
-	url := *req.URL
-	req.URL = &url
-	req.Method = "GET"
+	reqUrl := *req.URL
+	req.URL = &reqUrl
+	req.Method = http.MethodGet
 
 	query.Set("t", utils.Timestamp())
 	req.URL.RawQuery = query.Encode()
 
 	resp, err := c.httpClient.Do(&req)
 	if err != nil {
-		c.Payload.Store("get", err)
+		if err = c.Payload.Store("get", err); err != nil {
+			log.Println("store get error", err)
+		}
+
 		c.Close()
 		return
 	}
 
 	defer func() {
-		io.Copy(ioutil.Discard, resp.Body)
-		resp.Body.Close()
+		discardBody(resp.Body)
 	}()
 
 	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("invalid request: %s(%d)", resp.Status, resp.StatusCode)
 	}
 
-	var supportBinary bool
+	var isSupportBinary bool
 	if err == nil {
 		mime := resp.Header.Get("Content-Type")
-		supportBinary, err = mimeSupportBinary(mime)
+		isSupportBinary, err = mimeIsSupportBinary(mime)
+		if err != nil {
+			log.Println("check mime support binary", err)
+		}
 	}
 
 	if err != nil {
-		c.Payload.Store("get", err)
+		if err = c.Payload.Store("get", err); err != nil {
+			log.Println("store get error", err)
+		}
 		c.Close()
+
 		return
 	}
 
 	c.remoteHeader.Store(resp.Header)
 
-	if err = c.Payload.FeedIn(resp.Body, supportBinary); err != nil {
+	if err = c.Payload.FeedIn(resp.Body, isSupportBinary); err != nil {
 		return
 	}
 }
 
 func (c *clientConn) serveGet() {
 	req := c.request
-	url := *req.URL
+	reqUrl := *req.URL
 
-	req.URL = &url
-	req.Method = "GET"
+	req.URL = &reqUrl
+	req.Method = http.MethodGet
 
 	query := req.URL.Query()
 	for {
@@ -183,8 +200,11 @@ func (c *clientConn) serveGet() {
 
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
-			c.Payload.Store("get", err)
+			if err = c.Payload.Store("get", err); err != nil {
+				log.Println("store get error", err)
+			}
 			c.Close()
+
 			return
 		}
 
@@ -192,26 +212,41 @@ func (c *clientConn) serveGet() {
 			err = fmt.Errorf("invalid request: %s(%d)", resp.Status, resp.StatusCode)
 		}
 
-		var supportBinary bool
+		var isSupportBinary bool
 		if err == nil {
 			mime := resp.Header.Get("Content-Type")
-			supportBinary, err = mimeSupportBinary(mime)
+			isSupportBinary, err = mimeIsSupportBinary(mime)
+			if err != nil {
+				log.Println("check mime support binary", err)
+			}
 		}
 
 		if err != nil {
-			io.Copy(ioutil.Discard, resp.Body)
-			resp.Body.Close()
-			c.Payload.Store("get", err)
+			discardBody(resp.Body)
+
+			if err = c.Payload.Store("get", err); err != nil {
+				log.Println("store get error", err)
+			}
+
 			c.Close()
+
 			return
 		}
 
-		if err = c.Payload.FeedIn(resp.Body, supportBinary); err != nil {
-			io.Copy(ioutil.Discard, resp.Body)
-			resp.Body.Close()
+		if err = c.Payload.FeedIn(resp.Body, isSupportBinary); err != nil {
+			discardBody(resp.Body)
+
 			return
 		}
 
 		c.remoteHeader.Store(resp.Header)
 	}
+}
+
+func discardBody(body io.ReadCloser) {
+	_, err := io.Copy(ioutil.Discard, body)
+	if err != nil {
+		log.Println("copy from body resp to discard", err)
+	}
+	body.Close()
 }

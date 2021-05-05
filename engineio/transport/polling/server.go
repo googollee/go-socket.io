@@ -124,13 +124,13 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.SetHeaders(w, r)
 
 		mime := r.Header.Get("Content-Type")
-		supportBinary, err := mimeSupportBinary(mime)
+		isSupportBinary, err := mimeIsSupportBinary(mime)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := c.Payload.FeedIn(r.Body, supportBinary); err != nil {
+		if err := c.Payload.FeedIn(r.Body, isSupportBinary); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

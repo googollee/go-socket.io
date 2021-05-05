@@ -30,6 +30,7 @@ func BenchmarkEncoder(b *testing.B) {
 	encoder := NewEncoder(&FakeDiscardWriter{})
 
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		w, _ := encoder.NextWriter(frame.String, MESSAGE)
 		w.Close()

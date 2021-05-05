@@ -36,11 +36,17 @@ func TestDialOpen(t *testing.T) {
 
 		if sid == "" {
 			buf := bytes.NewBuffer(nil)
-			cp.WriteTo(buf)
+			_, err := cp.WriteTo(buf)
+			must.Nil(err)
+
 			fmt.Fprintf(w, "%d", buf.Len()+1)
 
-			w.Write([]byte(":0"))
-			w.Write(buf.Bytes())
+			_, err = w.Write([]byte(":0"))
+			must.Nil(err)
+
+			_, err = w.Write(buf.Bytes())
+			must.Nil(err)
+
 			return
 		}
 

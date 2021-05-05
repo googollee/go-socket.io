@@ -25,7 +25,6 @@ const (
 	binaryEvent
 	// BinaryAck type
 	binaryAck
-	typeMax
 )
 
 // Header of packet

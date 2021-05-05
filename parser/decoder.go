@@ -195,7 +195,7 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 	}
 
 	header.Type = Type(typ - '0')
-	if header.Type >= typeMax {
+	if header.Type > binaryAck {
 		return 0, ErrInvalidPacketType
 	}
 

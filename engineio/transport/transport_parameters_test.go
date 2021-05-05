@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnParameters(t *testing.T) {
+	must := require.New(t)
 	at := assert.New(t)
+
 	tests := []struct {
 		para ConnParameters
 		out  string
@@ -28,26 +31,31 @@ func TestConnParameters(t *testing.T) {
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
 		n, err := test.para.WriteTo(buf)
-		at.Nil(err)
+		must.Nil(err)
+
 		at.Equal(int64(len(test.out)), n)
 		at.Equal(test.out, buf.String())
 
 		conn, err := ReadConnParameters(buf)
-		at.Nil(err)
+		must.Nil(err)
 		at.Equal(test.para, conn)
 	}
 }
 
 func BenchmarkConnParameters(b *testing.B) {
+	must := require.New(b)
+
 	param := ConnParameters{
 		time.Second * 10,
 		time.Second * 5,
 		"vCcJKmYQcIf801WDAAAB",
 		[]string{"websocket", "polling"},
 	}
-	discarder := ioutil.Discard
+
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
-		param.WriteTo(discarder)
+		_, err := param.WriteTo(ioutil.Discard)
+		must.Nil(err)
 	}
 }
