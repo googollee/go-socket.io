@@ -16,3 +16,8 @@ run:
     - namespace_conn.go
     - parser/data_test.go
     - redis_broadcast.go
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
