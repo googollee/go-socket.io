@@ -22,7 +22,7 @@ func NewEncoder(w FrameWriter) *Encoder {
 	}
 }
 
-func (e *Encoder) Encode(h Header, args []interface{}) (err error) {
+func (e *Encoder) Encode(h Header, args ...interface{}) (err error) {
 	var w io.WriteCloser
 	w, err = e.w.NextWriter(session.TEXT)
 	if err != nil {
@@ -139,8 +139,8 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
 		v = v.Elem()
 	}
-	var ret [][]byte
 
+	var ret [][]byte
 	switch v.Kind() {
 	case reflect.Struct:
 		if v.Type().Name() == bufferTypeName {
@@ -161,9 +161,8 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 				ret = append(ret, b...)
 			}
 		}
-	case reflect.Array:
-		fallthrough
-	case reflect.Slice:
+
+	case reflect.Array, reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
 			b, err := e.attachBuffer(v.Index(i), index)
 			if err != nil {
@@ -172,6 +171,7 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 
 			ret = append(ret, b...)
 		}
+
 	case reflect.Map:
 		for _, key := range v.MapKeys() {
 			b, err := e.attachBuffer(v.MapIndex(key), index)

@@ -5,10 +5,18 @@ import (
 	"fmt"
 )
 
+// connect errors.
 var (
 	errUnavailableRootHandler = errors.New("root ('/') doesn't have a namespace handler")
 
 	errFailedConnectNamespace = errors.New("failed connect to namespace without handler")
+)
+
+// event errors.
+var (
+	errHandleDispatch = errors.New("handler dispatch error")
+
+	errDecodeArgs = errors.New("decode args error")
 )
 
 type errorMessage struct {

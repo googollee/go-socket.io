@@ -11,12 +11,12 @@ import (
 type namespaceHandler struct {
 	broadcast Broadcast
 
-	eventsMu sync.RWMutex
-	events   map[string]*funcHandler
+	eventsLock sync.RWMutex
+	events     map[string]*funcHandler
 
-	onConnect    func(c Conn) error
-	onDisconnect func(c Conn, msg string)
-	onError      func(c Conn, err error)
+	onConnect    func(conn Conn) error
+	onDisconnect func(conn Conn, msg string)
+	onError      func(conn Conn, err error)
 }
 
 func newNamespaceHandler(nsp string, adapterOpts *RedisAdapterOptions) *namespaceHandler {
@@ -33,85 +33,77 @@ func newNamespaceHandler(nsp string, adapterOpts *RedisAdapterOptions) *namespac
 	}
 }
 
-func (h *namespaceHandler) OnConnect(f func(Conn) error) {
-	h.onConnect = f
+func (nh *namespaceHandler) OnConnect(f func(Conn) error) {
+	nh.onConnect = f
 }
 
-func (h *namespaceHandler) OnDisconnect(f func(Conn, string)) {
-	h.onDisconnect = f
+func (nh *namespaceHandler) OnDisconnect(f func(Conn, string)) {
+	nh.onDisconnect = f
 }
 
-func (h *namespaceHandler) OnError(f func(Conn, error)) {
-	h.onError = f
+func (nh *namespaceHandler) OnError(f func(Conn, error)) {
+	nh.onError = f
 }
 
-func (h *namespaceHandler) OnEvent(event string, f interface{}) {
-	h.eventsMu.Lock()
-	defer h.eventsMu.Unlock()
+func (nh *namespaceHandler) OnEvent(event string, f interface{}) {
+	nh.eventsLock.Lock()
+	defer nh.eventsLock.Unlock()
 
-	h.events[event] = newEventFunc(f)
+	nh.events[event] = newEventFunc(f)
 }
 
-func (h *namespaceHandler) getTypes(header parser.Header, event string) []reflect.Type {
-	switch header.Type {
-	case parser.Error:
-		fallthrough
-	case parser.Disconnect:
-		return []reflect.Type{reflect.TypeOf("")}
-	case parser.Event:
-		h.eventsMu.RLock()
-		namespaceHandler := h.events[event]
-		h.eventsMu.RUnlock()
-		if namespaceHandler == nil {
-			return nil
-		}
+func (nh *namespaceHandler) getEventTypes(event string) []reflect.Type {
+	nh.eventsLock.RLock()
+	namespaceHandler := nh.events[event]
+	nh.eventsLock.RUnlock()
+
+	if namespaceHandler != nil {
 		return namespaceHandler.argTypes
 	}
 
 	return nil
 }
 
-//todo maybe refactor this
-func (h *namespaceHandler) dispatch(c Conn, header parser.Header, event string, args []reflect.Value) ([]reflect.Value, error) {
+func (nh *namespaceHandler) dispatch(conn Conn, header parser.Header, args ...reflect.Value) ([]reflect.Value, error) {
 	switch header.Type {
 	case parser.Connect:
-		if h.onConnect != nil {
-			return nil, h.onConnect(c)
+		if nh.onConnect != nil {
+			return nil, nh.onConnect(conn)
 		}
 		return nil, nil
 
 	case parser.Disconnect:
-		var msg string
-
-		if len(args) > 0 {
-			msg = args[0].Interface().(string)
-		}
-		if h.onDisconnect != nil {
-			h.onDisconnect(c, msg)
+		if nh.onDisconnect != nil {
+			nh.onDisconnect(conn, getDispatchMessage(args...))
 		}
 		return nil, nil
 
 	case parser.Error:
-		var msg string
-
-		if len(args) > 0 {
-			msg = args[0].Interface().(string)
+		if nh.onError != nil {
+			nh.onError(conn, errors.New(getDispatchMessage(args...)))
 		}
-
-		if h.onError != nil {
-			h.onError(c, errors.New(msg))
-		}
-
-	case parser.Event:
-		h.eventsMu.RLock()
-		namespaceHandler := h.events[event]
-		h.eventsMu.RUnlock()
-		if namespaceHandler == nil {
-			return nil, nil
-		}
-
-		return namespaceHandler.Call(append([]reflect.Value{reflect.ValueOf(c)}, args...))
 	}
 
 	return nil, parser.ErrInvalidPacketType
+}
+
+func (nh *namespaceHandler) dispatchEvent(conn Conn, event string, args ...reflect.Value) ([]reflect.Value, error) {
+	nh.eventsLock.RLock()
+	namespaceHandler := nh.events[event]
+	nh.eventsLock.RUnlock()
+
+	if namespaceHandler == nil {
+		return nil, nil
+	}
+
+	return namespaceHandler.Call(append([]reflect.Value{reflect.ValueOf(conn)}, args...))
+}
+
+func getDispatchMessage(args ...reflect.Value) string {
+	var msg string
+	if len(args) > 0 {
+		msg = args[0].Interface().(string)
+	}
+
+	return msg
 }

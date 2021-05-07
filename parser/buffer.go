@@ -6,36 +6,6 @@ import (
 	"strconv"
 )
 
-// Type of packet.
-type Type byte
-
-const (
-	// Connect type
-	Connect Type = iota
-	// Disconnect type
-	Disconnect
-	// Event type
-	Event
-	// Ack type
-	Ack
-	// Error type
-	Error
-
-	// BinaryEvent type
-	binaryEvent
-	// BinaryAck type
-	binaryAck
-)
-
-// Header of packet
-type Header struct {
-	Type      Type
-	ID        uint64
-	NeedAck   bool
-	Namespace string
-	Query     string
-}
-
 // Buffer is an binary buffer handler used in emit args. All buffers will be
 // sent as binary in the transport layer.
 type Buffer struct {
