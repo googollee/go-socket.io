@@ -48,7 +48,13 @@ func TestEncoder(t *testing.T) {
 			if test.Header.Type == Event {
 				v = append([]interface{}{test.Event}, test.Var...)
 			}
-			err := encoder.Encode(test.Header, v)
+
+			var err error
+			if v != nil {
+				err = encoder.Encode(test.Header, v)
+			} else {
+				err = encoder.Encode(test.Header)
+			}
 
 			must.NoError(err)
 			must.Equal(len(test.Data), len(w.types))

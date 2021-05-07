@@ -1,28 +1,5 @@
 package parser
 
-import "testing"
-
-//nolint
-type noBufferStruct struct {
-	Str   string            `json:"str"`
-	I     int               `json:"i"`
-	Array []int             `json:"array"`
-	Map   map[string]string `json:"map"`
-}
-
-//nolint
-type bufferStruct struct {
-	I      int     `json:"i"`
-	Buffer *Buffer `json:"buf"`
-}
-
-//nolint
-type bufferInnerStruct struct {
-	I      int                `json:"i"`
-	Buffer *Buffer            `json:"buf"`
-	Inner  *bufferInnerStruct `json:"inner,omitempty"`
-}
-
 var tests = []struct {
 	Name   string
 	Header Header
@@ -143,7 +120,4 @@ var tests = []struct {
 			[]byte{2, 3, 4},
 		},
 	},
-}
-
-func TestPacket(t *testing.T) {
 }

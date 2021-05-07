@@ -31,7 +31,6 @@ func (e *Encoder) Encode(h Header, args ...interface{}) (err error) {
 
 	var buffers [][]byte
 	buffers, err = e.writePacket(w, h, args)
-
 	if err != nil {
 		return
 	}
@@ -72,6 +71,7 @@ func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([
 	if err != nil {
 		return nil, err
 	}
+
 	if len(buffers) > 0 && (h.Type == Event || h.Type == Ack) {
 		h.Type += 3
 	}
@@ -106,7 +106,7 @@ func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([
 		}
 	}
 
-	if args != nil {
+	if len(args) > 0 {
 		if err := json.NewEncoder(bw).Encode(args); err != nil {
 			return nil, err
 		}
@@ -116,6 +116,7 @@ func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([
 			return nil, err
 		}
 	}
+
 	return buffers, nil
 }
 
