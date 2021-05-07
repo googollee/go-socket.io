@@ -31,7 +31,7 @@ var tests = []struct {
 		},
 		[][]byte{
 			[]byte("51-[\"msg\",{\"_placeholder\":true,\"num\":0}]\n"),
-			[]byte{1, 2, 3},
+			{1, 2, 3},
 		},
 	},
 	{"ID",
@@ -60,7 +60,7 @@ var tests = []struct {
 		},
 		[][]byte{
 			[]byte("61-13[{\"_placeholder\":true,\"num\":0}]\n"),
-			[]byte{1, 2, 3},
+			{1, 2, 3},
 		},
 	},
 	{"Namespace",
@@ -89,7 +89,7 @@ var tests = []struct {
 		},
 		[][]byte{
 			[]byte("51-/woot,[\"msg\",{\"_placeholder\":true,\"num\":0}]\n"),
-			[]byte{2, 3, 4},
+			{2, 3, 4},
 		},
 	},
 	{"NamespaceID",
@@ -117,7 +117,7 @@ var tests = []struct {
 		},
 		[][]byte{
 			[]byte("51-/woot,1[\"msg\",{\"_placeholder\":true,\"num\":0}]\n"),
-			[]byte{2, 3, 4},
+			{2, 3, 4},
 		},
 	},
 }

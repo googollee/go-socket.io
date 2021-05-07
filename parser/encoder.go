@@ -107,10 +107,11 @@ func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([
 	}
 
 	if len(args) > 0 {
-		if err := json.NewEncoder(bw).Encode(args); err != nil {
+		if err := json.NewEncoder(bw).Encode(args[0]); err != nil {
 			return nil, err
 		}
 	}
+
 	if f, ok := bw.(flusher); ok {
 		if err := f.Flush(); err != nil {
 			return nil, err
@@ -183,6 +184,7 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 			ret = append(ret, b...)
 		}
 	}
+
 	return ret, nil
 }
 
