@@ -71,6 +71,7 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 	if ft != session.TEXT {
 		return errInvalidFirstPacketType
 	}
+
 	d.lastFrame = r
 	br, ok := r.(byteReader)
 	if !ok {
@@ -154,8 +155,9 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 }
 
 func (d *Decoder) readUint64FromText(r byteReader) (uint64, bool, error) {
-	ret := uint64(0)
-	hasRead := false
+	var ret uint64
+	var hasRead bool
+
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
@@ -176,7 +178,8 @@ func (d *Decoder) readUint64FromText(r byteReader) (uint64, bool, error) {
 
 func (d *Decoder) readString(r byteReader, until byte) (string, error) {
 	var ret bytes.Buffer
-	hasRead := false
+	var hasRead bool
+
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
@@ -366,5 +369,6 @@ func (d *Decoder) detachBuffer(v reflect.Value, buffers []Buffer) error {
 			}
 		}
 	}
+
 	return nil
 }
