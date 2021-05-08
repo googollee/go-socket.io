@@ -8,7 +8,7 @@ import (
 var (
 	errUnavailableRootHandler = errors.New("root ('/') doesn't have a namespace handler")
 
-	errFailedConnetNamespace = errors.New("failed connect to namespace without handler")
+	errFailedConnectNamespace = errors.New("failed connect to namespace without handler")
 )
 
 type errorMessage struct {
