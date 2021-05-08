@@ -1,4 +1,4 @@
-## Simple example
+## Base example with using std net/http
 
 ```go
 package main
@@ -8,14 +8,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/googollee/go-socket.io"
+	socketio "github.com/googollee/go-socket.io"
 )
 
 func main() {
-	server, serveError  := socketio.NewServer(nil)
-	if serveError != nil {
-		log.Fatalln(serveError)
-	}
+	server := socketio.NewServer(nil)
 	
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
@@ -58,6 +55,21 @@ func main() {
 }
 ```
 
+
+## How to use Redis broadcast adapter
+```go
+server := socketio.NewServer(nil)
+
+_, err := server.Adapter(&socketio.RedisAdapterOptions{
+    Host:   "127.0.0.1",
+    Port:   "6379",
+    Prefix: "socket.io",
+})
+if err != nil {
+    log.Fatal("error:", err)
+}
+```
+
 ## Acknowledgements in go-socket.io 1.X.X
 
 [See documentation about acknowledgements](http://socket.io/docs/#sending-and-getting-data-(acknowledgements)
@@ -68,9 +80,9 @@ func main() {
 
 ```javascript
  //using client-side socket.io-1.X.X.js
- socket.emit('some:event', JSON.stringify(someData), function(data){
-       console.log('ACK from server wtih data: ', data));
- });
+socket.emit('some:event', JSON.stringify(someData), function(data){
+   console.log('ACK from server wtih data: ', data));
+});
 ```
 
 * Server-side
@@ -79,7 +91,7 @@ func main() {
 // The return type may vary depending on whether you will return
 // In golang implementation of Socket.IO don't used callbacks for acknowledgement,
 // but used return value, which wrapped into ack package and returned to the client's callback in JavaScript
-so.On("some:event", func(msg string) string {
+server.On("some:event", func(msg string) string {
 	return msg //Sending ack with data in msg back to client, using "return statement"
 })
 ```
@@ -102,13 +114,13 @@ socket.on('some:event', function (msg, sendAckCb) {
 ```go
 //You can use Emit or BroadcastTo with last parameter as callback for handling ack from client
 //Sending packet to room "room_name" and event "some:event"
-so.BroadcastTo("room_name", "some:event", dataForClient, func (so socketio.Socket, data string) {
+server.BroadcastTo("room_name", "some:event", dataForClient, func (so socketio.Socket, data string) {
 	log.Println("Client ACK with data: ", data)
 })
 
 // Or
 
-so.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
+server.Emit("some:event", dataForClient, func (so socketio.Socket, data string) {
 	log.Println("Client ACK with data: ", data)
 })
 ```
@@ -142,7 +154,7 @@ socket.on('some:event', function (msg) {
 
 ```go
 
-so.OnDisconnect("/", func(so socketio.Conn, reason string) {
+server.OnDisconnect("/", func(so socketio.Conn, reason string) {
   	log.Println("closed", reason)
 })
 ```

@@ -2,15 +2,26 @@ package base
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestTimestamp(t *testing.T) {
-	should := assert.New(t)
-	t1 := Timestamp()
-	t2 := Timestamp()
-	should.NotEmpty(t1)
-	should.NotEmpty(t2)
-	should.NotEqual(t1, t2)
+type testClock struct {
+	now time.Time
+}
+
+func (c testClock) Now() time.Time {
+	return c.now
+}
+
+func TestTimestampFromClock(t *testing.T) {
+	ts1 := TimestampFromClock(testClock{time.Unix(0, 1000)})
+	ts2 := TimestampFromClock(testClock{time.Unix(0, 2000)})
+
+	require.NotEmpty(t, ts1)
+	require.NotEmpty(t, ts2)
+
+	assert.NotEqual(t, ts1, ts2)
 }

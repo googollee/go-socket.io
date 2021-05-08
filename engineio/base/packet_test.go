@@ -1,20 +1,21 @@
 package base
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPacketType(t *testing.T) {
-	at := assert.New(t)
-	tests := []struct {
-		b         byte
-		frameType FrameType
-		typ       PacketType
-		strbyte   byte
-		binbyte   byte
-		str       string
+	var tests = []struct {
+		b       byte
+		fType   FrameType
+		pType   PacketType
+		strByte byte
+		binByte byte
+		str     string
 	}{
 		{0, FrameBinary, OPEN, '0', 0, "open"},
 		{1, FrameBinary, CLOSE, '1', 1, "close"},
@@ -33,12 +34,13 @@ func TestPacketType(t *testing.T) {
 		{'6', FrameString, NOOP, '6', 6, "noop"},
 	}
 
-	for _, test := range tests {
-		typ := ByteToPacketType(test.b, test.frameType)
-		at.Equal(test.typ, typ)
-		at.Equal(test.strbyte, typ.StringByte())
-		at.Equal(test.binbyte, typ.BinaryByte())
-		at.Equal(test.str, typ.String())
-		at.Equal(test.str, PacketType(typ).String())
+	for i, test := range tests {
+		typ := ByteToPacketType(test.b, test.fType)
+
+		require.Equal(t, test.pType, typ, fmt.Sprintf(`types not equal by case: %d`, i))
+
+		assert.Equal(t, test.strByte, typ.StringByte(), fmt.Sprintf(`string byte not equal by case: %d`, i))
+		assert.Equal(t, test.binByte, typ.BinaryByte(), fmt.Sprintf(`bytes not equal by case: %d`, i))
+		assert.Equal(t, test.str, typ.String(), fmt.Sprintf(`strings not equal by case: %d`, i))
 	}
 }

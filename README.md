@@ -1,8 +1,7 @@
 # go-socket.io
 
 [![GoDoc](http://godoc.org/github.com/googollee/go-socket.io?status.svg)](http://godoc.org/github.com/googollee/go-socket.io) 
-[![Build Status](https://travis-ci.org/googollee/go-socket.io.svg)](https://travis-ci.org/googollee/go-socket.io)
-[![Coverage Status](https://coveralls.io/repos/github/googollee/go-socket.io/badge.svg?branch=v1.4)](https://coveralls.io/github/googollee/go-socket.io?branch=v1.4)
+[![Build Status](https://github.com/googollee/go-socket.io/workflows/Unit%20tests/badge.svg)](https://github.com/googollee/go-socket.io/actions/workflows/unittest.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/googollee/go-socket.io)](https://goreportcard.com/report/github.com/googollee/go-socket.io)
 
 go-socket.io is library an implementation of [Socket.IO](http://socket.io) in Golang, which is a realtime application framework.
@@ -38,23 +37,7 @@ and use `socketio` as the package name inside the code.
 
 ## Example
 
-Please check more examples into folder in project for details. [Examples](https://github.com/googollee/go-socket.io/tree/master/_example)
-
-
-## How to use Redis broadcast adapter
-```
-server := socketio.NewServer(nil)
-ok, err := server.Adapter(&socketio.RedisAdapterOptions{
-    Host:   "127.0.0.1",
-    Port:   "6379",
-    Prefix: "socket.io",
-})
-
-if !ok {
-    fmt.Println("error:", err)
-    return
-}
-```
+Please check more examples into folder in project for details. [Examples](https://github.com/googollee/go-socket.io/tree/master/_examples)
 
 ## FAQ
 
