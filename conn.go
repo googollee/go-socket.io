@@ -1,6 +1,7 @@
 package socketio
 
 import (
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -110,7 +111,7 @@ func (c *conn) Close() error {
 	var err error
 
 	c.closeOnce.Do(func() {
-		//for each namespace, leave all rooms, and call the disconnect handler.
+		// for each namespace, leave all rooms, and call the disconnect handler.
 		c.namespaces.Range(func(ns string, nc *namespaceConn) {
 			nc.LeaveAll()
 
@@ -235,7 +236,6 @@ func (c *conn) serveWrite() {
 	}
 }
 
-//todo maybe refactor this
 func (c *conn) serveRead() {
 	defer c.Close()
 
@@ -252,84 +252,109 @@ func (c *conn) serveRead() {
 		if header.Namespace == aliasRootNamespace {
 			header.Namespace = rootNamespace
 		}
-
-		switch header.Type {
-		case parser.Ack:
-			conn, ok := c.namespaces.Get(header.Namespace)
-			if !ok {
-				_ = c.decoder.DiscardLast()
-				continue
-			}
-			conn.dispatch(header)
-		case parser.Event:
-			conn, ok := c.namespaces.Get(header.Namespace)
-			if !ok {
-				_ = c.decoder.DiscardLast()
-				continue
-			}
-			handler, ok := c.handlers.Get(header.Namespace)
-			if !ok {
-				_ = c.decoder.DiscardLast()
-				continue
-			}
-			types := handler.getTypes(header, event)
-			args, err := c.decoder.DecodeArgs(types)
-			if err != nil {
-				c.onError(header.Namespace, err)
-				return
-			}
-			ret, err := handler.dispatch(conn, header, event, args)
-			if err != nil {
-				c.onError(header.Namespace, err)
-				return
-			}
-			if len(ret) > 0 {
-				header.Type = parser.Ack
-				c.write(header, ret)
-			}
-		case parser.Connect:
-			if err := c.decoder.DiscardLast(); err != nil {
-				c.onError(header.Namespace, err)
-				return
-			}
-
-			handler, ok := c.handlers.Get(header.Namespace)
-			if ok {
-				conn, ok := c.namespaces.Get(header.Namespace)
-				if !ok {
-					conn = newNamespaceConn(c, header.Namespace, handler.broadcast)
-					c.namespaces.Set(header.Namespace, conn)
-					conn.Join(c.ID())
-				}
-				_, _ = handler.dispatch(conn, header, "", nil)
-
-				//todo leave default room?!
-			} else {
-				c.onError(header.Namespace, errFailedConnectNamespace)
-				return
-			}
-			c.write(header, nil)
-		case parser.Disconnect:
-			types := []reflect.Type{reflect.TypeOf("")}
-			args, err := c.decoder.DecodeArgs(types)
-			if err != nil {
-				c.onError(header.Namespace, err)
-				return
-			}
-			conn, ok := c.namespaces.Get(header.Namespace)
-			if !ok {
-				_ = c.decoder.DiscardLast()
-				continue
-			}
-
-			conn.LeaveAll()
-			c.namespaces.Delete(header.Namespace)
-			handler, ok := c.handlers.Get(header.Namespace)
-			if ok {
-				_, _ = handler.dispatch(conn, header, "", args)
-			}
+		handler, exist := readHandlerMapping[header.Type]
+		if !exist {
+			return
+		}
+		if err := handler(c, header, event); err != nil {
+			return
 		}
 	}
+}
+
+type readHandler func(c *conn, header parser.Header, event string) error
+
+var readHandlerMapping = map[parser.Type]readHandler{
+	parser.Ack:        ackHandler,
+	parser.Event:      eventHandler,
+	parser.Connect:    connectHandler,
+	parser.Disconnect: disconnectHandler,
+}
+
+func ackHandler(c *conn, header parser.Header, event string) error {
+	conn, ok := c.namespaces.Get(header.Namespace)
+	if !ok {
+		_ = c.decoder.DiscardLast()
+		return nil
+	}
+	conn.dispatch(header)
+	return nil
+
+}
+
+func eventHandler(c *conn, header parser.Header, event string) error {
+	conn, ok := c.namespaces.Get(header.Namespace)
+	if !ok {
+		_ = c.decoder.DiscardLast()
+		return nil
+	}
+	handler, ok := c.handlers.Get(header.Namespace)
+	if !ok {
+		_ = c.decoder.DiscardLast()
+		return nil
+	}
+	types := handler.getTypes(header, event)
+	args, err := c.decoder.DecodeArgs(types)
+	if err != nil {
+		c.onError(header.Namespace, err)
+		return errors.New("decode args error")
+	}
+	ret, err := handler.dispatch(conn, header, event, args)
+	if err != nil {
+		c.onError(header.Namespace, err)
+		return errors.New("handler dispatch error")
+	}
+	if len(ret) > 0 {
+		header.Type = parser.Ack
+		c.write(header, ret)
+	}
+	return nil
+}
+
+func connectHandler(c *conn, header parser.Header, event string) error {
+	if err := c.decoder.DiscardLast(); err != nil {
+		c.onError(header.Namespace, err)
+		return nil
+	}
+	handler, ok := c.handlers.Get(header.Namespace)
+	if ok {
+		conn, ok := c.namespaces.Get(header.Namespace)
+		if !ok {
+			conn = newNamespaceConn(c, header.Namespace, handler.broadcast)
+			c.namespaces.Set(header.Namespace, conn)
+			conn.Join(c.ID())
+		}
+		_, _ = handler.dispatch(conn, header, "", nil)
+
+		// todo leave default room?!
+	} else {
+		c.onError(header.Namespace, errFailedConnectNamespace)
+		return errFailedConnectNamespace
+	}
+	c.write(header, nil)
+	return nil
+}
+
+func disconnectHandler(c *conn, header parser.Header, event string) error {
+	types := []reflect.Type{reflect.TypeOf("")}
+	args, err := c.decoder.DecodeArgs(types)
+	if err != nil {
+		c.onError(header.Namespace, err)
+		return errors.New("disconnect fail")
+	}
+	conn, ok := c.namespaces.Get(header.Namespace)
+	if !ok {
+		_ = c.decoder.DiscardLast()
+		return nil
+	}
+
+	conn.LeaveAll()
+	c.namespaces.Delete(header.Namespace)
+	handler, ok := c.handlers.Get(header.Namespace)
+	if ok {
+		_, _ = handler.dispatch(conn, header, "", args)
+	}
+	return nil
 }
 
 func (c *conn) namespace(nsp string) *namespaceHandler {
