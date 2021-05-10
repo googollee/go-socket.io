@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"time"
@@ -44,6 +45,7 @@ type Session interface {
 }
 
 type Context interface {
+	context.Context
 	Session() Session
 	SendFrame(FrameType) (io.WriteCloser, error)
 }
