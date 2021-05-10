@@ -11,8 +11,8 @@ import (
 type namespaceHandler struct {
 	broadcast Broadcast
 
-	eventsLock sync.RWMutex
 	events     map[string]*funcHandler
+	eventsLock sync.RWMutex
 
 	onConnect    func(conn Conn) error
 	onDisconnect func(conn Conn, msg string)
@@ -80,7 +80,11 @@ func (nh *namespaceHandler) dispatch(conn Conn, header parser.Header, args ...re
 
 	case parser.Error:
 		if nh.onError != nil {
-			nh.onError(conn, errors.New(getDispatchMessage(args...)))
+			msg := getDispatchMessage(args...)
+			if msg == "" {
+				msg = "parser error dispatch"
+			}
+			nh.onError(conn, errors.New(msg))
 		}
 	}
 
