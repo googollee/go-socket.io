@@ -7,15 +7,11 @@ import (
 	"time"
 )
 
-type Option struct{}
+type Options func(*Server)
 
-func DefaultOption() *Option {
-	return nil
-}
-
-func (o *Option) WithPingInterval(time.Duration) *Option { return o }
-func (o *Option) WithPingTimeout(time.Duration) *Option  { return o }
-func (o *Option) WithMaxBufferSize(int) *Option          { return o }
+func OptionPingInterval(time.Duration) Options { return nil }
+func OptionPingTimeout(time.Duration) Options  { return nil }
+func OptionMaxBufferSize(int) Options          { return nil }
 
 type FrameType int
 
@@ -26,7 +22,7 @@ const (
 
 type Server struct{}
 
-func New(*Option) *Server {
+func New(...Options) *Server {
 	return nil
 }
 
@@ -47,6 +43,7 @@ type Session interface {
 
 	Close() error
 	Store(key string, value interface{})
+	Get(key string) interface{}
 
 	// SendFrame should be called after closed last frame.
 	SendFrame(FrameType) (io.WriteCloser, error)
