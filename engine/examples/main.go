@@ -35,7 +35,8 @@ func main() {
 	})
 
 	eio.OnMessage(func(ctx engine.Context, msg io.Reader) {
-		data, err := io.ReadAll(msg)
+		var data [1024]byte
+		n, err := msg.Read(data[:])
 		if err != nil {
 			log.Fatalf("read from engineio sid %s error: %s", ctx.Session().ID(), err)
 			ctx.Session().Close()
@@ -50,7 +51,7 @@ func main() {
 		}
 		defer writer.Close()
 
-		if _, err := writer.Write(data); err != nil {
+		if _, err := writer.Write(data[:n]); err != nil {
 			log.Fatalf("write to engineio sid %s error: %s", ctx.Session().ID(), err)
 			ctx.Session().Close()
 			return
