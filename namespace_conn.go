@@ -8,7 +8,8 @@ import (
 	"github.com/googollee/go-socket.io/parser"
 )
 
-// Namespace
+// Namespace describes a communication channel that allows you to split the logic of your application
+// over a single shared connection.
 type Namespace interface {
 	// Context of this connection. You can save one context for one
 	// connection, and share it between all handlers. The handlers

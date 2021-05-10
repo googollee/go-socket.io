@@ -7,13 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/base"
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/gorilla/websocket"
+
+	"github.com/googollee/go-socket.io/engineio/frame"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 type wrapper struct {
 	*websocket.Conn
+
 	writeLocker *sync.Mutex
 	readLocker  *sync.Mutex
 }
@@ -26,34 +28,37 @@ func newWrapper(conn *websocket.Conn) wrapper {
 	}
 }
 
-func (w wrapper) NextReader() (base.FrameType, io.ReadCloser, error) {
+func (w wrapper) NextReader() (frame.Type, io.ReadCloser, error) {
 	w.readLocker.Lock()
-	typ, r, err := w.Conn.NextReader()
+	defer w.readLocker.Unlock()
+
 	// The wrapper remains locked until the returned ReadCloser is Closed.
+	typ, r, err := w.Conn.NextReader()
 	if err != nil {
-		w.readLocker.Unlock()
 		return 0, nil, err
 	}
+
 	switch typ {
 	case websocket.TextMessage:
-		return base.FrameString, newRcWrapper(w.readLocker, r), nil
+		return frame.String, newRcWrapper(w.readLocker, r), nil
 	case websocket.BinaryMessage:
-		return base.FrameBinary, newRcWrapper(w.readLocker, r), nil
+		return frame.Binary, newRcWrapper(w.readLocker, r), nil
 	}
-	w.readLocker.Unlock()
+
 	return 0, nil, transport.ErrInvalidFrame
 }
 
 type rcWrapper struct {
+	io.Reader
 	nagTimer *time.Timer
 	quitNag  chan struct{}
 	l        *sync.Mutex
-	io.Reader
 }
 
 func newRcWrapper(l *sync.Mutex, r io.Reader) rcWrapper {
 	timer := time.NewTimer(30 * time.Second)
 	q := make(chan struct{})
+
 	go func() {
 		select {
 		case <-q:
@@ -61,6 +66,7 @@ func newRcWrapper(l *sync.Mutex, r io.Reader) rcWrapper {
 			fmt.Println("Did you forget to Close() the ReadCloser from NextReader?")
 		}
 	}()
+
 	return rcWrapper{
 		nagTimer: timer,
 		quitNag:  q,
@@ -71,21 +77,24 @@ func newRcWrapper(l *sync.Mutex, r io.Reader) rcWrapper {
 
 func (r rcWrapper) Close() error {
 	// Stop the nagger.
+	r.l.Lock()
+	defer r.l.Unlock()
+
 	r.nagTimer.Stop()
 	close(r.quitNag)
 	// Attempt to drain the Reader.
 	io.Copy(ioutil.Discard, r) // reader may be closed, ignore error
 	// Unlock the wrapper's read lock for future calls to NextReader.
-	r.l.Unlock()
 	return nil
 }
 
-func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
+func (w wrapper) NextWriter(FType frame.Type) (io.WriteCloser, error) {
 	var t int
-	switch typ {
-	case base.FrameString:
+
+	switch FType {
+	case frame.String:
 		t = websocket.TextMessage
-	case base.FrameBinary:
+	case frame.Binary:
 		t = websocket.BinaryMessage
 	default:
 		return nil, transport.ErrInvalidFrame
@@ -103,15 +112,17 @@ func (w wrapper) NextWriter(typ base.FrameType) (io.WriteCloser, error) {
 }
 
 type wcWrapper struct {
-	nagTimer *time.Timer
-	quitNag  chan struct{}
-	l        *sync.Mutex
 	io.WriteCloser
+	nagTimer *time.Timer
+
+	l       *sync.Mutex
+	quitNag chan struct{}
 }
 
 func newWcWrapper(l *sync.Mutex, w io.WriteCloser) wcWrapper {
 	timer := time.NewTimer(30 * time.Second)
 	q := make(chan struct{})
+
 	go func() {
 		select {
 		case <-q:
@@ -119,6 +130,7 @@ func newWcWrapper(l *sync.Mutex, w io.WriteCloser) wcWrapper {
 			fmt.Println("Did you forget to Close() the WriteCloser from NextWriter?")
 		}
 	}()
+
 	return wcWrapper{
 		nagTimer:    timer,
 		quitNag:     q,

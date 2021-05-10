@@ -6,7 +6,8 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/googollee/go-socket.io/engineio/base"
+	"github.com/googollee/go-socket.io/engineio/frame"
+	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
 type byteReader interface {
@@ -20,17 +21,17 @@ type readerFeeder interface {
 }
 
 type decoder struct {
-	feeder readerFeeder
+	b64Reader   io.Reader
+	limitReader io.LimitedReader
+	rawReader   byteReader
+	feeder      readerFeeder
 
-	ft            base.FrameType
-	pt            base.PacketType
+	ft            frame.Type
+	pt            packet.Type
 	supportBinary bool
-	rawReader     byteReader
-	limitReader   io.LimitedReader
-	b64Reader     io.Reader
 }
 
-func (d *decoder) NextReader() (base.FrameType, base.PacketType, io.ReadCloser, error) {
+func (d *decoder) NextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 	if d.rawReader == nil {
 		r, supportBinary, err := d.feeder.getReader()
 		if err != nil {
@@ -74,7 +75,7 @@ func (d *decoder) Close() error {
 }
 
 func (d *decoder) setNextReader(r byteReader, supportBinary bool) error {
-	var read func(byteReader) (base.FrameType, base.PacketType, int64, error)
+	var read func(byteReader) (frame.Type, packet.Type, int64, error)
 	if supportBinary {
 		read = d.binaryRead
 	} else {
@@ -92,7 +93,7 @@ func (d *decoder) setNextReader(r byteReader, supportBinary bool) error {
 	d.limitReader.R = r
 	d.limitReader.N = l
 	d.supportBinary = supportBinary
-	if !supportBinary && ft == base.FrameBinary {
+	if !supportBinary && ft == frame.Binary {
 		d.b64Reader = base64.NewDecoder(base64.StdEncoding, &d.limitReader)
 	} else {
 		d.b64Reader = nil
@@ -107,13 +108,13 @@ func (d *decoder) sendError(err error) error {
 	return err
 }
 
-func (d *decoder) textRead(r byteReader) (base.FrameType, base.PacketType, int64, error) {
+func (d *decoder) textRead(r byteReader) (frame.Type, packet.Type, int64, error) {
 	l, err := readTextLen(r)
 	if err != nil {
 		return 0, 0, 0, err
 	}
 
-	ft := base.FrameString
+	ft := frame.String
 	b, err := r.ReadByte()
 	if err != nil {
 		return 0, 0, 0, err
@@ -121,7 +122,7 @@ func (d *decoder) textRead(r byteReader) (base.FrameType, base.PacketType, int64
 	l--
 
 	if b == 'b' {
-		ft = base.FrameBinary
+		ft = frame.Binary
 		b, err = r.ReadByte()
 		if err != nil {
 			return 0, 0, 0, err
@@ -129,11 +130,11 @@ func (d *decoder) textRead(r byteReader) (base.FrameType, base.PacketType, int64
 		l--
 	}
 
-	pt := base.ByteToPacketType(b, base.FrameString)
+	pt := packet.ByteToPacketType(b, frame.String)
 	return ft, pt, l, nil
 }
 
-func (d *decoder) binaryRead(r byteReader) (base.FrameType, base.PacketType, int64, error) {
+func (d *decoder) binaryRead(r byteReader) (frame.Type, packet.Type, int64, error) {
 	b, err := r.ReadByte()
 	if err != nil {
 		return 0, 0, 0, err
@@ -141,7 +142,7 @@ func (d *decoder) binaryRead(r byteReader) (base.FrameType, base.PacketType, int
 	if b > 1 {
 		return 0, 0, 0, errInvalidPayload
 	}
-	ft := base.ByteToFrameType(b)
+	ft := frame.ByteToFrameType(b)
 
 	l, err := readBinaryLen(r)
 	if err != nil {
@@ -152,7 +153,7 @@ func (d *decoder) binaryRead(r byteReader) (base.FrameType, base.PacketType, int
 	if err != nil {
 		return 0, 0, 0, err
 	}
-	pt := base.ByteToPacketType(b, ft)
+	pt := packet.ByteToPacketType(b, ft)
 	l--
 
 	return ft, pt, l, nil

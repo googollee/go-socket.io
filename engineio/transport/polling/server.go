@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/googollee/go-socket.io/engineio/base"
 	"github.com/googollee/go-socket.io/engineio/payload"
 )
 
@@ -24,13 +23,14 @@ type serverConn struct {
 	jsonp        string
 }
 
-func newServerConn(t *Transport, r *http.Request) base.Conn {
+func newServerConn(t *Transport, r *http.Request) *serverConn {
 	query := r.URL.Query()
 	jsonp := query.Get("j")
 	supportBinary := query.Get("b64") == ""
 	if jsonp != "" {
 		supportBinary = false
 	}
+
 	return &serverConn{
 		Payload:       payload.New(supportBinary),
 		transport:     t,
@@ -91,6 +91,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			w.WriteHeader(200)
 		}
+
 	case http.MethodGet:
 		c.SetHeaders(w, r)
 
@@ -118,22 +119,24 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := c.Payload.FlushOut(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+
 	case http.MethodPost:
 		c.SetHeaders(w, r)
 
 		mime := r.Header.Get("Content-Type")
-		supportBinary, err := mimeSupportBinary(mime)
+		isSupportBinary, err := mimeIsSupportBinary(mime)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := c.Payload.FeedIn(r.Body, supportBinary); err != nil {
+		if err := c.Payload.FeedIn(r.Body, isSupportBinary); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		_, err = w.Write([]byte("ok"))
+
 	default:
 		http.Error(w, "invalid method", http.StatusBadRequest)
 	}
