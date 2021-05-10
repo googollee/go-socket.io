@@ -12,3 +12,6 @@ bench:
 
 lint:
 	golangci-lint run --config=.golangci.yml ./...
+
+cover:
+	go clean -testcache && go test ./... -cover -coverprofile=c.o && go tool cover -html=c.o
