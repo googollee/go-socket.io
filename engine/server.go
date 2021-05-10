@@ -7,11 +7,28 @@ import (
 	"time"
 )
 
+type LogLevel int
+
+const (
+	LogDebug LogLevel = iota
+	LogInfo
+	LogWarn
+	LogError
+)
+
+type Logger interface {
+	Errorf(fmt string, v ...interface{})
+	Warnf(fmt string, v ...interface{})
+	Infof(fmt string, v ...interface{})
+	Debugf(fmt string, v ...interface{})
+}
+
 type Options func(*Server)
 
-func OptionPingInterval(time.Duration) Options { return nil }
-func OptionPingTimeout(time.Duration) Options  { return nil }
-func OptionMaxBufferSize(int) Options          { return nil }
+func OptionPingInterval(time.Duration) Options                { return nil }
+func OptionPingTimeout(time.Duration) Options                 { return nil }
+func OptionMaxBufferSize(int) Options                         { return nil }
+func OptionDebugLogger(level LogLevel, logger Logger) Options { return nil }
 
 type FrameType int
 
