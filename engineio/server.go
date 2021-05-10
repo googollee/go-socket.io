@@ -31,14 +31,16 @@ type Server struct {
 }
 
 // NewServer returns a server.
-func NewServer(opts *Options) *Server {
+func NewServer(opts ...Option) *Server {
+	options := GetOptions(opts...)
+
 	return &Server{
-		transports:     transport.NewManager(opts.getTransport()),
-		pingInterval:   opts.getPingInterval(),
-		pingTimeout:    opts.getPingTimeout(),
-		requestChecker: opts.getRequestChecker(),
-		connInitor:     opts.getConnInitor(),
-		sessions:       session.NewManager(opts.getSessionIDGenerator()),
+		transports:     transport.NewManager(options.Transports),
+		pingInterval:   options.PingInterval,
+		pingTimeout:    options.PingTimeout,
+		requestChecker: options.RequestChecker,
+		connInitor:     options.ConnInitor,
+		sessions:       session.NewManager(options.SessionIDGenerator),
 		connChan:       make(chan Conn, 1),
 	}
 }

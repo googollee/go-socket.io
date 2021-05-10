@@ -1,13 +1,14 @@
 package engineio
 
 import (
-	"github.com/googollee/go-socket.io/engineio/session"
 	"net/http"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/engineio/session"
 	"github.com/googollee/go-socket.io/engineio/transport/polling"
 	"github.com/googollee/go-socket.io/engineio/transport/websocket"
+
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 // Options is options to create a server.
@@ -22,49 +23,65 @@ type Options struct {
 	ConnInitor     ConnInitorFunc
 }
 
-func (c *Options) getRequestChecker() CheckerFunc {
-	if c != nil && c.RequestChecker != nil {
-		return c.RequestChecker
-	}
-	return defaultChecker
-}
+type Option func(*Options)
 
-func (c *Options) getConnInitor() ConnInitorFunc {
-	if c != nil && c.ConnInitor != nil {
-		return c.ConnInitor
-	}
-	return defaultInitor
-}
-
-func (c *Options) getPingTimeout() time.Duration {
-	if c != nil && c.PingTimeout != 0 {
-		return c.PingTimeout
-	}
-	return time.Minute
-}
-
-func (c *Options) getPingInterval() time.Duration {
-	if c != nil && c.PingInterval != 0 {
-		return c.PingInterval
-	}
-	return time.Second * 20
-}
-
-func (c *Options) getTransport() []transport.Transport {
-	if c != nil && len(c.Transports) != 0 {
-		return c.Transports
-	}
-	return []transport.Transport{
-		polling.Default,
-		websocket.Default,
+func WithPingTimeout(pingTimeOut time.Duration) Option {
+	return func(o *Options) {
+		o.PingTimeout = pingTimeOut
 	}
 }
 
-func (c *Options) getSessionIDGenerator() session.IDGenerator {
-	if c != nil && c.SessionIDGenerator != nil {
-		return c.SessionIDGenerator
+func WithPingInterval(pingInterval time.Duration) Option {
+	return func(o *Options) {
+		o.PingInterval = pingInterval
 	}
-	return &session.DefaultIDGenerator{}
+}
+
+func WithTransports(transports []transport.Transport) Option {
+	return func(o *Options) {
+		o.Transports = transports
+	}
+}
+
+func WithSessionIDGenerator(SessionIDGenerator session.IDGenerator) Option {
+	return func(o *Options) {
+		o.SessionIDGenerator = SessionIDGenerator
+	}
+}
+
+func WithRequestChecker(checkFunc CheckerFunc) Option {
+	return func(o *Options) {
+		o.RequestChecker = checkFunc
+	}
+}
+
+func WithConnInitor(connInitFunc ConnInitorFunc) Option {
+	return func(o *Options) {
+		o.ConnInitor = connInitFunc
+	}
+}
+
+func GetOptions(opts ...Option) *Options {
+	defaultOption := Default()
+	// override default opts,user option first
+	for _, o := range opts {
+		o(defaultOption)
+	}
+	return defaultOption
+}
+
+func Default() *Options {
+	return &Options{
+		PingTimeout:  20 * time.Second,
+		PingInterval: time.Minute,
+		Transports: []transport.Transport{
+			polling.Default,
+			websocket.Default,
+		},
+		SessionIDGenerator: &session.DefaultIDGenerator{},
+		RequestChecker:     defaultChecker,
+		ConnInitor:         defaultInitor,
+	}
 }
 
 func defaultChecker(*http.Request) (http.Header, error) {

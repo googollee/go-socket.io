@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/gomodule/redigo/redis"
+
 	"github.com/googollee/go-socket.io/engineio"
 )
 
@@ -42,10 +43,10 @@ type Server struct {
 }
 
 // NewServer returns a server.
-func NewServer(c *engineio.Options) *Server {
+func NewServer(c ...engineio.Option) *Server {
 	return &Server{
 		handlers: newNamespaceHandlers(),
-		engine:   engineio.NewServer(c),
+		engine:   engineio.NewServer(c...),
 	}
 }
 
