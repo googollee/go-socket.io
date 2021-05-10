@@ -42,7 +42,7 @@ func main() {
 			return
 		}
 
-		writer, err := ctx.SendFrame(engine.FrameText)
+		writer, err := ctx.Session().SendFrame(engine.FrameText)
 		if err != nil {
 			log.Fatalf("next writer from engineio sid %s error: %s", ctx.Session().ID(), err)
 			ctx.Session().Close()
