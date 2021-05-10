@@ -12,7 +12,10 @@ import (
 func main() {
 	eio := engine.New(
 		engine.OptionPingInterval(25*time.Second),
-		engine.OptionPingTimeout(50*time.Second))
+		engine.OptionPingTimeout(50*time.Second),
+		engine.OptionMaxBufferSize(1*1024*1024), // 1 MiB
+		engine.OptionDebugLogger(engine.LogDebug, nil),
+	)
 
 	eio.OnOpen(func(ctx engine.Context, req *http.Request) error {
 		log.Printf("engineio sid %s opened with transport %s", ctx.Session().ID(), ctx.Session().Transport())
