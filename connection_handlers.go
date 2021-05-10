@@ -1,6 +1,10 @@
 package socketio
 
-import "github.com/googollee/go-socket.io/parser"
+import (
+	"log"
+
+	"github.com/googollee/go-socket.io/parser"
+)
 
 var readHandlerMapping = map[parser.Type]readHandler{
 	parser.Ack:        ackPacketHandler,
@@ -72,7 +76,12 @@ func connectPacketHandler(c *conn, header parser.Header) error {
 		conn.Join(c.ID())
 	}
 
-	handler.dispatch(conn, header)
+	_, err := handler.dispatch(conn, header)
+	if err != nil {
+		log.Println("dispatch connect packet", err)
+		c.onError(header.Namespace, err)
+		return errHandleDispatch
+	}
 
 	c.write(header)
 
@@ -101,7 +110,12 @@ func disconnectPacketHandler(c *conn, header parser.Header) error {
 		return nil
 	}
 
-	handler.dispatch(conn, header, args...)
+	_, err = handler.dispatch(conn, header, args...)
+	if err != nil {
+		log.Println("dispatch disconnect packet", err)
+		c.onError(header.Namespace, err)
+		return errHandleDispatch
+	}
 
 	return nil
 }

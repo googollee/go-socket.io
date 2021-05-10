@@ -61,6 +61,7 @@ func (nc *namespaceConn) Emit(eventName string, v ...interface{}) {
 	header := parser.Header{
 		Type: parser.Event,
 	}
+
 	if nc.namespace != aliasRootNamespace {
 		header.Namespace = nc.namespace
 	}

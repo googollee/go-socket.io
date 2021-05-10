@@ -12,7 +12,7 @@ var (
 	errFailedConnectNamespace = errors.New("failed connect to namespace without handler")
 )
 
-// event errors.
+// common connection dispatch errors.
 var (
 	errHandleDispatch = errors.New("handler dispatch error")
 
