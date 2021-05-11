@@ -35,8 +35,8 @@ type conn struct {
 	encoder *parser.Encoder
 	decoder *parser.Decoder
 
-	errorChan chan error
 	writeChan chan parser.Payload
+	errorChan chan error
 	quitChan  chan struct{}
 
 	closeOnce sync.Once
@@ -211,7 +211,7 @@ func (c *conn) serveRead() {
 		}
 
 		var err error
-		switch header.Type{
+		switch header.Type {
 		case parser.Ack, parser.Connect, parser.Disconnect:
 			handler, ok := readHandlerMapping[header.Type]
 			if !ok {
