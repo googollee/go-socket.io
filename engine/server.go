@@ -31,6 +31,7 @@ func OptionMaxBufferSize(int) Options                               { return nil
 func OptionLogLevel(level LogLevel) Options                         { return nil }
 func OptionLogger(logger Logger) Options                            { return nil }
 func OptionTransports(initial string, upgradings ...string) Options { return nil }
+func OptionJSONP(padding int) Options                               { return nil }
 
 type FrameType int
 
