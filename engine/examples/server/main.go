@@ -12,6 +12,7 @@ import (
 func main() {
 	eio, err := engine.New(
 		engine.OptionTransports("polling", "sse", "websocket"),
+		engine.OptionJSONP(4), // polling with jsonp `__eio[4]("packet data")`
 		engine.OptionPingInterval(25*time.Second),
 		engine.OptionPingTimeout(50*time.Second),
 		engine.OptionMaxBufferSize(1*1024*1024), // 1 MiB
