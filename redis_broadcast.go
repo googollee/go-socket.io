@@ -3,6 +3,7 @@ package socketio
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -11,20 +12,21 @@ import (
 
 // RedisAdapterOptions is configuration to create new adapter
 type RedisAdapterOptions struct {
-	Host   string
-	Port   string
-	Prefix string
+	Host    string
+	Port    string
+	Prefix  string
+	Network string
+}
+
+func (ro *RedisAdapterOptions) getAddr() string {
+	return fmt.Sprintf("%s:%s", ro.Host, ro.Port)
 }
 
 // redisBroadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
 // map of rooms where each room contains a map of connection id to connections in that room
 type redisBroadcast struct {
-	host   string
-	port   string
-	prefix string
-
-	pub redis.PubSubConn
-	sub redis.PubSubConn
+	pub *redis.PubSubConn
+	sub *redis.PubSubConn
 
 	nsp        string
 	uid        string
@@ -88,84 +90,101 @@ type allRoomResponse struct {
 	Rooms       []string
 }
 
-func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcast, error) {
-	bc := redisBroadcast{
-		rooms: make(map[string]map[string]Conn),
+func defaultOptions() *RedisAdapterOptions {
+	return &RedisAdapterOptions{
+		Host:   "127.0.0.1",
+		Port:   "6379",
+		Prefix: "socket.io",
+	}
+}
+
+func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, error) {
+	options := defaultOptions()
+
+	if opts != nil {
+		if opts.Host != "" {
+			options.Host = opts.Host
+		}
+
+		if opts.Port != "" {
+			options.Port = opts.Port
+		}
+
+		if opts.Prefix != "" {
+			options.Prefix = opts.Prefix
+		}
+
+		if opts.Network != "" {
+			options.Network = opts.Network
+		}
 	}
 
-	bc.host = adapter.Host
-	if bc.host == "" {
-		bc.host = "127.0.0.1"
+	addr := options.getAddr()
+	pub, err := redis.Dial(options.Network, addr)
+	if err != nil {
+		return nil, err
 	}
-
-	bc.port = adapter.Port
-	if bc.port == "" {
-		bc.port = "6379"
-	}
-
-	bc.prefix = adapter.Prefix
-	if bc.prefix == "" {
-		bc.prefix = "socket.io"
-	}
-
-	redisAddr := bc.host + ":" + bc.port
-	pub, err := redis.Dial("tcp", redisAddr)
+	sub, err := redis.Dial(options.Network, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	sub, err := redis.Dial("tcp", redisAddr)
-	if err != nil {
+	uid := newV4UUID()
+
+	subConn := &redis.PubSubConn{Conn: sub}
+	pubConn := &redis.PubSubConn{Conn: pub}
+
+	if err = subConn.PSubscribe(fmt.Sprintf("%s#%s#*", options.Prefix, nsp)); err != nil {
 		return nil, err
 	}
 
-	bc.pub = redis.PubSubConn{Conn: pub}
-	bc.sub = redis.PubSubConn{Conn: sub}
+	rbc := &redisBroadcast{
+		rooms:      make(map[string]map[string]Conn),
+		requests:   make(map[string]interface{}),
+		sub:        subConn,
+		pub:        pubConn,
+		key:        fmt.Sprintf("%s#%s#%s", options.Prefix, nsp, uid),
+		reqChannel: fmt.Sprintf("%s-request#%s", options.Prefix, nsp),
+		resChannel: fmt.Sprintf("%s-response#%s", options.Prefix, nsp),
+		nsp:        nsp,
+		uid:        uid,
+	}
 
-	bc.nsp = nsp
-	bc.uid = newV4UUID()
-	bc.key = bc.prefix + "#" + bc.nsp + "#" + bc.uid
-	bc.reqChannel = bc.prefix + "-request#" + bc.nsp
-	bc.resChannel = bc.prefix + "-response#" + bc.nsp
-	bc.requests = make(map[string]interface{})
-
-	if err = bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*"); err != nil {
+	if err = subConn.Subscribe(rbc.reqChannel, rbc.resChannel); err != nil {
 		return nil, err
 	}
 
-	if err = bc.sub.Subscribe(bc.reqChannel, bc.resChannel); err != nil {
-		return nil, err
-	}
+	go rbc.dispatch()
 
-	go func() {
-		for {
-			switch m := bc.sub.Receive().(type) {
-			case redis.Message:
-				if m.Channel == bc.reqChannel {
-					bc.onRequest(m.Data)
-					break
-				} else if m.Channel == bc.resChannel {
-					bc.onResponse(m.Data)
-					break
-				}
+	return rbc, nil
+}
 
-				err = bc.onMessage(m.Channel, m.Data)
-				if err != nil {
-					return
-				}
+func (bc *redisBroadcast) dispatch() {
+	for {
+		switch m := bc.sub.Receive().(type) {
+		case redis.Message:
+			if m.Channel == bc.reqChannel {
+				bc.onRequest(m.Data)
+				break
+			} else if m.Channel == bc.resChannel {
+				bc.onResponse(m.Data)
+				break
+			}
 
-			case redis.Subscription:
-				if m.Count == 0 {
-					return
-				}
-
-			case error:
+			err := bc.onMessage(m.Channel, m.Data)
+			if err != nil {
 				return
 			}
-		}
-	}()
 
-	return &bc, nil
+		case redis.Subscription:
+			if m.Count == 0 {
+				return
+			}
+
+		case error:
+			return
+		}
+	}
 }
 
 // AllRooms gives list of all rooms available for redisBroadcast.
