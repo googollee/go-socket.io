@@ -43,15 +43,10 @@ type Server struct {
 }
 
 // NewServer returns a server.
-func NewServer(opts *engineio.Options) *Server {
-	return New(engineio.Options2OptionFunc(opts)...)
-}
-
-// NewServer returns a server.
-func New(opts ...engineio.Option) *Server {
+func NewServer(c ...engineio.Option) *Server {
 	return &Server{
 		handlers: newNamespaceHandlers(),
-		engine:   engineio.New(opts...),
+		engine:   engineio.NewServer(c...),
 	}
 }
 
@@ -123,7 +118,7 @@ func (s *Server) OnEvent(namespace, event string, f interface{}) {
 func (s *Server) Serve() error {
 	for {
 		conn, err := s.engine.Accept()
-		// todo maybe need check EOF from Accept()
+		//todo maybe need check EOF from Accept()
 		if err != nil {
 			return err
 		}

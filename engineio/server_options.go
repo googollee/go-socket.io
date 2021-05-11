@@ -84,31 +84,6 @@ func Default() *Options {
 	}
 }
 
-func Options2OptionFunc(opts *Options) []Option {
-	var options []Option
-	if opts != nil {
-		if opts.PingInterval > 0 {
-			options = append(options, WithPingInterval(opts.PingInterval))
-		}
-		if opts.PingTimeout > 0 {
-			options = append(options, WithPingTimeout(opts.PingTimeout))
-		}
-		if opts.RequestChecker != nil {
-			options = append(options, WithRequestChecker(opts.RequestChecker))
-		}
-		if opts.ConnInitor != nil {
-			options = append(options, WithConnInitor(opts.ConnInitor))
-		}
-		if opts.SessionIDGenerator != nil {
-			options = append(options, WithSessionIDGenerator(opts.SessionIDGenerator))
-		}
-		if opts.Transports != nil && len(opts.Transports) > 0 {
-			options = append(options, WithTransports(opts.Transports))
-		}
-	}
-	return options
-}
-
 func defaultChecker(*http.Request) (http.Header, error) {
 	return nil, nil
 }
