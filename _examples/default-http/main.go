@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	server := socketio.NewServer()
+	server := socketio.NewServer(nil)
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
