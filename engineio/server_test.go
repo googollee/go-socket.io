@@ -96,7 +96,7 @@ func TestEngineWebsocket(t *testing.T) {
 	should := assert.New(t)
 	must := require.New(t)
 
-	svr := NewServer(nil)
+	svr := NewServer()
 	defer svr.Close()
 
 	httpSvr := httptest.NewServer(svr)
@@ -190,7 +190,7 @@ func TestEngineUpgrade(t *testing.T) {
 	should := assert.New(t)
 	must := require.New(t)
 
-	svr := NewServer(nil)
+	svr := NewServer()
 	defer svr.Close()
 
 	httpSvr := httptest.NewServer(svr)
