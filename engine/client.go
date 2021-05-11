@@ -6,7 +6,9 @@ import (
 	"net/http"
 )
 
-type Client struct{}
+type Client struct {
+	Session
+}
 
 func NewClient(...Options) (*Client, error) {
 	return nil, nil
