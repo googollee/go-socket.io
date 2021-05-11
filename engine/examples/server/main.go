@@ -10,12 +10,17 @@ import (
 )
 
 func main() {
-	eio := engine.New(
+	eio, err := engine.New(
+		engine.OptionTransports("polling", "sse", "websocket"),
 		engine.OptionPingInterval(25*time.Second),
 		engine.OptionPingTimeout(50*time.Second),
 		engine.OptionMaxBufferSize(1*1024*1024), // 1 MiB
-		engine.OptionDebugLogger(engine.LogDebug, nil),
+		engine.OptionLogLevel(engine.LogDebug),
+		engine.OptionLogger(nil),
 	)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	eio.OnOpen(func(ctx engine.Context, req *http.Request) error {
 		log.Printf("engineio sid %s opened with transport %s", ctx.Session().ID(), ctx.Session().Transport())
@@ -28,7 +33,7 @@ func main() {
 		return nil
 	})
 
-	eio.OnPing(func(ctx engine.Context) {
+	eio.OnPingPong(func(ctx engine.Context) {
 		log.Printf("engineio sid %s got ping", ctx.Session().ID())
 	})
 
