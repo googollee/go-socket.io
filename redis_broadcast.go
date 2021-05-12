@@ -300,7 +300,7 @@ func (bc *redisBroadcast) Len(room string) int {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	_, _ = bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
 	<-req.done
 
 	delete(bc.requests, req.RequestID)
@@ -506,7 +506,7 @@ func (bc *redisBroadcast) publishMessage(room string, event string, args ...inte
 	}
 	bcMessageJSON, _ := json.Marshal(bcMessage)
 
-	_, _ = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+	bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
 }
 
 func (bc *redisBroadcast) sendAll(event string, args ...interface{}) {
