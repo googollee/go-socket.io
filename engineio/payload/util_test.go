@@ -34,7 +34,7 @@ func TestWriteBinaryLen(t *testing.T) {
 			return true
 		}
 		buf := bytes.NewBuffer(nil)
-		writeBinaryLen(l, buf)
+		_ = writeBinaryLen(l, buf)
 		r := bufio.NewReader(buf)
 		out, _ := readBinaryLen(r)
 		return out == l
@@ -68,7 +68,7 @@ func TestWriteStringLen(t *testing.T) {
 			return true
 		}
 		buf := bytes.NewBuffer(nil)
-		writeTextLen(l, buf)
+		_ = writeTextLen(l, buf)
 		r := bufio.NewReader(buf)
 		out, _ := readTextLen(r)
 		return out == l
@@ -135,21 +135,21 @@ func TestReadStringLen(t *testing.T) {
 
 func BenchmarkWriteStringLen(b *testing.B) {
 	w := bytes.NewBuffer(nil)
-	writeTextLen(23461, w)
+	_ = writeTextLen(23461, w)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Reset()
-		writeTextLen(23461, w)
+		_ = writeTextLen(23461, w)
 	}
 }
 
 func BenchmarkWriteBinaryLen(b *testing.B) {
 	w := bytes.NewBuffer(nil)
-	writeTextLen(23461, w)
+	_ = writeTextLen(23461, w)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Reset()
-		writeBinaryLen(23461, w)
+		_ = writeBinaryLen(23461, w)
 	}
 }
 
@@ -158,7 +158,7 @@ func BenchmarkReadStringLen(b *testing.B) {
 	r := bufio.NewReader(bytes.NewReader(bs))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		readTextLen(r)
+		_, _ = readTextLen(r)
 	}
 }
 
@@ -167,6 +167,6 @@ func BenchmarkReadBinaryLen(b *testing.B) {
 	r := bufio.NewReader(bytes.NewReader(bs))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		readBinaryLen(r)
+		_, _ = readBinaryLen(r)
 	}
 }

@@ -131,7 +131,6 @@ func (c *namespaceConn) dispatch(header parser.Header) {
 			return
 		}
 	}
-	return
 }
 
 func (c *conn) parseArgs(types []reflect.Type) ([]reflect.Value, error) {

@@ -8,24 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type noBufferStruct struct {
-	Str   string            `json:"str"`
-	I     int               `json:"i"`
-	Array []int             `json:"array"`
-	Map   map[string]string `json:"map"`
-}
-
-type bufferStruct struct {
-	I      int     `json:"i"`
-	Buffer *Buffer `json:"buf"`
-}
-
-type bufferInnerStruct struct {
-	I      int                `json:"i"`
-	Buffer *Buffer            `json:"buf"`
-	Inner  *bufferInnerStruct `json:"inner,omitempty"`
-}
-
 var tests = []struct {
 	Name   string
 	Header Header

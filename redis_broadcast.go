@@ -128,8 +128,15 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 	bc.resChannel = bc.prefix + "-response#" + bc.nsp
 	bc.requests = make(map[string]interface{})
 
-	bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*")
-	bc.sub.Subscribe(bc.reqChannel, bc.resChannel)
+	err = bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*")
+	if err != nil {
+		return nil, errors.New("redis pubsubscribe error")
+	}
+
+	err = bc.sub.Subscribe(bc.reqChannel, bc.resChannel)
+	if err != nil {
+		return nil, errors.New("redis pubsubscribe error")
+	}
 
 	go func() {
 		for {
@@ -143,7 +150,7 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 					break
 				}
 
-				bc.onMessage(m.Channel, m.Data)
+				_ = bc.onMessage(m.Channel, m.Data)
 			case redis.Subscription:
 				if m.Count == 0 {
 					return
@@ -184,7 +191,9 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 	}
 
 	event, ok := opts[1].(string)
-
+	if !ok {
+		return errors.New("event not registered")
+	}
 	if room != "" {
 		bc.send(room, event, args...)
 	} else {
@@ -201,9 +210,8 @@ func (bc *redisBroadcast) getNumSub(channel string) (int, error) {
 		return 0, err
 	}
 
-	var numSub64 int64
-	numSub64 = rs.([]interface{})[1].(int64)
-	return int(numSub64), nil
+	numSub64 := rs.([]interface{})[1].(int)
+	return numSub64, nil
 }
 
 // Handle request from redis channel
@@ -247,7 +255,7 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 
 func (bc *redisBroadcast) publish(channel string, msg interface{}) {
 	resJSON, _ := json.Marshal(msg)
-	bc.pub.Conn.Do("PUBLISH", channel, resJSON)
+	_, _ = bc.pub.Conn.Do("PUBLISH", channel, resJSON)
 }
 
 // Handle response from redis channel
@@ -407,7 +415,7 @@ func (bc *redisBroadcast) publishMessage(room string, event string, args ...inte
 	}
 	bcMessageJSON, _ := json.Marshal(bcMessage)
 
-	bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+	_, _ = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
 }
 
 // SendAll sends given event & args to all the connections to all the rooms
@@ -463,7 +471,7 @@ func (bc *redisBroadcast) Len(room string) int {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	_, _ = bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
 	<-req.done
 
 	delete(bc.requests, req.RequestID)
@@ -498,7 +506,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	_, _ = bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
 
 	<-req.done
 	rooms := make([]string, 0, len(req.rooms))
