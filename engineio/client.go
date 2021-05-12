@@ -72,13 +72,13 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 				return 0, nil, err
 			}
 		case packet.CLOSE:
-			_ = c.Close()
+			c.Close()
 			return 0, nil, io.EOF
 		case packet.MESSAGE:
 			return session.FrameType(ft), r, nil
 		}
 
-		_ = r.Close()
+		r.Close()
 	}
 }
 
