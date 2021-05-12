@@ -42,7 +42,7 @@ func TestPayloadFeedIn(t *testing.T) {
 		if len(test.packets) != 1 {
 			continue
 		}
-		p.SetReadDeadline(time.Now().Add(time.Second / 10))
+		_ = p.SetReadDeadline(time.Now().Add(time.Second / 10))
 		ft, pt, r, err := p.NextReader()
 		must.Nil(err)
 		should.Equal(test.packets[0].ft, ft)
@@ -54,7 +54,7 @@ func TestPayloadFeedIn(t *testing.T) {
 		should.Equal(test.packets[0].data, b)
 	}
 
-	p.SetReadDeadline(time.Now().Add(time.Second / 10))
+	_ = p.SetReadDeadline(time.Now().Add(time.Second / 10))
 	_, _, _, err := p.NextReader()
 	should.Equal("read: timeout", err.Error())
 
@@ -101,7 +101,7 @@ func TestPayloadFlushOutText(t *testing.T) {
 		if test.supportBinary != supportBinary {
 			continue
 		}
-		p.SetWriteDeadline(time.Now().Add(time.Second / 10))
+		_ = p.SetWriteDeadline(time.Now().Add(time.Second / 10))
 
 		w, err := p.NextWriter(test.packets[0].ft, test.packets[0].pt)
 		must.Nil(err)
@@ -111,7 +111,7 @@ func TestPayloadFlushOutText(t *testing.T) {
 		must.Nil(w.Close())
 	}
 
-	p.SetWriteDeadline(time.Now().Add(time.Second / 10))
+	_ = p.SetWriteDeadline(time.Now().Add(time.Second / 10))
 
 	_, err := p.NextWriter(frame.Binary, packet.OPEN)
 	should.Equal("write: timeout", err.Error())
@@ -155,7 +155,7 @@ func TestPayloadFlushOutBinary(t *testing.T) {
 		if test.supportBinary != supportBinary {
 			continue
 		}
-		p.SetWriteDeadline(time.Now().Add(time.Second / 10))
+		_ = p.SetWriteDeadline(time.Now().Add(time.Second / 10))
 		w, err := p.NextWriter(test.packets[0].ft, test.packets[0].pt)
 		must.Nil(err)
 		_, err = w.Write(test.packets[0].data)
@@ -164,7 +164,7 @@ func TestPayloadFlushOutBinary(t *testing.T) {
 		must.Nil(err)
 	}
 
-	p.SetWriteDeadline(time.Now().Add(time.Second / 10))
+	_ = p.SetWriteDeadline(time.Now().Add(time.Second / 10))
 	_, err := p.NextWriter(frame.Binary, packet.OPEN)
 	should.Equal("write: timeout", err.Error())
 
@@ -357,10 +357,10 @@ func TestPayloadInOutPause(t *testing.T) {
 		_, _, r, err := p.NextReader()
 		must.Nil(err)
 		defer r.Close()
-		io.Copy(ioutil.Discard, r)
+		_, _ = io.Copy(ioutil.Discard, r)
 	}()
 
-	//wait other run
+	// wait other run
 	time.Sleep(time.Second / 10)
 	start := time.Now()
 	p.Pause()
@@ -414,7 +414,7 @@ func TestPayloadNextClosePause(t *testing.T) {
 		err = r.Close()
 		must.Nil(err)
 
-		_, _, r, err = p.NextReader()
+		_, _, _, err = p.NextReader()
 		op, ok := err.(Error)
 		must.True(ok)
 		should.True(op.Temporary())
@@ -443,7 +443,7 @@ func TestPayloadNextClosePause(t *testing.T) {
 		err = w.Close()
 		must.Nil(err)
 
-		w, err = p.NextWriter(frame.Binary, packet.OPEN)
+		_, err = p.NextWriter(frame.Binary, packet.OPEN)
 		op, ok := err.(Error)
 		must.True(ok)
 		should.True(op.Temporary())

@@ -132,5 +132,4 @@ func (nc *namespaceConn) dispatch(header parser.Header) {
 			return
 		}
 	}
-	return
 }

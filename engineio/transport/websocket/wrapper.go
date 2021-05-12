@@ -83,7 +83,7 @@ func (r rcWrapper) Close() error {
 	r.nagTimer.Stop()
 	close(r.quitNag)
 	// Attempt to drain the Reader.
-	io.Copy(ioutil.Discard, r) // reader may be closed, ignore error
+	_, _ = io.Copy(ioutil.Discard, r) // reader may be closed, ignore error
 	// Unlock the wrapper's read lock for future calls to NextReader.
 	return nil
 }

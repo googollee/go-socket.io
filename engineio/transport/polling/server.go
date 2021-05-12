@@ -135,7 +135,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 
 	default:
 		http.Error(w, "invalid method", http.StatusBadRequest)
