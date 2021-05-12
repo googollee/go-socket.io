@@ -367,8 +367,11 @@ func (bc *redisBroadcast) getNumSub(channel string) (int, error) {
 		return 0, err
 	}
 
-	numSub64 := rs.([]interface{})[1].(int)
-	return numSub64, nil
+	numSub64, ok := rs.([]interface{})[1].(int)
+	if ok {
+		return numSub64, nil
+	}
+	return 0, errors.New("redis reply cast to int error")
 }
 
 // Handle request from redis channel.
