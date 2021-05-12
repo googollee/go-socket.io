@@ -349,7 +349,7 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 
 	event, ok := opts[1].(string)
 	if !ok {
-		return errors.New("invalid event,maybe you forget to register")
+		return errors.New("invalid event")
 	}
 	if room != "" {
 		bc.send(room, event, args...)
@@ -411,7 +411,7 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 
 func (bc *redisBroadcast) publish(channel string, msg interface{}) {
 	resJSON, _ := json.Marshal(msg)
-	_, _ = bc.pub.Conn.Do("PUBLISH", channel, resJSON)
+	bc.pub.Conn.Do("PUBLISH", channel, resJSON)
 }
 
 // Handle response from redis channel.
@@ -427,7 +427,6 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 		return
 	}
 
-	// log.Println("on resp:", res)
 	switch res["RequestType"] {
 	case roomLenReqType:
 		roomLenReq := req.(*roomLenRequest)
