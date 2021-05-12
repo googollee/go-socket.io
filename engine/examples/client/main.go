@@ -50,13 +50,13 @@ func main() {
 		log.Printf("engineio sid %s from %s closed", ctx.Session().ID(), url)
 	})
 
-	req, err := http.NewRequest("GET", "https://host/endpoint", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://host/endpoint", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// client uses heads/url in the same req for following connections.
-	if err := client.Dial(ctx, req); err != nil {
+	if err := client.Open(req); err != nil {
 		log.Fatal(err)
 	}
 	defer client.Close()

@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"io"
 	"net/http"
 )
@@ -14,8 +13,8 @@ func NewClient(...Options) (*Client, error) {
 	return nil, nil
 }
 
-func (c *Client) Dial(context.Context, *http.Request) error { return nil }
-func (c *Client) Close() error                              { return nil }
+func (c *Client) Open(*http.Request) error { return nil }
+func (c *Client) Close() error             { return nil }
 
 // OnXXX should be called before serving HTTP.
 // The engineio framework processes next messages after OnXXX() done. All callback passing to OnXXX should return ASAP.
