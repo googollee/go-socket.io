@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -66,7 +67,10 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 
 		switch pt {
 		case packet.PONG:
-			_ = c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
+			err = c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
+			if err != nil {
+				return 0, nil, err
+			}
 		case packet.CLOSE:
 			_ = c.Close()
 			return 0, nil, io.EOF
@@ -116,6 +120,9 @@ func (c *client) serve() {
 		if err := w.Close(); err != nil {
 			return
 		}
-		_ = c.conn.SetWriteDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
+		err = c.conn.SetWriteDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
+		if err != nil {
+			fmt.Printf("set writer's deadline error,msg:%s", err.Error())
+		}
 	}
 }

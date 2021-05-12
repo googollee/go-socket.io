@@ -149,7 +149,10 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 					break
 				}
 
-				_ = bc.onMessage(m.Channel, m.Data)
+				err = bc.onMessage(m.Channel, m.Data)
+				if err != nil {
+					return
+				}
 			case redis.Subscription:
 				if m.Count == 0 {
 					return
@@ -177,8 +180,10 @@ func (bc *redisBroadcast) AllRooms() []string {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	_, _ = bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
-
+	_, err := bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	if err != nil {
+		return []string{} // if error occurred,return empty
+	}
 	<-req.done
 	rooms := make([]string, 0, len(req.rooms))
 	for room := range req.rooms {
