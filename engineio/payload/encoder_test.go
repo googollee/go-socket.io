@@ -179,8 +179,8 @@ func BenchmarkStringEncoder(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, p := range packets {
 			f, _ := e.NextWriter(p.ft, p.pt)
-			_, _ = f.Write(p.data)
-			_ = f.Close()
+			f.Write(p.data)
+			f.Close()
 		}
 	}
 }
@@ -213,8 +213,8 @@ func BenchmarkB64Encoder(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, p := range packets {
 			f, _ := e.NextWriter(p.ft, p.pt)
-			_, _ = f.Write(p.data)
-			_ = f.Close()
+			f.Write(p.data)
+			f.Close()
 		}
 	}
 }
@@ -251,8 +251,8 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, p := range packets {
 			f, _ := e.NextWriter(p.ft, p.pt)
-			_, _ = f.Write(p.data)
-			_ = f.Close()
+			f.Write(p.data)
+			f.Close()
 		}
 	}
 }

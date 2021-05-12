@@ -108,8 +108,8 @@ func BenchmarkStringDecoder(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 2; j++ {
 			_, _, r, _ := d.NextReader()
-			_, _ = r.Read(buf)
-			_ = r.Close()
+			r.Read(buf)
+			r.Close()
 		}
 	}
 }
@@ -128,8 +128,8 @@ func BenchmarkB64Decoder(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 2; j++ {
 			_, _, r, _ := d.NextReader()
-			_, _ = r.Read(buf)
-			_ = r.Close()
+			r.Read(buf)
+			r.Close()
 		}
 	}
 }
@@ -152,8 +152,8 @@ func BenchmarkBinaryDecoder(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 3; j++ {
 			_, _, r, _ := d.NextReader()
-			_, _ = r.Read(buf)
-			_ = r.Close()
+			r.Read(buf)
+			r.Close()
 		}
 	}
 }
