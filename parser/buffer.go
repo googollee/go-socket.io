@@ -6,36 +6,6 @@ import (
 	"strconv"
 )
 
-// Type of packet.
-type Type byte
-
-const (
-	// Connect type
-	Connect Type = iota
-	// Disconnect type
-	Disconnect
-	// Event type
-	Event
-	// Ack type
-	Ack
-	// Error type
-	Error
-
-	// BinaryEvent type
-	binaryEvent
-	// BinaryAck type
-	binaryAck
-)
-
-// Header of packet
-type Header struct {
-	Type      Type
-	ID        uint64
-	NeedAck   bool
-	Namespace string
-	Query     string
-}
-
 // Buffer is an binary buffer handler used in emit args. All buffers will be
 // sent as binary in the transport layer.
 type Buffer struct {
@@ -43,6 +13,12 @@ type Buffer struct {
 	isBinary bool
 
 	Data []byte
+}
+
+type BufferData struct {
+	Num         uint64
+	PlaceHolder bool `json:"_placeholder"`
+	Data        []byte
 }
 
 // MarshalJSON marshals to JSON.
@@ -65,7 +41,7 @@ func (a *Buffer) marshalJSONBuf(buf *bytes.Buffer) error {
 }
 
 func (a *Buffer) encodeText(buf *bytes.Buffer) error {
-	buf.WriteString("{\"type\":\"Buffer\",\"data\":[")
+	buf.WriteString(`{"type":"Buffer","data":[`)
 	for i, d := range a.Data {
 		if i > 0 {
 			buf.WriteString(",")
@@ -78,7 +54,7 @@ func (a *Buffer) encodeText(buf *bytes.Buffer) error {
 }
 
 func (a *Buffer) encodeBinary(buf *bytes.Buffer) error {
-	buf.WriteString("{\"_placeholder\":true,\"num\":")
+	buf.WriteString(`{"_placeholder":true,"num":`)
 	buf.WriteString(strconv.FormatUint(a.num, 10))
 	buf.WriteString("}")
 
@@ -87,12 +63,7 @@ func (a *Buffer) encodeBinary(buf *bytes.Buffer) error {
 
 // UnmarshalJSON unmarshal data from JSON.
 func (a *Buffer) UnmarshalJSON(b []byte) error {
-	var data struct {
-		Num         uint64
-		PlaceHolder bool `json:"_placeholder"`
-		Data        []byte
-	}
-
+	var data BufferData
 	if err := json.Unmarshal(b, &data); err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@
 /.idea
 /.vscode
 *.o
+*.out
 profile.cov
 *.prof
 *.svg

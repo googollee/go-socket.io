@@ -2,35 +2,11 @@ package socketio
 
 import (
 	"net/http"
-	"sync"
 
 	"github.com/gomodule/redigo/redis"
+
 	"github.com/googollee/go-socket.io/engineio"
 )
-
-type namespaceHandlers struct {
-	handlers map[string]*namespaceHandler
-	mu       sync.RWMutex
-}
-
-func newNamespaceHandlers() *namespaceHandlers {
-	return &namespaceHandlers{
-		handlers: make(map[string]*namespaceHandler),
-	}
-}
-
-func (h *namespaceHandlers) Set(namespace string, handler *namespaceHandler) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.handlers[namespace] = handler
-}
-
-func (h *namespaceHandlers) Get(nsp string) (*namespaceHandler, bool) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	handler, ok := h.handlers[nsp]
-	return handler, ok
-}
 
 // Server is a go-socket.io server.
 type Server struct {
@@ -42,14 +18,14 @@ type Server struct {
 }
 
 // NewServer returns a server.
-func NewServer(c *engineio.Options) *Server {
+func NewServer(opts *engineio.Options) *Server {
 	return &Server{
 		handlers: newNamespaceHandlers(),
-		engine:   engineio.NewServer(c),
+		engine:   engineio.NewServer(opts),
 	}
 }
 
-// Adapter sets redis broadcast adapter
+// Adapter sets redis broadcast adapter.
 func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
 	conn, err := redis.Dial("tcp", opts.Host+":"+opts.Port)
 	if err != nil {
@@ -67,27 +43,26 @@ func (s *Server) Close() error {
 	return s.engine.Close()
 }
 
+// ServeHTTP dispatches the request to the handler whose pattern most closely matches the request URL.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.engine.ServeHTTP(w, r)
 }
 
-// OnConnect set a handler function f to handle open event for
-// namespace nsp.
+// OnConnect set a handler function f to handle open event for namespace.
 func (s *Server) OnConnect(namespace string, f func(Conn) error) {
 	h := s.getNamespace(namespace)
 	if h == nil {
-		h = s.createNameSpace(namespace)
+		h = s.createNamespace(namespace)
 	}
 
 	h.OnConnect(f)
 }
 
-// OnDisconnect set a handler function f to handle disconnect event for
-// namespace nsp.
-func (s *Server) OnDisconnect(nsp string, f func(Conn, string)) {
-	h := s.getNamespace(nsp)
+// OnDisconnect set a handler function f to handle disconnect event for namespace.
+func (s *Server) OnDisconnect(namespace string, f func(Conn, string)) {
+	h := s.getNamespace(namespace)
 	if h == nil {
-		h = s.createNameSpace(nsp)
+		h = s.createNamespace(namespace)
 	}
 
 	h.OnDisconnect(f)
@@ -97,7 +72,7 @@ func (s *Server) OnDisconnect(nsp string, f func(Conn, string)) {
 func (s *Server) OnError(namespace string, f func(Conn, error)) {
 	h := s.getNamespace(namespace)
 	if h == nil {
-		h = s.createNameSpace(namespace)
+		h = s.createNamespace(namespace)
 	}
 
 	h.OnError(f)
@@ -107,13 +82,13 @@ func (s *Server) OnError(namespace string, f func(Conn, error)) {
 func (s *Server) OnEvent(namespace, event string, f interface{}) {
 	h := s.getNamespace(namespace)
 	if h == nil {
-		h = s.createNameSpace(namespace)
+		h = s.createNamespace(namespace)
 	}
 
 	h.OnEvent(event, f)
 }
 
-// Serve serves go-socket.io server
+// Serve serves go-socket.io server.
 func (s *Server) Serve() error {
 	for {
 		conn, err := s.engine.Accept()
@@ -126,7 +101,7 @@ func (s *Server) Serve() error {
 	}
 }
 
-// JoinRoom joins given connection to the room
+// JoinRoom joins given connection to the room.
 func (s *Server) JoinRoom(namespace string, room string, connection Conn) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -137,7 +112,7 @@ func (s *Server) JoinRoom(namespace string, room string, connection Conn) bool {
 	return false
 }
 
-// LeaveRoom leaves given connection from the room
+// LeaveRoom leaves given connection from the room.
 func (s *Server) LeaveRoom(namespace string, room string, connection Conn) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -148,7 +123,7 @@ func (s *Server) LeaveRoom(namespace string, room string, connection Conn) bool 
 	return false
 }
 
-// LeaveAllRooms leaves the given connection from all rooms
+// LeaveAllRooms leaves the given connection from all rooms.
 func (s *Server) LeaveAllRooms(namespace string, connection Conn) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -159,7 +134,7 @@ func (s *Server) LeaveAllRooms(namespace string, connection Conn) bool {
 	return false
 }
 
-// ClearRoom clears the room
+// ClearRoom clears the room.
 func (s *Server) ClearRoom(namespace string, room string) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -170,7 +145,7 @@ func (s *Server) ClearRoom(namespace string, room string) bool {
 	return false
 }
 
-// BroadcastToRoom broadcasts given event & args to all the connections in the room
+// BroadcastToRoom broadcasts given event & args to all the connections in the room.
 func (s *Server) BroadcastToRoom(namespace string, room, event string, args ...interface{}) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -181,7 +156,7 @@ func (s *Server) BroadcastToRoom(namespace string, room, event string, args ...i
 	return false
 }
 
-// BroadcastToNamespace broadcasts given event & args to all the connections in the same namespace
+// BroadcastToNamespace broadcasts given event & args to all the connections in the same namespace.
 func (s *Server) BroadcastToNamespace(namespace string, event string, args ...interface{}) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -192,7 +167,7 @@ func (s *Server) BroadcastToNamespace(namespace string, event string, args ...in
 	return false
 }
 
-// RoomLen gives number of connections in the room
+// RoomLen gives number of connections in the room.
 func (s *Server) RoomLen(namespace string, room string) int {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -202,7 +177,7 @@ func (s *Server) RoomLen(namespace string, room string) int {
 	return -1
 }
 
-// Rooms gives list of all the rooms
+// Rooms gives list of all the rooms.
 func (s *Server) Rooms(namespace string) []string {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -212,12 +187,12 @@ func (s *Server) Rooms(namespace string) []string {
 	return nil
 }
 
-// Count number of connections
+// Count number of connections.
 func (s *Server) Count() int {
 	return s.engine.Count()
 }
 
-// ForEach sends data by DataFunc, if room does not exits sends nothing
+// ForEach sends data by DataFunc, if room does not exits sends nothing.
 func (s *Server) ForEach(namespace string, room string, f EachFunc) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -239,7 +214,7 @@ func (s *Server) serveConn(conn engineio.Conn) {
 	}
 }
 
-func (s *Server) createNameSpace(nsp string) *namespaceHandler {
+func (s *Server) createNamespace(nsp string) *namespaceHandler {
 	if nsp == aliasRootNamespace {
 		nsp = rootNamespace
 	}
