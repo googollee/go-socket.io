@@ -22,15 +22,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// OnOpen() won't be called in client-side.
-
-	client.OnPingPong(func(ctx engine.Context) {
-		log.Printf("engineio sid %s got ping", ctx.Session().ID())
-	})
-
-	client.OnUpgrade(func(ctx engine.Context, req *http.Request) error {
-		log.Printf("engineio sid %s upgraded to transport %s", ctx.Session().ID(), ctx.Session().Transport())
-		return nil
+	client.OnPacket(func(ctx engine.Context, type_ engine.PacketType, r io.Reader) {
+		var data [1024]byte
+		n, _ := r.Read(data[:])
+		log.Printf("session %s get package %v with payload %s", ctx.Session().ID(), type_, string(data[n]))
 	})
 
 	client.OnMessage(func(ctx engine.Context, msg io.Reader) {

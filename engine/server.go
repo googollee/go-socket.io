@@ -40,6 +40,18 @@ const (
 	FrameText
 )
 
+type PacketType int
+
+const (
+	PacketOpen PacketType = iota
+	PacketClose
+	PacketPing
+	PacketPong
+	PacketMessage
+	PacketUpgrade
+	PacketNoop
+)
+
 type Server struct{}
 
 func New(...Options) (*Server, error) {
@@ -48,14 +60,13 @@ func New(...Options) (*Server, error) {
 
 // OnXXX should be called before serving HTTP.
 // The engineio framework processes next messages after OnXXX() done. All callback passing to OnXXX should return ASAP.
-func (s *Server) OnOpen(func(Context, *http.Request) error)    {}
-func (s *Server) OnUpgrade(func(Context, *http.Request) error) {}
-func (s *Server) OnMessage(func(Context, io.Reader))           {}
-func (s *Server) OnError(func(Context, error))                 {}
-func (s *Server) OnClosed(func(Context))                       {}
+func (s *Server) OnOpen(func(Context, *http.Request) error) {}
+func (s *Server) OnMessage(func(Context, io.Reader))        {}
+func (s *Server) OnError(func(Context, error))              {}
+func (s *Server) OnClosed(func(Context))                    {}
 
-// OnPingPong triggers when receiving a ping (in EIO v3) or a pong (in EIO v4) message.
-func (s *Server) OnPingPong(func(Context)) {}
+// OnPacket calls when receiving packets with type ping/pong/upgrade/noop.
+func (s *Server) OnPacket(func(Context, PacketType, io.Reader)) {}
 
 func (s *Server) ServeHTTP(http.ResponseWriter, *http.Request) {}
 

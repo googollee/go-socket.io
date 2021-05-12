@@ -23,6 +23,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	eio.OnPacket(func(ctx engine.Context, type_ engine.PacketType, r io.Reader) {
+		var data [1024]byte
+		n, _ := r.Read(data[:])
+		log.Printf("session %s get package %v with payload %s", ctx.Session().ID(), type_, string(data[n]))
+	})
+
 	eio.OnOpen(func(ctx engine.Context, req *http.Request) error {
 		log.Printf("engineio sid %s opened with transport %s", ctx.Session().ID(), ctx.Session().Transport())
 		ctx.Session().Store("url", req.URL.String())
@@ -31,15 +37,6 @@ func main() {
 			return engine.HTTPError(http.StatusNotAcceptable, "client says allow == false")
 		}
 
-		return nil
-	})
-
-	eio.OnPingPong(func(ctx engine.Context) {
-		log.Printf("engineio sid %s got ping", ctx.Session().ID())
-	})
-
-	eio.OnUpgrade(func(ctx engine.Context, req *http.Request) error {
-		log.Printf("engineio sid %s upgraded to transport %s", ctx.Session().ID(), ctx.Session().Transport())
 		return nil
 	})
 
