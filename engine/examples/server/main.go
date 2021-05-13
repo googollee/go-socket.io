@@ -23,15 +23,14 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	eio.OnPacket(func(ctx engine.Context, type_ engine.PacketType, r io.Reader) {
-		var data [1024]byte
-		n, _ := r.Read(data[:])
-		log.Printf("session %s get package %v with payload %s", ctx.Session().ID(), type_, string(data[n]))
+	eio.With(func(ctx *engine.Context) {
+		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.PacketType)
+		ctx.Next()
 	})
 
-	eio.OnOpen(func(ctx engine.Context, req *http.Request) error {
-		log.Printf("engineio sid %s opened with transport %s", ctx.Session().ID(), ctx.Session().Transport())
-		ctx.Session().Store("url", req.URL.String())
+	eio.OnOpen(func(ctx *engine.Context, req *http.Request) error {
+		log.Printf("engineio sid %s opened with transport %s", ctx.Session.ID(), ctx.Session.Transport())
+		ctx.Session.Store("url", req.URL.String())
 		if req.URL.Query().Get("allow") == "false" {
 			// An error means server won't continue this session and return a non-2xx response.
 			return engine.HTTPError(http.StatusNotAcceptable, "client says allow == false")
@@ -40,38 +39,38 @@ func main() {
 		return nil
 	})
 
-	eio.OnMessage(func(ctx engine.Context, msg io.Reader) {
+	eio.OnMessage(func(ctx *engine.Context, msg io.Reader) {
 		var data [1024]byte
 		n, err := msg.Read(data[:])
 		if err != nil {
-			log.Fatalf("read from engineio sid %s error: %s", ctx.Session().ID(), err)
-			ctx.Session().Close()
+			log.Fatalf("read from engineio sid %s error: %s", ctx.Session.ID(), err)
+			ctx.Session.Close()
 			return
 		}
 
-		writer, err := ctx.Session().SendFrame(engine.FrameText)
+		writer, err := ctx.Session.SendFrame(engine.FrameText)
 		if err != nil {
-			log.Fatalf("next writer from engineio sid %s error: %s", ctx.Session().ID(), err)
-			ctx.Session().Close()
+			log.Fatalf("next writer from engineio sid %s error: %s", ctx.Session.ID(), err)
+			ctx.Session.Close()
 			return
 		}
 		defer writer.Close()
 
 		if _, err := writer.Write(data[:n]); err != nil {
-			log.Fatalf("write to engineio sid %s error: %s", ctx.Session().ID(), err)
-			ctx.Session().Close()
+			log.Fatalf("write to engineio sid %s error: %s", ctx.Session.ID(), err)
+			ctx.Session.Close()
 			return
 		}
 	})
 
-	eio.OnError(func(ctx engine.Context, err error) {
-		log.Printf("engineio sid %s got error: %s", ctx.Session().ID(), err)
-		ctx.Session().Close()
+	eio.OnError(func(ctx *engine.Context, err error) {
+		log.Printf("engineio sid %s got error: %s", ctx.Session.ID(), err)
+		ctx.Session.Close()
 	})
 
-	eio.OnClosed(func(ctx engine.Context) {
-		url := ctx.Session().Get("url").(string)
-		log.Printf("engineio sid %s from %s closed", ctx.Session().ID(), url)
+	eio.OnClosed(func(ctx *engine.Context) {
+		url := ctx.Session.Get("url").(string)
+		log.Printf("engineio sid %s from %s closed", ctx.Session.ID(), url)
 	})
 
 	// engine.Server implements http.Handler, which compatibles with any http frameworks.
