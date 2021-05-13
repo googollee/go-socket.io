@@ -22,32 +22,31 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client.OnPacket(func(ctx engine.Context, type_ engine.PacketType, r io.Reader) {
-		var data [1024]byte
-		n, _ := r.Read(data[:])
-		log.Printf("session %s get package %v with payload %s", ctx.Session().ID(), type_, string(data[n]))
+	client.With(func(ctx *engine.Context) {
+		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.PacketType)
+		ctx.Next()
 	})
 
-	client.OnMessage(func(ctx engine.Context, msg io.Reader) {
+	client.OnMessage(func(ctx *engine.Context, msg io.Reader) {
 		var data [1024]byte
 		n, err := msg.Read(data[:])
 		if err != nil {
-			log.Fatalf("read from engineio sid %s error: %s", ctx.Session().ID(), err)
-			ctx.Session().Close()
+			log.Fatalf("read from engineio sid %s error: %s", ctx.Session.ID(), err)
+			ctx.Session.Close()
 			return
 		}
 
 		fmt.Println(string(data[:n]))
 	})
 
-	client.OnError(func(ctx engine.Context, err error) {
-		log.Printf("engineio sid %s got error: %s", ctx.Session().ID(), err)
-		ctx.Session().Close()
+	client.OnError(func(ctx *engine.Context, err error) {
+		log.Printf("engineio sid %s got error: %s", ctx.Session.ID(), err)
+		ctx.Session.Close()
 	})
 
-	client.OnClosed(func(ctx engine.Context) {
-		url := ctx.Session().Get("url").(string)
-		log.Printf("engineio sid %s from %s closed", ctx.Session().ID(), url)
+	client.OnClosed(func(ctx *engine.Context) {
+		url := ctx.Session.Get("url").(string)
+		log.Printf("engineio sid %s from %s closed", ctx.Session.ID(), url)
 	})
 
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://host/endpoint", nil)
