@@ -27,51 +27,42 @@ func TestNamespaceHandler(t *testing.T) {
 		disconnectMsg = reason
 	})
 
-	var onerror error
+	var onError error
 	h.OnError(func(conn Conn, err error) {
-		onerror = err
+		onError = err
 	})
 
-	header := parser.Header{}
+	header := parser.Header{
+		Type: parser.Connect,
+	}
 
-	header.Type = parser.Connect
-	args := h.getTypes(header, "")
-
-	should.Nil(args)
-
-	_, err := h.dispatch(&namespaceConn{}, header, "", nil)
+	_, err := h.dispatch(&namespaceConn{}, header)
 	must.NoError(err)
 
 	should.True(onConnectCalled)
 
 	header.Type = parser.Disconnect
-	args = h.getTypes(header, "")
 
-	should.Equal([]reflect.Type{reflect.TypeOf("")}, args)
-
-	_, err = h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("disconn")})
+	_, err = h.dispatch(&namespaceConn{}, header, []reflect.Value{reflect.ValueOf("disconnect")}...)
 	must.NoError(err)
 
-	should.Equal("disconn", disconnectMsg)
+	should.Equal("disconnect", disconnectMsg)
 
 	header.Type = parser.Error
-	args = h.getTypes(header, "")
 
-	should.Equal([]reflect.Type{reflect.TypeOf("")}, args)
-
-	_, err = h.dispatch(&namespaceConn{}, header, "", []reflect.Value{reflect.ValueOf("failed")})
+	_, err = h.dispatch(&namespaceConn{}, header, []reflect.Value{reflect.ValueOf("failed")}...)
 	must.Error(err)
 
-	should.Equal(onerror.Error(), "failed")
+	should.Equal(onError.Error(), "failed")
 
 	header.Type = parser.Event
-	args = h.getTypes(header, "nonexist")
+	args := h.getEventTypes("not_exist")
 
 	should.Nil(args)
 
-	ret, err := h.dispatch(&namespaceConn{}, header, "nonexist", nil)
-
+	ret, err := h.dispatchEvent(&namespaceConn{}, "not_exist")
 	must.NoError(err)
+
 	should.Nil(ret)
 }
 
@@ -117,9 +108,6 @@ func TestNamespaceHandlerEvent(t *testing.T) {
 				h.OnEvent(e, test.handlers[i])
 			}
 
-			header := parser.Header{
-				Type: parser.Event,
-			}
 			target := make([]reflect.Type, len(test.args))
 			args := make([]reflect.Value, len(test.args))
 
@@ -128,10 +116,10 @@ func TestNamespaceHandlerEvent(t *testing.T) {
 				args[i] = reflect.ValueOf(test.args[i])
 			}
 
-			types := h.getTypes(header, test.event)
+			types := h.getEventTypes(test.event)
 			should.Equal(target, types)
 
-			ret, err := h.dispatch(&namespaceConn{}, header, test.event, args)
+			ret, err := h.dispatchEvent(&namespaceConn{}, test.event, args...)
 			must.NoError(err)
 
 			res := make([]interface{}, len(ret))

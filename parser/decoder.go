@@ -67,9 +67,11 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 	if err != nil {
 		return err
 	}
+
 	if ft != session.TEXT {
 		return errInvalidFirstPacketType
 	}
+
 	d.lastFrame = r
 	br, ok := r.(byteReader)
 	if !ok {
@@ -81,10 +83,12 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 	if err != nil {
 		return err
 	}
+
 	d.bufferCount = bufferCount
 	if header.Type == binaryEvent || header.Type == binaryAck {
 		header.Type -= 3
 	}
+
 	d.isEvent = header.Type == Event
 	if d.isEvent {
 		if err := d.readEvent(event); err != nil {
@@ -102,6 +106,7 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 
 	ret := make([]reflect.Value, len(types))
 	values := make([]interface{}, len(types))
+
 	for i, typ := range types {
 		if typ.Kind() == reflect.Ptr {
 			typ = typ.Elem()
@@ -134,11 +139,13 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		buffers[i].Data, err = d.readBuffer(ft, r)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	for i := range ret {
 		if err := d.detachBuffer(ret[i], buffers); err != nil {
 			return nil, err
@@ -148,8 +155,9 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 }
 
 func (d *Decoder) readUint64FromText(r byteReader) (uint64, bool, error) {
-	ret := uint64(0)
-	hasRead := false
+	var ret uint64
+	var hasRead bool
+
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
@@ -158,6 +166,7 @@ func (d *Decoder) readUint64FromText(r byteReader) (uint64, bool, error) {
 			}
 			return 0, false, err
 		}
+
 		if !('0' <= b && b <= '9') {
 			_ = r.UnreadByte()
 			return ret, hasRead, nil
@@ -169,7 +178,8 @@ func (d *Decoder) readUint64FromText(r byteReader) (uint64, bool, error) {
 
 func (d *Decoder) readString(r byteReader, until byte) (string, error) {
 	var ret bytes.Buffer
-	hasRead := false
+	var hasRead bool
+
 	for {
 		b, err := r.ReadByte()
 		if err != nil {
@@ -178,9 +188,11 @@ func (d *Decoder) readString(r byteReader, until byte) (string, error) {
 			}
 			return "", err
 		}
+
 		if b == until {
 			return ret.String(), nil
 		}
+
 		if err := ret.WriteByte(b); err != nil {
 			return "", err
 		}
@@ -207,6 +219,7 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 
 		return 0, err
 	}
+
 	nextByte, err := d.packetReader.ReadByte()
 	if err != nil {
 		header.ID = num
@@ -237,6 +250,7 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 		}
 		return bufferCount, err
 	}
+
 	if nextByte == '/' {
 		_ = d.packetReader.UnreadByte()
 		header.Namespace, err = d.readString(d.packetReader, ',')
@@ -252,7 +266,6 @@ func (d *Decoder) readHeader(header *Header) (uint64, error) {
 			header.Query = header.Namespace[queryPos+1:]
 			header.Namespace = header.Namespace[:queryPos]
 		}
-
 	} else {
 		_ = d.packetReader.UnreadByte()
 	}
@@ -323,6 +336,7 @@ func (d *Decoder) detachBuffer(v reflect.Value, buffers []Buffer) error {
 	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
 		v = v.Elem()
 	}
+
 	switch v.Kind() {
 	case reflect.Struct:
 		if v.Type().Name() == bufferTypeName {
@@ -340,20 +354,21 @@ func (d *Decoder) detachBuffer(v reflect.Value, buffers []Buffer) error {
 				return err
 			}
 		}
+
 	case reflect.Map:
 		for _, key := range v.MapKeys() {
 			if err := d.detachBuffer(v.MapIndex(key), buffers); err != nil {
 				return err
 			}
 		}
-	case reflect.Array:
-		fallthrough
-	case reflect.Slice:
+
+	case reflect.Array, reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
 			if err := d.detachBuffer(v.Index(i), buffers); err != nil {
 				return err
 			}
 		}
 	}
+
 	return nil
 }
