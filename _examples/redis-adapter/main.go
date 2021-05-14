@@ -62,7 +62,7 @@ func main() {
 	router.POST("/socket.io/*any", gin.WrapH(server))
 	router.StaticFS("/public", http.Dir("../asset"))
 
-	if err := router.Run(); err != nil {
+	if err := router.Run(":8000"); err != nil {
 		log.Fatal("failed run app: ", err)
 	}
 }
