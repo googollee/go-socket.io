@@ -12,14 +12,20 @@ import (
 
 // RedisAdapterOptions is configuration to create new adapter
 type RedisAdapterOptions struct {
-	Host    string
+	// deprecated.  Please user Addr options
+	Host string
+	// deprecated. Please user Addr options
 	Port    string
+	Addr    string
 	Prefix  string
 	Network string
 }
 
 func (ro *RedisAdapterOptions) getAddr() string {
-	return fmt.Sprintf("%s:%s", ro.Host, ro.Port)
+	if ro.Addr == "" {
+		ro.Addr = fmt.Sprintf("%s:%s", ro.Host, ro.Port)
+	}
+	return ro.Addr
 }
 
 // redisBroadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
@@ -92,8 +98,7 @@ type allRoomResponse struct {
 
 func defaultOptions() *RedisAdapterOptions {
 	return &RedisAdapterOptions{
-		Host:   "127.0.0.1",
-		Port:   "6379",
+		Addr:   "127.0.0.1:6379",
 		Prefix: "socket.io",
 	}
 }
@@ -110,6 +115,10 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 			options.Port = opts.Port
 		}
 
+		if opts.Addr != "" {
+			options.Addr = opts.Addr
+		}
+
 		if opts.Prefix != "" {
 			options.Prefix = opts.Prefix
 		}
@@ -124,12 +133,11 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 	if err != nil {
 		return nil, err
 	}
+
 	sub, err := redis.Dial(options.Network, addr)
 	if err != nil {
 		return nil, err
 	}
-
-	uid := newV4UUID()
 
 	subConn := &redis.PubSubConn{Conn: sub}
 	pubConn := &redis.PubSubConn{Conn: pub}
@@ -138,6 +146,7 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 		return nil, err
 	}
 
+	uid := newV4UUID()
 	rbc := &redisBroadcast{
 		rooms:      make(map[string]map[string]Conn),
 		requests:   make(map[string]interface{}),

@@ -1,12 +1,31 @@
 version: '3'
 
 services:
+  tmp:
+    image: busybox
+    command: chmod -R 777 /tmp/docker
+    volumes:
+      - /tmp/docker
+
+  app:
+    build: .
+    container_name: app
+    ports:
+      - "8080:8080"
+    volumes_from:
+      - tmp
+    depends_on:
+      - redis
+
   redis:
     container_name: redis
     hostname: redis
-    image: redis:alpine
+    image: redis
+    command: redis-server /etc/redis/redis.conf
     volumes:
       - ./redis.conf:/etc/redis/redis.conf
+    volumes_from:
+      - tmp
     ports:
       - "6379:6379"
 
