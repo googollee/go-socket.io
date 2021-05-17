@@ -184,7 +184,9 @@ func (bc *redisBroadcast) AllRooms() []string {
 	if err != nil {
 		return []string{} // if error occurred,return empty
 	}
+
 	<-req.done
+
 	rooms := make([]string, 0, len(req.rooms))
 	for room := range req.rooms {
 		rooms = append(rooms, room)
@@ -351,6 +353,7 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 	if !ok {
 		return errors.New("invalid event")
 	}
+
 	if room != "" {
 		bc.send(room, event, args...)
 	} else {

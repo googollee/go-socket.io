@@ -67,13 +67,14 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 
 		switch pt {
 		case packet.PONG:
-			err = c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
-			if err != nil {
+			if err = c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout)); err != nil {
 				return 0, nil, err
 			}
+
 		case packet.CLOSE:
 			c.Close()
 			return 0, nil, io.EOF
+
 		case packet.MESSAGE:
 			return session.FrameType(ft), r, nil
 		}
@@ -120,9 +121,9 @@ func (c *client) serve() {
 		if err := w.Close(); err != nil {
 			return
 		}
-		err = c.conn.SetWriteDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout))
-		if err != nil {
-			fmt.Printf("set writer's deadline error,msg:%s", err.Error())
+
+		if err = c.conn.SetWriteDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout)); err != nil {
+			fmt.Printf("set writer's deadline error,msg:%s\n", err.Error())
 		}
 	}
 }
