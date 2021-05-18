@@ -129,8 +129,13 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 	bc.resChannel = bc.prefix + "-response#" + bc.nsp
 	bc.requests = make(map[string]interface{})
 
-	bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*")
-	bc.sub.Subscribe(bc.reqChannel, bc.resChannel)
+	if err = bc.sub.PSubscribe(bc.prefix + "#" + bc.nsp + "#*"); err != nil {
+		return nil, err
+	}
+
+	if err = bc.sub.Subscribe(bc.reqChannel, bc.resChannel); err != nil {
+		return nil, err
+	}
 
 	go func() {
 		for {
@@ -144,7 +149,10 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 					break
 				}
 
-				bc.onMessage(m.Channel, m.Data)
+				err = bc.onMessage(m.Channel, m.Data)
+				if err != nil {
+					return
+				}
 			case redis.Subscription:
 				if m.Count == 0 {
 					return
@@ -172,9 +180,13 @@ func (bc *redisBroadcast) AllRooms() []string {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	_, err := bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	if err != nil {
+		return []string{} // if error occurred,return empty
+	}
 
 	<-req.done
+
 	rooms := make([]string, 0, len(req.rooms))
 	for room := range req.rooms {
 		rooms = append(rooms, room)
@@ -338,6 +350,9 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 	}
 
 	event, ok := opts[1].(string)
+	if !ok {
+		return errors.New("invalid event")
+	}
 
 	if room != "" {
 		bc.send(room, event, args...)
@@ -355,19 +370,20 @@ func (bc *redisBroadcast) getNumSub(channel string) (int, error) {
 		return 0, err
 	}
 
-	var numSub64 int64
-	numSub64 = rs.([]interface{})[1].(int64)
-	return int(numSub64), nil
+	numSub64, ok := rs.([]interface{})[1].(int)
+	if !ok {
+		return 0, errors.New("redis reply cast to int error")
+	}
+	return numSub64, nil
 }
 
 // Handle request from redis channel.
 func (bc *redisBroadcast) onRequest(msg []byte) {
 	var req map[string]string
-	err := json.Unmarshal(msg, &req)
-	if err != nil {
+
+	if err := json.Unmarshal(msg, &req); err != nil {
 		return
 	}
-	// log.Println("on request:", req)
 
 	var res interface{}
 	switch req["RequestType"] {
@@ -417,7 +433,6 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 		return
 	}
 
-	// log.Println("on resp:", res)
 	switch res["RequestType"] {
 	case roomLenReqType:
 		roomLenReq := req.(*roomLenRequest)

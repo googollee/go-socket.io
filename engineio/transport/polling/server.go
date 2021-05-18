@@ -2,6 +2,7 @@ package polling
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -64,7 +65,7 @@ func (c *serverConn) SetHeaders(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-XSS-Protection", "0")
 	}
 
-	//just in case the default behaviour gets changed and it has to handle an origin check
+	// just in case the default behaviour gets changed and it has to handle an origin check
 	checkOrigin := Default.CheckOrigin
 	if c.transport.CheckOrigin != nil {
 		checkOrigin = c.transport.CheckOrigin
@@ -136,6 +137,9 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_, err = w.Write([]byte("ok"))
+		if err != nil {
+			fmt.Printf("ack post err=%s\n", err.Error())
+		}
 
 	default:
 		http.Error(w, "invalid method", http.StatusBadRequest)
