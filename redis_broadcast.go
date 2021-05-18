@@ -371,17 +371,17 @@ func (bc *redisBroadcast) getNumSub(channel string) (int, error) {
 	}
 
 	numSub64, ok := rs.([]interface{})[1].(int)
-	if ok {
-		return numSub64, nil
+	if !ok {
+		return 0, errors.New("redis reply cast to int error")
 	}
-	return 0, errors.New("redis reply cast to int error")
+	return numSub64, nil
 }
 
 // Handle request from redis channel.
 func (bc *redisBroadcast) onRequest(msg []byte) {
 	var req map[string]string
-	err := json.Unmarshal(msg, &req)
-	if err != nil {
+
+	if err := json.Unmarshal(msg, &req); err != nil {
 		return
 	}
 
