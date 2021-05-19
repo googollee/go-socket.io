@@ -1,12 +1,27 @@
-FROM golang:1.16-alpine AS build
+FROM golang:1.16-alpine as build
 
-WORKDIR /go/src/app
-COPY main.go go.mod
+ENV GO11MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64 \
+    BASE_PATH=/go/src/app
 
-RUN go get -d -v ./...
-RUN CGO_ENABLED=0 go build -o /usr/local/bin/app
+WORKDIR $BASE_PATH
 
-FROM scratch
-COPY --from=build /usr/local/bin/app /usr/local/bin/app
-EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/app"]
+COPY . .
+
+RUN go mod download
+RUN go build -o main .
+
+
+# Run section
+FROM scratch as run
+
+ENV BASE_PATH=/go/src/app
+
+COPY --from=build $BASE_PATH/main /app/main
+COPY --from=build $BASE_PATH/asset /asset
+
+EXPOSE 8000
+
+ENTRYPOINT ["/app/main"]
