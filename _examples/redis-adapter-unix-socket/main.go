@@ -14,15 +14,14 @@ func main() {
 
 	server := socketio.NewServer(nil)
 
-	//_, err := server.Adapter(&socketio.RedisAdapterOptions{
-	//	Addr: "/tmp/docker/redis.sock",
-	//	Prefix:  "socket.io",
-	//	Network: "unix",
-	//})
-	//if err != nil {
-	//	log.Println("error:", err)
-	//	return
-	//}
+	_, err := server.Adapter(&socketio.RedisAdapterOptions{
+		Addr:    "/tmp/docker/redis.sock",
+		Network: "unix",
+	})
+	if err != nil {
+		log.Println("error:", err)
+		return
+	}
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")

@@ -16,6 +16,7 @@ services:
       - tmp
     depends_on:
       - redis
+      - tmp
 
   redis:
     container_name: redis
@@ -28,6 +29,8 @@ services:
       - tmp
     ports:
       - "6379:6379"
+    depends_on:
+      - tmp
 
   redis-commander:
     container_name: redis-commander
@@ -38,5 +41,6 @@ services:
       - redis
     environment:
       - REDIS_HOSTS=local:redis:6379
+      - REDIS_SOCKET=/tmp/docker/redis.sock
     ports:
       - "8081:8081"
