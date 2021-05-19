@@ -55,7 +55,11 @@ func main() {
 		log.Println("closed", reason)
 	})
 
-	go server.Serve()
+	go func() {
+		if err := server.Serve(); err != nil {
+			log.Fatalf("socketio listen error: %s\n", err)
+		}
+	}()
 	defer server.Close()
 
 	s.SetPort(8000)

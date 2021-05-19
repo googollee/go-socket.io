@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/gin-gonic
+module github.com/googollee/go-socket.io/_examples/gin-gonic
 
 go 1.16
 

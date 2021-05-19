@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/redis-adapter
+module github.com/googollee/go-socket.io/_examples/redis-adapter
 
 go 1.16
 

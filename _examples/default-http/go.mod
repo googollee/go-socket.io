@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/deault-http
+module github.com/googollee/go-socket.io/_examples/deault-http
 
 go 1.16
 

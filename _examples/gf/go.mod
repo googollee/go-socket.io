@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/gf
+module github.com/googollee/go-socket.io/_examples/gf
 
 go 1.16
 
