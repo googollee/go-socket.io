@@ -74,6 +74,7 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 		return newOpError("read", errOverlap)
 	}
 	defer atomic.StoreInt32(&p.feeding, 0)
+
 	if ok := p.pauser.Working(); !ok {
 		return newOpError("payload", errPaused)
 	}
@@ -84,12 +85,15 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 		if !ok {
 			return p.Store("read", errTimeout)
 		}
+
 		select {
 		case <-p.close:
 			return p.load()
+
 		case <-after:
 			// it may changed during wait, need check again
 			continue
+
 		case p.readerChan <- readArg{
 			r:             r,
 			supportBinary: supportBinary,
@@ -103,10 +107,12 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 		if !ok {
 			return p.Store("read", errTimeout)
 		}
+
 		select {
 		case <-after:
 			// it may changed during wait, need check again
 			continue
+
 		case err := <-p.readError:
 			return p.Store("read", err)
 		}
@@ -127,6 +133,7 @@ func (p *Payload) FlushOut(w io.Writer) error {
 		return p.load()
 	default:
 	}
+
 	if !atomic.CompareAndSwapInt32(&p.flushing, 0, 1) {
 		return newOpError("write", errOverlap)
 	}
@@ -146,11 +153,14 @@ func (p *Payload) FlushOut(w io.Writer) error {
 		select {
 		case <-p.close:
 			return p.load()
+
 		case <-after:
 			continue
+
 		case <-p.pauser.PausingTrigger():
 			_, err := w.Write(p.encoder.NOOP())
 			return err
+
 		case p.writerChan <- w:
 		}
 		break
