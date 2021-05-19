@@ -14,7 +14,11 @@ func main() {
 
 	server := socketio.NewServer(nil)
 
-	_, err := server.Adapter(&socketio.RedisAdapterOptions{})
+	_, err := server.Adapter(&socketio.RedisAdapterOptions{
+		Host:   "127.0.0.1",
+		Port:   "6379",
+		Prefix: "socket.io",
+	})
 	if err != nil {
 		log.Println("error:", err)
 		return
