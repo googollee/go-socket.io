@@ -10,24 +10,6 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-// RedisAdapterOptions is configuration to create new adapter
-type RedisAdapterOptions struct {
-	// deprecated.  Please user Addr options
-	Host string
-	// deprecated. Please user Addr options
-	Port    string
-	Addr    string
-	Prefix  string
-	Network string
-}
-
-func (ro *RedisAdapterOptions) getAddr() string {
-	if ro.Addr == "" {
-		ro.Addr = fmt.Sprintf("%s:%s", ro.Host, ro.Port)
-	}
-	return ro.Addr
-}
-
 // redisBroadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
 // map of rooms where each room contains a map of connection id to connections in that room
 type redisBroadcast struct {
@@ -96,45 +78,14 @@ type allRoomResponse struct {
 	Rooms       []string
 }
 
-func defaultOptions() *RedisAdapterOptions {
-	return &RedisAdapterOptions{
-		Addr:   "127.0.0.1:6379",
-		Prefix: "socket.io",
-	}
-}
-
 func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, error) {
-	options := defaultOptions()
-
-	if opts != nil {
-		if opts.Host != "" {
-			options.Host = opts.Host
-		}
-
-		if opts.Port != "" {
-			options.Port = opts.Port
-		}
-
-		if opts.Addr != "" {
-			options.Addr = opts.Addr
-		}
-
-		if opts.Prefix != "" {
-			options.Prefix = opts.Prefix
-		}
-
-		if opts.Network != "" {
-			options.Network = opts.Network
-		}
-	}
-
-	addr := options.getAddr()
-	pub, err := redis.Dial(options.Network, addr)
+	addr := opts.getAddr()
+	pub, err := redis.Dial(opts.Network, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	sub, err := redis.Dial(options.Network, addr)
+	sub, err := redis.Dial(opts.Network, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +93,7 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 	subConn := &redis.PubSubConn{Conn: sub}
 	pubConn := &redis.PubSubConn{Conn: pub}
 
-	if err = subConn.PSubscribe(fmt.Sprintf("%s#%s#*", options.Prefix, nsp)); err != nil {
+	if err = subConn.PSubscribe(fmt.Sprintf("%s#%s#*", opts.Prefix, nsp)); err != nil {
 		return nil, err
 	}
 
@@ -152,9 +103,9 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 		requests:   make(map[string]interface{}),
 		sub:        subConn,
 		pub:        pubConn,
-		key:        fmt.Sprintf("%s#%s#%s", options.Prefix, nsp, uid),
-		reqChannel: fmt.Sprintf("%s-request#%s", options.Prefix, nsp),
-		resChannel: fmt.Sprintf("%s-response#%s", options.Prefix, nsp),
+		key:        fmt.Sprintf("%s#%s#%s", opts.Prefix, nsp, uid),
+		reqChannel: fmt.Sprintf("%s-request#%s", opts.Prefix, nsp),
+		resChannel: fmt.Sprintf("%s-response#%s", opts.Prefix, nsp),
 		nsp:        nsp,
 		uid:        uid,
 	}
@@ -166,34 +117,6 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 	go rbc.dispatch()
 
 	return rbc, nil
-}
-
-func (bc *redisBroadcast) dispatch() {
-	for {
-		switch m := bc.sub.Receive().(type) {
-		case redis.Message:
-			if m.Channel == bc.reqChannel {
-				bc.onRequest(m.Data)
-				break
-			} else if m.Channel == bc.resChannel {
-				bc.onResponse(m.Data)
-				break
-			}
-
-			err := bc.onMessage(m.Channel, m.Data)
-			if err != nil {
-				return
-			}
-
-		case redis.Subscription:
-			if m.Count == 0 {
-				return
-			}
-
-		case error:
-			return
-		}
-	}
 }
 
 // AllRooms gives list of all rooms available for redisBroadcast.
@@ -603,4 +526,32 @@ func (bc *redisBroadcast) getRoomsByConn(connection Conn) []string {
 	}
 
 	return rooms
+}
+
+func (bc *redisBroadcast) dispatch() {
+	for {
+		switch m := bc.sub.Receive().(type) {
+		case redis.Message:
+			if m.Channel == bc.reqChannel {
+				bc.onRequest(m.Data)
+				break
+			} else if m.Channel == bc.resChannel {
+				bc.onResponse(m.Data)
+				break
+			}
+
+			err := bc.onMessage(m.Channel, m.Data)
+			if err != nil {
+				return
+			}
+
+		case redis.Subscription:
+			if m.Count == 0 {
+				return
+			}
+
+		case error:
+			return
+		}
+	}
 }
