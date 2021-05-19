@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/docker-with-deault-http
+module github.com/googollee/go-socket.io/_examples/docker-with-deault-http
 
 go 1.16
 

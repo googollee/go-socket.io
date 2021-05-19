@@ -22,16 +22,19 @@
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script>
       var socket = io();
-      // socket.emit('msg', 'hello');
       var s2 = io("/chat");
+
       socket.on('reply', function(msg){
         $('#messages').append($('<li>').text(msg));
       });
+
       $('form').submit(function(){
         s2.emit('msg', $('#m').val(), function(data){
           $('#messages').append($('<li>').text('ACK CALLBACK: ' + data));
         });
+
         socket.emit('notice', $('#m').val());
+
         $('#m').val('');
         return false;
       });

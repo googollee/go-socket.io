@@ -45,7 +45,11 @@ func main() {
 		log.Println("closed", reason)
 	})
 
-	go server.Serve()
+	go func() {
+		if err := server.Serve(); err != nil {
+			log.Fatalf("socketio listen error: %s\n", err)
+		}
+	}()
 	defer server.Close()
 
 	app.HandleMany("GET POST", "/socket.io/{any:path}", iris.FromStd(server))
