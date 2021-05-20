@@ -64,4 +64,4 @@ It contains the `engine.io` analog implementation of the original node-package. 
 
 ## License
 
-The 3-clause BSD License  - see LICENSE for more details
+The 3-clause BSD License  - see [LICENSE](https://opensource.org/licenses/BSD-3-Clause) for more details
