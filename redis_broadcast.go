@@ -153,10 +153,12 @@ func newRedisBroadcast(nsp string, adapter *RedisAdapterOptions) (*redisBroadcas
 				if err != nil {
 					return
 				}
+
 			case redis.Subscription:
 				if m.Count == 0 {
 					return
 				}
+
 			case error:
 				return
 			}
@@ -296,13 +298,26 @@ func (bc *redisBroadcast) Len(room string) int {
 		Room:        room,
 	}
 
-	reqJSON, _ := json.Marshal(&req)
-	numSub, _ := bc.getNumSub(bc.reqChannel)
+	reqJSON, err := json.Marshal(&req)
+	if err != nil {
+		return -1
+	}
+
+	numSub, err := bc.getNumSub(bc.reqChannel)
+	if err != nil {
+		return -1
+	}
+
 	req.numSub = numSub
+
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	_, err = bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	if err != nil {
+		return -1
+	}
+
 	<-req.done
 
 	delete(bc.requests, req.RequestID)
@@ -396,12 +411,10 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 		bc.publish(bc.resChannel, &res)
 
 	case allRoomReqType:
-		rooms := bc.allRooms()
-		// log.Println("current rooms:", rooms)
 		res := allRoomResponse{
 			RequestType: req["RequestType"],
 			RequestID:   req["RequestID"],
-			Rooms:       rooms,
+			Rooms:       bc.allRooms(),
 		}
 		bc.publish(bc.resChannel, &res)
 
@@ -416,13 +429,21 @@ func (bc *redisBroadcast) onRequest(msg []byte) {
 }
 
 func (bc *redisBroadcast) publish(channel string, msg interface{}) {
-	resJSON, _ := json.Marshal(msg)
-	bc.pub.Conn.Do("PUBLISH", channel, resJSON)
+	resJSON, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+
+	_, err = bc.pub.Conn.Do("PUBLISH", channel, resJSON)
+	if err != nil {
+		return
+	}
 }
 
 // Handle response from redis channel.
 func (bc *redisBroadcast) onResponse(msg []byte) {
 	var res map[string]interface{}
+
 	err := json.Unmarshal(msg, &res)
 	if err != nil {
 		return
@@ -445,11 +466,11 @@ func (bc *redisBroadcast) onResponse(msg []byte) {
 		if roomLenReq.numSub == roomLenReq.msgCount {
 			roomLenReq.done <- true
 		}
+
 	case allRoomReqType:
 		allRoomReq := req.(*allRoomRequest)
 		rooms, ok := res["Rooms"].([]interface{})
 		if !ok {
-			// log.Println("invalid rooms")
 			allRoomReq.done <- true
 			return
 		}
@@ -510,9 +531,15 @@ func (bc *redisBroadcast) publishMessage(room string, event string, args ...inte
 		"opts": opts,
 		"args": args,
 	}
-	bcMessageJSON, _ := json.Marshal(bcMessage)
+	bcMessageJSON, err := json.Marshal(bcMessage)
+	if err != nil {
+		return
+	}
 
-	bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+	_, err = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+	if err != nil {
+		return
+	}
 }
 
 func (bc *redisBroadcast) sendAll(event string, args ...interface{}) {

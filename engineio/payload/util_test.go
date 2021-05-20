@@ -7,10 +7,12 @@ import (
 	"testing/quick"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWriteBinaryLen(t *testing.T) {
 	at := assert.New(t)
+
 	tests := []struct {
 		l      int64
 		output []byte
@@ -25,7 +27,8 @@ func TestWriteBinaryLen(t *testing.T) {
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
 		err := writeBinaryLen(test.l, buf)
-		at.Nil(err)
+		require.NoError(t, err)
+
 		at.Equal(test.output, buf.Bytes())
 	}
 
@@ -34,17 +37,22 @@ func TestWriteBinaryLen(t *testing.T) {
 			return true
 		}
 		buf := bytes.NewBuffer(nil)
-		writeBinaryLen(l, buf)
+		err := writeBinaryLen(l, buf)
+		require.NoError(t, err)
+
 		r := bufio.NewReader(buf)
-		out, _ := readBinaryLen(r)
+		out, err := readBinaryLen(r)
+		require.NoError(t, err)
+
 		return out == l
 	}
-	err := quick.Check(f, nil)
-	at.Nil(err)
+
+	at.Nil(quick.Check(f, nil))
 }
 
 func TestWriteStringLen(t *testing.T) {
 	at := assert.New(t)
+
 	tests := []struct {
 		l      int64
 		output string
@@ -59,7 +67,7 @@ func TestWriteStringLen(t *testing.T) {
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
 		err := writeTextLen(test.l, buf)
-		at.Nil(err)
+		require.NoError(t, err)
 		at.Equal(test.output, buf.String())
 	}
 
@@ -68,17 +76,21 @@ func TestWriteStringLen(t *testing.T) {
 			return true
 		}
 		buf := bytes.NewBuffer(nil)
-		writeTextLen(l, buf)
+		err := writeTextLen(l, buf)
+		require.NoError(t, err)
+
 		r := bufio.NewReader(buf)
-		out, _ := readTextLen(r)
+		out, err := readTextLen(r)
+		require.NoError(t, err)
+
 		return out == l
 	}
-	err := quick.Check(f, nil)
-	at.Nil(err)
+	at.Nil(quick.Check(f, nil))
 }
 
 func TestReadBytesLen(t *testing.T) {
 	at := assert.New(t)
+
 	tests := []struct {
 		data   []byte
 		ok     bool
@@ -98,6 +110,7 @@ func TestReadBytesLen(t *testing.T) {
 		r := bufio.NewReader(bytes.NewReader(test.data))
 		l, err := readBinaryLen(r)
 		at.Equal(test.ok, err == nil)
+
 		if !test.ok {
 			continue
 		}
@@ -135,38 +148,50 @@ func TestReadStringLen(t *testing.T) {
 
 func BenchmarkWriteStringLen(b *testing.B) {
 	w := bytes.NewBuffer(nil)
-	writeTextLen(23461, w)
+	err := writeTextLen(23461, w)
+	require.NoError(b, err)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Reset()
-		writeTextLen(23461, w)
+
+		err = writeTextLen(23461, w)
+		require.NoError(b, err)
 	}
 }
 
 func BenchmarkWriteBinaryLen(b *testing.B) {
 	w := bytes.NewBuffer(nil)
-	writeTextLen(23461, w)
+	err := writeTextLen(23461, w)
+	require.NoError(b, err)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w.Reset()
-		writeBinaryLen(23461, w)
+
+		err = writeBinaryLen(23461, w)
+		require.NoError(b, err)
 	}
 }
 
 func BenchmarkReadStringLen(b *testing.B) {
 	bs := bytes.Repeat([]byte("23461:"), b.N)
 	r := bufio.NewReader(bytes.NewReader(bs))
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		readTextLen(r)
+		_, err := readTextLen(r)
+		require.NoError(b, err)
 	}
 }
 
 func BenchmarkReadBinaryLen(b *testing.B) {
 	bs := bytes.Repeat([]byte{2, 3, 4, 6, 1, 0xff}, b.N)
 	r := bufio.NewReader(bytes.NewReader(bs))
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		readBinaryLen(r)
+		_, err := readBinaryLen(r)
+		require.NoError(b, err)
 	}
 }
