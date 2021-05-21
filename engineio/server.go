@@ -1,162 +1,97 @@
-package engineio
+package engine
 
 import (
 	"context"
 	"io"
-	"log"
-	"net"
 	"net/http"
-	"sync"
 	"time"
-
-	"github.com/gorilla/websocket"
-
-	"github.com/googollee/go-socket.io/engineio/session"
-	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
-// Server is instance of server
-type Server struct {
-	pingInterval time.Duration
-	pingTimeout  time.Duration
+type LogLevel int
 
-	transports *transport.Manager
-	sessions   *session.Manager
+const (
+	LogDebug LogLevel = iota
+	LogInfo
+	LogWarn
+	LogError
+)
 
-	requestChecker CheckerFunc
-	connInitor     ConnInitorFunc
-
-	connChan  chan Conn
-	closeOnce sync.Once
+type Logger interface {
+	Errorf(fmt string, v ...interface{})
+	Warnf(fmt string, v ...interface{})
+	Infof(fmt string, v ...interface{})
+	Debugf(fmt string, v ...interface{})
 }
 
-// NewServer returns a server.
-func NewServer(opts *Options) *Server {
-	return &Server{
-		transports:     transport.NewManager(opts.getTransport()),
-		pingInterval:   opts.getPingInterval(),
-		pingTimeout:    opts.getPingTimeout(),
-		requestChecker: opts.getRequestChecker(),
-		connInitor:     opts.getConnInitor(),
-		sessions:       session.NewManager(opts.getSessionIDGenerator()),
-		connChan:       make(chan Conn, 1),
-	}
+type Options func(*Server)
+
+func OptionPingInterval(time.Duration) Options                      { return nil }
+func OptionPingTimeout(time.Duration) Options                       { return nil }
+func OptionMaxBufferSize(int) Options                               { return nil }
+func OptionLogLevel(level LogLevel) Options                         { return nil }
+func OptionLogger(logger Logger) Options                            { return nil }
+func OptionTransports(initial string, upgradings ...string) Options { return nil }
+func OptionJSONP(padding int) Options                               { return nil }
+
+type FrameType int
+
+const (
+	FrameBinary FrameType = iota
+	FrameText
+)
+
+type PacketType int
+
+const (
+	PacketOpen PacketType = iota
+	PacketClose
+	PacketPing
+	PacketPong
+	PacketMessage
+	PacketUpgrade
+	PacketNoop
+)
+
+type Server struct{}
+
+func New(...Options) (*Server, error) {
+	return nil, nil
 }
 
-// Close closes server.
-func (s *Server) Close() error {
-	s.closeOnce.Do(func() {
-		close(s.connChan)
-	})
-	return nil
+// OnXXX should be called before serving HTTP.
+// The engineio framework processes next messages after OnXXX() done. All callback passing to OnXXX should return ASAP.
+func (s *Server) OnOpen(func(*Context, *http.Request) error) {}
+func (s *Server) OnMessage(func(*Context, io.Reader))        {}
+func (s *Server) OnError(func(*Context, error))              {}
+func (s *Server) OnClosed(func(*Context))                    {}
+
+// With adds an middleware to process packets.
+// Be careful when reading content from ctx.Reader(). Other middlewares and handler can't read from it again.
+func (s *Server) With(func(*Context)) {}
+
+func (s *Server) ServeHTTP(http.ResponseWriter, *http.Request) {}
+
+// Session methods could be called in any goroutine.
+type Session interface {
+	ID() string
+	Transport() string
+
+	Close() error
+	Store(key string, value interface{})
+	Get(key string) interface{}
+
+	// SendFrame should be called after closing last frame.
+	SendFrame(FrameType) (io.WriteCloser, error)
 }
 
-// Accept accepts a connection.
-func (s *Server) Accept() (Conn, error) {
-	c := <-s.connChan
-	if c == nil {
-		return nil, io.EOF
-	}
-	return c, nil
+type Context struct {
+	context.Context
+	Session    Session
+	Request    *http.Request
+	PacketType PacketType
+	Reader     io.Reader
 }
 
-func (s *Server) Addr() net.Addr {
-	return nil
-}
+func (c *Context) Next() {}
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	sid := query.Get("sid")
-
-	reqSession := s.sessions.Get(sid)
-
-	reqTransport := query.Get("transport")
-
-	srvTransport := s.transports.Get(reqTransport)
-
-	if srvTransport == nil {
-		http.Error(w, "invalid transport", http.StatusBadRequest)
-		return
-	}
-
-	header, err := s.requestChecker(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-
-	for k, v := range header {
-		w.Header()[k] = v
-	}
-
-	if reqSession == nil {
-		if sid != "" {
-			http.Error(w, "invalid sid", http.StatusBadRequest)
-			return
-		}
-
-		transportConn, err := srvTransport.Accept(w, r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-
-		reqSession, err = s.newSession(r.Context(), transportConn, reqTransport)
-		if err != nil {
-			http.Error(w, "create new session", http.StatusBadRequest)
-			return
-		}
-
-		s.connInitor(r, reqSession)
-	}
-
-	if reqSession.Transport() != reqTransport {
-		transportConn, err := srvTransport.Accept(w, r)
-		if err != nil {
-			// don't call http.Error() for HandshakeErrors because
-			// they get handled by the websocket library internally.
-			if _, ok := err.(websocket.HandshakeError); !ok {
-				http.Error(w, err.Error(), http.StatusBadGateway)
-			}
-			return
-		}
-
-		reqSession.Upgrade(reqTransport, transportConn)
-
-		if handler, ok := transportConn.(http.Handler); ok {
-			handler.ServeHTTP(w, r)
-		}
-		return
-	}
-
-	reqSession.ServeHTTP(w, r)
-}
-
-// Count counts connected
-func (s *Server) Count() int {
-	return s.sessions.Count()
-}
-
-func (s *Server) newSession(ctx context.Context, conn transport.Conn, reqTransport string) (*session.Session, error) {
-	params := transport.ConnParameters{
-		PingInterval: s.pingInterval,
-		PingTimeout:  s.pingTimeout,
-		Upgrades:     s.transports.UpgradeFrom(reqTransport),
-	}
-
-	newSession, err := session.New(conn, s.sessions.NewID(), reqTransport, params)
-	if err != nil {
-		return nil, err
-	}
-	s.sessions.Add(newSession)
-
-	go func() {
-		if err := newSession.InitSession(); err != nil {
-			log.Println("init new session", err)
-		}
-
-		s.connChan <- newSession
-	}()
-
-	return newSession, nil
-}
+func HTTPError(code int, msg string) error { return nil }
