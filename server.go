@@ -27,7 +27,8 @@ func NewServer(opts *engineio.Options) *Server {
 
 // Adapter sets redis broadcast adapter.
 func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
-	conn, err := redis.Dial("tcp", opts.Host+":"+opts.Port)
+	opts = getOptions(opts)
+	conn, err := redis.Dial(opts.Network, opts.getAddr())
 	if err != nil {
 		return false, err
 	}
