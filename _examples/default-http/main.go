@@ -5,10 +5,28 @@ import (
 	"net/http"
 
 	socketio "github.com/googollee/go-socket.io"
+	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/engineio/transport/polling"
+	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 )
 
+// Easier to get running with CORS. Thanks for help @Vindexus and @erkie
+var allowOriginFunc = func(r *http.Request) bool {
+	return true
+}
+
 func main() {
-	server := socketio.NewServer(nil)
+	server := socketio.NewServer(&engineio.Options{
+		Transports: []transport.Transport{
+			&polling.Transport{
+				CheckOrigin: allowOriginFunc,
+			},
+			&websocket.Transport{
+				CheckOrigin: allowOriginFunc,
+			},
+		},
+	})
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
