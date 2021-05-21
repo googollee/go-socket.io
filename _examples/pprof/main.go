@@ -49,7 +49,7 @@ func main() {
 	server.OnEvent("/", "bye", func(s socketio.Conn) string {
 		last := s.Context().(string)
 		s.Emit("bye", last)
-		//s.Close()
+		s.Close()
 		return last
 	})
 

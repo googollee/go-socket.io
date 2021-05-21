@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_examples/debug
+module github.com/googollee/go-socket.io/_examples/pprof
 
 go 1.16
 
