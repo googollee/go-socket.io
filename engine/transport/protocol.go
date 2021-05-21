@@ -18,18 +18,26 @@ type Transport interface {
 	Close() error
 
 	// SendFrame creates an frame writer to send an frame.
-	SendFrame() (io.WriteCloser, error)
+	SendFrame() (FrameWriter, error)
 
 	// ServeHTTP serves HTTP requests.
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
-// FrameReader provide a reader to read a frame.
+// FrameReader provides a reader to read a frame.
 type FrameReader interface {
 	io.Reader
 
-	// Read reads a byte.
+	// ReadByte reads a byte.
 	ReadByte() (byte, error)
+}
+
+// FrameWriter provides a writer to write a frame.
+type FrameWriter interface {
+	io.Writer
+
+	// WriteByte writes a byte.
+	WriteByte(b byte) error
 }
 
 // Callbacks is a group of callback functions which a transport may call
