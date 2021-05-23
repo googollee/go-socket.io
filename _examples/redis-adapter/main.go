@@ -14,7 +14,7 @@ func main() {
 
 	server := socketio.NewServer(nil)
 
-	_, err := server.Adapter(&socketio.RedisAdapterOptions{})
+	_, err := server.Adapter(nil)
 	if err != nil {
 		log.Println("error:", err)
 		return
