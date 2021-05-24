@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// Logger logs messages with different levels.
 type Logger interface {
 	Errorf(format string, v ...interface{})
 	Warningf(format string, v ...interface{})
@@ -13,6 +14,7 @@ type Logger interface {
 	Debugf(format string, v ...interface{})
 }
 
+// DefaultLogger returns a default logger which outputs to stderr.
 func DefaultLogger() Logger {
 	return &defaultLogger{
 		output: log.New(os.Stderr, "", log.LstdFlags),
@@ -26,17 +28,17 @@ type defaultLogger struct {
 const depth = 3
 
 func (l *defaultLogger) Errorf(format string, v ...interface{}) {
-	l.output.Output(depth, fmt.Sprintf(format, v...))
+	_ = l.output.Output(depth, fmt.Sprintf(format, v...))
 }
 
 func (l *defaultLogger) Warningf(format string, v ...interface{}) {
-	l.output.Output(depth, fmt.Sprintf(format, v...))
+	_ = l.output.Output(depth, fmt.Sprintf(format, v...))
 }
 
 func (l *defaultLogger) Infof(format string, v ...interface{}) {
-	l.output.Output(depth, fmt.Sprintf(format, v...))
+	_ = l.output.Output(depth, fmt.Sprintf(format, v...))
 }
 
 func (l *defaultLogger) Debugf(format string, v ...interface{}) {
-	l.output.Output(depth, fmt.Sprintf(format, v...))
+	_ = l.output.Output(depth, fmt.Sprintf(format, v...))
 }
