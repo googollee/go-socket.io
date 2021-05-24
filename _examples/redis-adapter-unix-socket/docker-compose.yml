@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  tmp:
+    image: busybox
+    command: chmod -R 777 /tmp/docker
+    volumes:
+      - /tmp/docker
+
+  app:
+    build: .
+    container_name: app
+    ports:
+      - "8080:8080"
+    volumes_from:
+      - tmp
+    depends_on:
+      - redis
+      - tmp
+
+  redis:
+    container_name: redis
+    hostname: redis
+    image: redis
+    command: redis-server /etc/redis/redis.conf
+    volumes:
+      - ./redis.conf:/etc/redis/redis.conf
+    volumes_from:
+      - tmp
+    ports:
+      - "6379:6379"
+    depends_on:
+      - tmp
+
+  redis-commander:
+    container_name: redis-commander
+    hostname: redis-commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    depends_on:
+      - redis
+    environment:
+      - REDIS_SOCKET=/tmp/docker/redis.sock
+    ports:
+      - "8081:8081"

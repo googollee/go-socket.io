@@ -14,7 +14,10 @@ func main() {
 
 	server := socketio.NewServer(nil)
 
-	_, err := server.Adapter(nil)
+	_, err := server.Adapter(&socketio.RedisAdapterOptions{
+		Addr:    "/tmp/docker/redis.sock",
+		Network: "unix",
+	})
 	if err != nil {
 		log.Println("error:", err)
 		return
@@ -51,18 +54,14 @@ func main() {
 		log.Println("closed", reason)
 	})
 
-	go func() {
-		if err := server.Serve(); err != nil {
-			log.Fatalf("socketio listen error: %s\n", err)
-		}
-	}()
+	go server.Serve()
 	defer server.Close()
 
 	router.GET("/socket.io/*any", gin.WrapH(server))
 	router.POST("/socket.io/*any", gin.WrapH(server))
 	router.StaticFS("/public", http.Dir("../asset"))
 
-	if err := router.Run(":8000"); err != nil {
+	if err := router.Run(); err != nil {
 		log.Fatal("failed run app: ", err)
 	}
 }
