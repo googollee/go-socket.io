@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"log"
+	"os"
 )
 
 type Logger interface {
@@ -14,7 +15,7 @@ type Logger interface {
 
 func DefaultLogger() Logger {
 	return &defaultLogger{
-		output: log.Default(),
+		output: log.New(os.Stderr, "", log.LstdFlags),
 	}
 }
 
