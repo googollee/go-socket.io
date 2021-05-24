@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"net/http/pprof"
 	_ "net/http/pprof"
 
 	socketio "github.com/googollee/go-socket.io"
@@ -61,11 +62,27 @@ func main() {
 		log.Println("closed", reason)
 	})
 
+	debugMux := http.NewServeMux()
+
+	debugMux.HandleFunc("/pprof/*", pprof.Index)
+	debugMux.HandleFunc("/pprof/cmdline", pprof.Cmdline)
+	debugMux.HandleFunc("/pprof/profile", pprof.Profile)
+	debugMux.HandleFunc("/pprof/symbol", pprof.Symbol)
+	debugMux.HandleFunc("/pprof/trace", pprof.Trace)
+
+	go func() {
+		log.Println("Serving debug at :8001...")
+
+		if err := http.ListenAndServe(":8001", debugMux); err != nil {
+			log.Fatalf("debug serve error: %s\n", err)
+		}
+	}()
+
 	go func() {
 		log.Println("Serving socketio...")
 
 		if err := server.Serve(); err != nil {
-			log.Fatalf("socketio listen error: %s\n", err)
+			log.Fatalf("socketio serve error: %s\n", err)
 		}
 	}()
 	defer server.Close()
@@ -73,6 +90,6 @@ func main() {
 	http.Handle("/socket.io/", server)
 	http.Handle("/", http.FileServer(http.Dir("../asset")))
 
-	log.Println("Serving at localhost:8000...")
+	log.Println("Serving at :8000...")
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }
