@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/iris
+module github.com/googollee/go-socket.io/_examples/iris
 
 go 1.16
 

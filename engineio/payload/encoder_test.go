@@ -178,9 +178,14 @@ func BenchmarkStringEncoder(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, p := range packets {
-			f, _ := e.NextWriter(p.ft, p.pt)
-			f.Write(p.data)
-			f.Close()
+			f, err := e.NextWriter(p.ft, p.pt)
+			require.NoError(b, err)
+
+			_, err = f.Write(p.data)
+			require.NoError(b, err)
+
+			err = f.Close()
+			require.NoError(b, err)
 		}
 	}
 }
@@ -202,19 +207,26 @@ func BenchmarkB64Encoder(b *testing.B) {
 	// warm up for memory allocation
 	for _, p := range packets {
 		f, err := e.NextWriter(p.ft, p.pt)
-		must.Nil(err)
+		must.NoError(err)
+
 		_, err = f.Write(p.data)
-		must.Nil(err)
+		must.NoError(err)
+
 		err = f.Close()
-		must.Nil(err)
+		must.NoError(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, p := range packets {
-			f, _ := e.NextWriter(p.ft, p.pt)
-			f.Write(p.data)
-			f.Close()
+			f, err := e.NextWriter(p.ft, p.pt)
+			require.NoError(b, err)
+
+			_, err = f.Write(p.data)
+			require.NoError(b, err)
+
+			err = f.Close()
+			require.NoError(b, err)
 		}
 	}
 }
@@ -250,9 +262,14 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, p := range packets {
-			f, _ := e.NextWriter(p.ft, p.pt)
-			f.Write(p.data)
-			f.Close()
+			f, err := e.NextWriter(p.ft, p.pt)
+			require.NoError(b, err)
+
+			_, err = f.Write(p.data)
+			require.NoError(b, err)
+
+			err = f.Close()
+			require.NoError(b, err)
 		}
 	}
 }

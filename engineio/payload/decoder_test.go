@@ -107,9 +107,14 @@ func BenchmarkStringDecoder(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 2; j++ {
-			_, _, r, _ := d.NextReader()
-			r.Read(buf)
-			r.Close()
+			_, _, r, err := d.NextReader()
+			require.NoError(b, err)
+
+			_, err = r.Read(buf)
+			require.NoError(b, err)
+
+			err = r.Close()
+			require.NoError(b, err)
 		}
 	}
 }
@@ -127,9 +132,14 @@ func BenchmarkB64Decoder(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 2; j++ {
-			_, _, r, _ := d.NextReader()
-			r.Read(buf)
-			r.Close()
+			_, _, r, err := d.NextReader()
+			require.NoError(b, err)
+
+			_, err = r.Read(buf)
+			require.NoError(b, err)
+
+			err = r.Close()
+			require.NoError(b, err)
 		}
 	}
 }
@@ -151,9 +161,14 @@ func BenchmarkBinaryDecoder(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 3; j++ {
-			_, _, r, _ := d.NextReader()
-			r.Read(buf)
-			r.Close()
+			_, _, r, err := d.NextReader()
+			require.NoError(b, err)
+
+			_, err = r.Read(buf)
+			require.NoError(b, err)
+
+			err = r.Close()
+			require.NoError(b, err)
 		}
 	}
 }

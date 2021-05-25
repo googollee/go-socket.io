@@ -2,27 +2,26 @@ package main
 
 import (
 	"log"
+	"net/http"
 
-	"github.com/gogf/gf/frame/g"
-	"github.com/gogf/gf/net/ghttp"
+	"github.com/gin-gonic/gin"
 
 	socketio "github.com/googollee/go-socket.io"
 )
 
-func cors(r *ghttp.Request) {
-	r.Response.CORSDefault()
-	r.Middleware.Next()
-}
-
 func main() {
-	s := g.Server()
+	router := gin.New()
 
 	server := socketio.NewServer(nil)
 
-	s.BindMiddlewareDefault(cors)
-	s.BindHandler("/socket.io/", func(r *ghttp.Request) {
-		server.ServeHTTP(r.Response.Writer, r.Request)
+	_, err := server.Adapter(&socketio.RedisAdapterOptions{
+		Addr:    "/tmp/docker/redis.sock",
+		Network: "unix",
 	})
+	if err != nil {
+		log.Println("error:", err)
+		return
+	}
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
@@ -55,13 +54,14 @@ func main() {
 		log.Println("closed", reason)
 	})
 
-	go func() {
-		if err := server.Serve(); err != nil {
-			log.Fatalf("socketio listen error: %s\n", err)
-		}
-	}()
+	go server.Serve()
 	defer server.Close()
 
-	s.SetPort(8000)
-	s.Run()
+	router.GET("/socket.io/*any", gin.WrapH(server))
+	router.POST("/socket.io/*any", gin.WrapH(server))
+	router.StaticFS("/public", http.Dir("../asset"))
+
+	if err := router.Run(); err != nil {
+		log.Fatal("failed run app: ", err)
+	}
 }

@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_example/go-echo
+module github.com/googollee/go-socket.io/_examples/go-echo
 
 go 1.16
 

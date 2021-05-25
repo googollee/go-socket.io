@@ -1,4 +1,4 @@
-module github.com/googollee/go-socket.io/_examples/deault-http
+module github.com/googollee/go-socket.io/_examples/graceful-shutdown
 
 go 1.16
 

@@ -82,10 +82,11 @@ func (r rcWrapper) Close() error {
 
 	r.nagTimer.Stop()
 	close(r.quitNag)
+
 	// Attempt to drain the Reader.
-	io.Copy(ioutil.Discard, r) // reader may be closed, ignore error
-	// Unlock the wrapper's read lock for future calls to NextReader.
-	return nil
+	_, err := io.Copy(ioutil.Discard, r)
+
+	return err
 }
 
 func (w wrapper) NextWriter(FType frame.Type) (io.WriteCloser, error) {
@@ -121,11 +122,11 @@ type wcWrapper struct {
 
 func newWcWrapper(l *sync.Mutex, w io.WriteCloser) wcWrapper {
 	timer := time.NewTimer(30 * time.Second)
-	q := make(chan struct{})
+	chQuit := make(chan struct{})
 
 	go func() {
 		select {
-		case <-q:
+		case <-chQuit:
 		case <-timer.C:
 			fmt.Println("Did you forget to Close() the WriteCloser from NextWriter?")
 		}
@@ -133,7 +134,7 @@ func newWcWrapper(l *sync.Mutex, w io.WriteCloser) wcWrapper {
 
 	return wcWrapper{
 		nagTimer:    timer,
-		quitNag:     q,
+		quitNag:     chQuit,
 		l:           l,
 		WriteCloser: w,
 	}

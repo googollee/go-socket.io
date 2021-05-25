@@ -20,9 +20,9 @@ func TestOpError(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		var err error = newOpError(test.op, test.err)
+		var err = newOpError(test.op, test.err)
 
-		assert.Equal(test.errString, err.Error())
+		assert.EqualError(err, test.errString)
 
 		re, ok := err.(Error)
 		assert.True(ok)

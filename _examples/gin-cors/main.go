@@ -63,7 +63,11 @@ func main() {
 		log.Println("closed", msg)
 	})
 
-	go server.Serve()
+	go func() {
+		if err := server.Serve(); err != nil {
+			log.Fatalf("socketio listen error: %s\n", err)
+		}
+	}()
 	defer server.Close()
 
 	router.Use(GinMiddleware("http://localhost:3000"))
@@ -71,7 +75,7 @@ func main() {
 	router.POST("/socket.io/*any", gin.WrapH(server))
 	router.StaticFS("/public", http.Dir("../asset"))
 
-	if err := router.Run(); err != nil {
+	if err := router.Run(":8000"); err != nil {
 		log.Fatal("failed run app: ", err)
 	}
 }

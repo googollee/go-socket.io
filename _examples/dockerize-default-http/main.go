@@ -2,27 +2,13 @@ package main
 
 import (
 	"log"
-
-	"github.com/gogf/gf/frame/g"
-	"github.com/gogf/gf/net/ghttp"
+	"net/http"
 
 	socketio "github.com/googollee/go-socket.io"
 )
 
-func cors(r *ghttp.Request) {
-	r.Response.CORSDefault()
-	r.Middleware.Next()
-}
-
 func main() {
-	s := g.Server()
-
 	server := socketio.NewServer(nil)
-
-	s.BindMiddlewareDefault(cors)
-	s.BindHandler("/socket.io/", func(r *ghttp.Request) {
-		server.ServeHTTP(r.Response.Writer, r.Request)
-	})
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
@@ -62,6 +48,9 @@ func main() {
 	}()
 	defer server.Close()
 
-	s.SetPort(8000)
-	s.Run()
+	http.Handle("/socket.io/", server)
+	http.Handle("/", http.FileServer(http.Dir("../asset")))
+
+	log.Println("Serving at localhost:8000...")
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
