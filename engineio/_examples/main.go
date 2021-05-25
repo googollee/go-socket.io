@@ -5,12 +5,13 @@ import (
 	"io"
 	"log"
 	"net/http/httptest"
+	"time"
 
 	"github.com/googollee/go-socket.io/engineio"
 )
 
 func main() {
-	eio := engineio.NewServer(nil)
+	eio := engineio.NewServer(engineio.WithPingInterval(10 * time.Second))
 	httpSvr := httptest.NewServer(eio)
 	defer httpSvr.Close()
 
