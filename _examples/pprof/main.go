@@ -18,8 +18,8 @@ var allowOriginFunc = func(r *http.Request) bool {
 }
 
 func main() {
-	opts := &engineio.Options{
-		Transports: []transport.Transport{
+	opts := engineio.WithTransports(
+		[]transport.Transport{
 			&polling.Transport{
 				CheckOrigin: allowOriginFunc,
 			},
@@ -27,7 +27,7 @@ func main() {
 				CheckOrigin: allowOriginFunc,
 			},
 		},
-	}
+	)
 
 	server := socketio.NewServer(opts)
 

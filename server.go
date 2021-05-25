@@ -19,10 +19,10 @@ type Server struct {
 }
 
 // NewServer returns a server.
-func NewServer(opts *engineio.Options) *Server {
+func NewServer(opts ...engineio.Option) *Server {
 	return &Server{
 		handlers: newNamespaceHandlers(),
-		engine:   engineio.NewServer(opts),
+		engine:   engineio.NewServer(opts...),
 	}
 }
 

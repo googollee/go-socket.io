@@ -17,16 +17,19 @@ var allowOriginFunc = func(r *http.Request) bool {
 }
 
 func main() {
-	server := socketio.NewServer(&engineio.Options{
-		Transports: []transport.Transport{
-			&polling.Transport{
-				CheckOrigin: allowOriginFunc,
+
+	server := socketio.NewServer(
+		engineio.WithTransports(
+			[]transport.Transport{
+				&polling.Transport{
+					CheckOrigin: allowOriginFunc,
+				},
+				&websocket.Transport{
+					CheckOrigin: allowOriginFunc,
+				},
 			},
-			&websocket.Transport{
-				CheckOrigin: allowOriginFunc,
-			},
-		},
-	})
+		),
+	)
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
