@@ -5,13 +5,21 @@ import (
 	"time"
 )
 
-var creators = make(map[string]Creator)
+var creators = make(map[Name]Creator)
 
-func Register(name string, creator Creator) {
+type Name string
+
+const (
+	Polling   Name = "polling"
+	Websocket      = "websocket"
+	SSE            = "sse"
+)
+
+func Register(name Name, creator Creator) {
 	creators[name] = creator
 }
 
-func Create(name string, pingTimeout time.Duration, callbacks Callbacks) (Transport, error) {
+func Create(name Name, pingTimeout time.Duration, callbacks Callbacks) (Transport, error) {
 	creator, ok := creators[name]
 	if !ok {
 		return nil, fmt.Errorf("no transport with name %s", name)

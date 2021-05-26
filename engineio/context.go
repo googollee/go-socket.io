@@ -21,8 +21,12 @@ type Context struct {
 	Request *http.Request
 
 	// The current packet infomation.
-	PacketType packet.Type
-	Reader     io.Reader
+	Packet Packet
+}
+
+type Packet struct {
+	Type packet.Type
+	Body io.Reader
 }
 
 // Next calls following middlewares in engine.io framework.

@@ -9,26 +9,27 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio"
 	"github.com/googollee/go-socket.io/engineio/frame"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 func main() {
 	ctx := context.Background()
 	client, err := engineio.NewClient(
 		engineio.OptionMaxBufferSize(1*1024*1024),
-		engineio.OptionTransports("polling", "sse", "websocket"),
+		engineio.OptionTransports(transport.Polling, transport.Websocket, transport.SSE),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	client.With(func(ctx *engineio.Context) {
-		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.PacketType)
+		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.Packet.Type)
 		ctx.Next()
 	})
 
 	client.OnMessage(func(ctx *engineio.Context) {
 		var data [1024]byte
-		n, err := ctx.Reader.Read(data[:])
+		n, err := ctx.Packet.Body.Read(data[:])
 		if err != nil {
 			log.Fatalf("read from engineio sid %s error: %s", ctx.Session.ID(), err)
 			ctx.Session.Close()

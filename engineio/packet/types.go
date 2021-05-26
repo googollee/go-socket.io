@@ -3,11 +3,11 @@ package packet
 type Type int
 
 const (
-	PacketOpen Type = iota
-	PacketClose
-	PacketPing
-	PacketPong
-	PacketMessage
-	PacketUpgrade
-	PacketNoop
+	Open Type = iota
+	Close
+	Ping
+	Pong
+	Message
+	Upgrade
+	Noop
 )

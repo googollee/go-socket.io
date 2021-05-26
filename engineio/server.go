@@ -4,17 +4,18 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/log"
 )
 
 type Options func(*Server)
 
-func OptionPingInterval(time.Duration) Options                      { return nil }
-func OptionPingTimeout(time.Duration) Options                       { return nil }
-func OptionMaxBufferSize(int) Options                               { return nil }
-func OptionLogger(logger log.Logger) Options                        { return nil }
-func OptionTransports(initial string, upgradings ...string) Options { return nil }
-func OptionJSONP(padding int) Options                               { return nil }
+func OptionPingInterval(time.Duration) Options                                      { return nil }
+func OptionPingTimeout(time.Duration) Options                                       { return nil }
+func OptionMaxBufferSize(int) Options                                               { return nil }
+func OptionLogger(logger log.Logger) Options                                        { return nil }
+func OptionTransports(initial transport.Name, upgradings ...transport.Name) Options { return nil }
+func OptionJSONP(padding int) Options                                               { return nil }
 
 type Server struct{}
 

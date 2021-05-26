@@ -7,11 +7,12 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio"
 	"github.com/googollee/go-socket.io/engineio/frame"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 func main() {
 	eio, err := engineio.New(
-		engineio.OptionTransports("polling", "sse", "websocket"),
+		engineio.OptionTransports(transport.Polling, transport.SSE, transport.Websocket),
 		engineio.OptionJSONP(4), // polling with jsonp `__eio[4]("packet data")`
 		engineio.OptionPingInterval(25*time.Second),
 		engineio.OptionPingTimeout(50*time.Second),
@@ -23,7 +24,7 @@ func main() {
 	}
 
 	eio.With(func(ctx *engineio.Context) {
-		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.PacketType)
+		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.Packet.Type)
 		ctx.Next()
 	})
 
@@ -40,7 +41,7 @@ func main() {
 
 	eio.OnMessage(func(ctx *engineio.Context) {
 		var data [1024]byte
-		n, err := ctx.Reader.Read(data[:])
+		n, err := ctx.Packet.Body.Read(data[:])
 		if err != nil {
 			log.Fatalf("read from engineio sid %s error: %s", ctx.Session.ID(), err)
 			ctx.Session.Close()
