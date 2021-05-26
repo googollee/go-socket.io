@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"io"
 	"net/http"
 	"time"
 
@@ -25,13 +26,13 @@ func New(...Options) (*Server, error) {
 
 // OnXXX should be called before serving HTTP.
 // The engineio framework processes next messages after OnXXX() done. All callback passing to OnXXX should return ASAP.
-func (s *Server) OnOpen(func(*Context) error)   {}
-func (s *Server) OnMessage(func(*Context))      {}
-func (s *Server) OnError(func(*Context, error)) {}
-func (s *Server) OnClose(func(*Context))        {}
+func (s *Server) OnOpen(func(*Context) error)         {}
+func (s *Server) OnMessage(func(*Context, io.Reader)) {}
+func (s *Server) OnError(func(*Context, error))       {}
+func (s *Server) OnClose(func(*Context))              {}
 
 // With adds an middleware to process packets.
 // Be careful when reading content from ctx.Reader(). Other middlewares and handler can't read from it again.
-func (s *Server) With(func(*Context)) {}
+func (s *Server) With(func(*Context, *Packet)) {}
 
 func (s *Server) ServeHTTP(http.ResponseWriter, *http.Request) {}

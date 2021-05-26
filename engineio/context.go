@@ -19,15 +19,13 @@ type Context struct {
 	// The http.Request of current HTTP request.
 	// It may be different when using polling transport.
 	Request *http.Request
-
-	// The current packet infomation.
-	Packet Packet
 }
 
+// Packet has information of a packet.
 type Packet struct {
 	Type packet.Type
 	Body io.Reader
 }
 
 // Next calls following middlewares in engine.io framework.
-func (c *Context) Next() {}
+func (c *Context) Next(*Packet) {}

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -22,14 +23,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client.With(func(ctx *engineio.Context) {
-		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.Packet.Type)
-		ctx.Next()
+	client.With(func(ctx *engineio.Context, pkt *engineio.Packet) {
+		log.Printf("session %s get %v packet", ctx.Session.ID(), pkt.Type)
+		ctx.Next(pkt)
 	})
 
-	client.OnMessage(func(ctx *engineio.Context) {
+	client.OnMessage(func(ctx *engineio.Context, rd io.Reader) {
 		var data [1024]byte
-		n, err := ctx.Packet.Body.Read(data[:])
+		n, err := rd.Read(data[:])
 		if err != nil {
 			log.Fatalf("read from engineio sid %s error: %s", ctx.Session.ID(), err)
 			ctx.Session.Close()

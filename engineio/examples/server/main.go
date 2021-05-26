@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -23,9 +24,9 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	eio.With(func(ctx *engineio.Context) {
-		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.Packet.Type)
-		ctx.Next()
+	eio.With(func(ctx *engineio.Context, req *engineio.Packet) {
+		log.Printf("session %s get %v packet", ctx.Session.ID(), req.Type)
+		ctx.Next(req)
 	})
 
 	eio.OnOpen(func(ctx *engineio.Context) error {
@@ -39,9 +40,9 @@ func main() {
 		return nil
 	})
 
-	eio.OnMessage(func(ctx *engineio.Context) {
+	eio.OnMessage(func(ctx *engineio.Context, rd io.Reader) {
 		var data [1024]byte
-		n, err := ctx.Packet.Body.Read(data[:])
+		n, err := rd.Read(data[:])
 		if err != nil {
 			log.Fatalf("read from engineio sid %s error: %s", ctx.Session.ID(), err)
 			ctx.Session.Close()
