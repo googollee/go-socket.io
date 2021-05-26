@@ -24,7 +24,7 @@ type Context struct {
 // Packet has information of a packet.
 type Packet struct {
 	Type packet.Type
-	Body io.Reader
+	io.Reader
 }
 
 // Next calls following middlewares in engine.io framework.
