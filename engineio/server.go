@@ -36,3 +36,9 @@ func (s *Server) OnClose(func(*Context))              {}
 func (s *Server) With(func(*Context, *Packet)) {}
 
 func (s *Server) ServeHTTP(http.ResponseWriter, *http.Request) {}
+
+// Error is an engineio error with more details info.
+type Error interface {
+	// Temporary returns true if the framework doesn't close the session when this error happens.
+	Temporary() bool
+}
