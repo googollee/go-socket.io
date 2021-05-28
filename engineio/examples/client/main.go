@@ -65,7 +65,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	w.Write([]byte("hello engineio.io!\n"))
+	w.Write([]byte("hello engine.io!\n"))
 	w.Close()
 
 	time.Sleep(time.Second)
