@@ -35,6 +35,7 @@ type Callbacks interface {
 
 	// OnFrame is called when the transport t receives a frame.
 	// The HTTP request of that frame is req.
+	// If it returns an error, the transport may reject the request.
 	OnFrame(t Transport, req *http.Request, ft frame.Type, rd io.Reader) error
 
 	// OnError is called when the transport meets an error.
