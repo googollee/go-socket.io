@@ -38,7 +38,7 @@ func (a *bufAllocator) New() []byte {
 
 func (a *bufAllocator) Free(b []byte) {
 	atomic.AddInt64(&a.count, -1)
-	a.pool.Put(b)
+	a.pool.Put(b) //nolint:staticcheck // []byte is a type of pointer.
 }
 
 type callbackFuncs struct {
@@ -206,7 +206,7 @@ func TestPolllingGetPingTimeout(t *testing.T) {
 
 	start := time.Now()
 	polling.ServeHTTP(resp, req)
-	dur := time.Now().Sub(start)
+	dur := time.Since(start)
 
 	if want, got := http.StatusOK, resp.Code; want != got {
 		t.Fatalf("get response code, want: %v, got: %v", want, got)
@@ -215,10 +215,10 @@ func TestPolllingGetPingTimeout(t *testing.T) {
 		t.Fatalf("get response body, want: %v, got: %v", want, got)
 	}
 
-	if dur := pingAt.Sub(start); math.Abs(float64(dur-pingInterval)) < 0.001*float64(time.Second) {
+	if dur := pingAt.Sub(start); math.Abs(float64(dur-pingInterval)) >= 0.01*float64(time.Second) {
 		t.Fatalf("the duration of start -> ping should wait %s, but %s", pingInterval, dur)
 	}
-	if math.Abs(float64(dur-pingInterval)) < 0.001*float64(time.Second) {
+	if math.Abs(float64(dur-pingInterval)) >= 0.01*float64(time.Second) {
 		t.Fatalf("the duration of get response should wait %s, but %s", pingInterval, dur)
 	}
 }

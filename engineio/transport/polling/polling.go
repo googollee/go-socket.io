@@ -80,7 +80,7 @@ func (p *Polling) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.servePost(w, r)
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("invalid method " + r.Method))
+		_, _ = w.Write([]byte("invalid method " + r.Method))
 	}
 }
 
@@ -97,11 +97,11 @@ func (p *Polling) servePost(w http.ResponseWriter, r *http.Request) {
 		}()
 	case <-p.closed:
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("closed session"))
+		_, _ = w.Write([]byte("closed session"))
 		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("overlapped post"))
+		_, _ = w.Write([]byte("overlapped post"))
 		return
 	}
 
@@ -123,13 +123,13 @@ func (p *Polling) servePost(w http.ResponseWriter, r *http.Request) {
 				code = he.Code()
 			}
 			w.WriteHeader(code)
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	_, _ = w.Write([]byte("ok"))
 }
 
 func (p *Polling) serveGet(w http.ResponseWriter, r *http.Request) {
@@ -140,11 +140,11 @@ func (p *Polling) serveGet(w http.ResponseWriter, r *http.Request) {
 		}()
 	case <-p.closed:
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("closed session"))
+		_, _ = w.Write([]byte("closed session"))
 		return
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("overlapped get"))
+		_, _ = w.Write([]byte("overlapped get"))
 		return
 	}
 

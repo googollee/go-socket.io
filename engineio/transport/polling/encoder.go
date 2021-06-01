@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -23,7 +22,6 @@ type encoder struct {
 	writer            *bufWriter
 	hasFramesChan     chan struct{}
 	closed            chan struct{}
-	closeOnce         sync.Once
 	hasNonClosedFrame int32
 }
 
@@ -65,7 +63,7 @@ func (e *encoder) NextFrame(ft frame.Type) (io.WriteCloser, error) {
 }
 
 func (e *encoder) WriteFramesTo(w io.Writer) error {
-	pingTimeout := e.pingTimeout - time.Now().Sub(e.lastPing)
+	pingTimeout := e.pingTimeout - time.Since(e.lastPing)
 	select {
 	case <-e.hasFramesChan:
 	case <-time.After(pingTimeout):

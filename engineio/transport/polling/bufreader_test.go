@@ -90,6 +90,9 @@ func TestBufReaderPushBack(t *testing.T) {
 		}
 
 		got, err := ioutil.ReadAll(bufReader)
+		if err != nil {
+			t.Fatalf("read error when reading %q: %s", test.data, err)
+		}
 		if diff := cmp.Diff(string(got), test.want); diff != "" {
 			t.Errorf("read %q after PushBack(%d) diff:\n%s", test.data, test.pushback, diff)
 		}

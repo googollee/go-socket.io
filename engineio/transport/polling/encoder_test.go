@@ -112,7 +112,7 @@ func TestEncoderTimeout(t *testing.T) {
 		t.Fatalf("err want: %s, got: %s", want, err)
 	}
 
-	dur := time.Now().Sub(start)
+	dur := time.Since(start)
 	diff := dur - wantTimeout
 	if math.Abs(float64(diff)) >= 0.01*float64(time.Second) {
 		t.Fatalf("timeout want: %s, got: %s", wantTimeout, dur)
@@ -164,7 +164,7 @@ func TestEncoderWriteFrameWhileWait(t *testing.T) {
 	if err := encoder.WriteFramesTo(&output); err != nil {
 		t.Fatalf("write frames to buffer error: %s", err)
 	}
-	gotWait := time.Now().Sub(start)
+	gotWait := time.Since(start)
 
 	wg.Wait()
 	if frameError != nil {
@@ -271,7 +271,7 @@ func TestEncoderWaitFrameClose(t *testing.T) {
 
 	start := time.Now()
 	encoder.WaitFrameClose()
-	gotWait := time.Now().Sub(start)
+	gotWait := time.Since(start)
 
 	if math.Abs(float64(gotWait-wantWait)) >= float64(time.Second)*0.01 {
 		t.Errorf("close wait time, want: %s, got: %s", wantWait, gotWait)
