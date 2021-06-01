@@ -3,7 +3,8 @@ package transport
 import (
 	"io"
 	"net/http"
-	"time"
+
+	"github.com/googollee/go-socket.io/engineio/frame"
 )
 
 // Transport is a transport to maintain a connection. It assumes that all
@@ -18,26 +19,10 @@ type Transport interface {
 	Close() error
 
 	// SendFrame creates an frame writer to send an frame.
-	SendFrame() (FrameWriter, error)
+	SendFrame(frame.Type) (io.WriteCloser, error)
 
 	// ServeHTTP serves HTTP requests.
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
-}
-
-// FrameReader provides a reader to read a frame.
-type FrameReader interface {
-	io.Reader
-
-	// ReadByte reads a byte.
-	ReadByte() (byte, error)
-}
-
-// FrameWriter provides a writer to write a frame.
-type FrameWriter interface {
-	io.Writer
-
-	// WriteByte writes a byte.
-	WriteByte(b byte) error
 }
 
 // Callbacks is a group of callback functions which a transport may call
@@ -50,7 +35,8 @@ type Callbacks interface {
 
 	// OnFrame is called when the transport t receives a frame.
 	// The HTTP request of that frame is req.
-	OnFrame(t Transport, req *http.Request, rd FrameReader) error
+	// If it returns an error, the transport may reject the request.
+	OnFrame(t Transport, req *http.Request, ft frame.Type, rd io.Reader) error
 
 	// OnError is called when the transport meets an error.
 	// It could be an error when processing receiving data, or an error when
@@ -58,8 +44,3 @@ type Callbacks interface {
 	// The call of OnError could be in different goroutines.
 	OnError(t Transport, err error)
 }
-
-// Creator is a function to create a transport.
-// In v4, pingTimeout is a duration of pingInterval.
-// In v3, pingTimeout is a duration of pingTimeout.
-type Creator func(pingTimeout time.Duration, callbacks Callbacks) Transport

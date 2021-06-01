@@ -8,28 +8,29 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/googollee/go-socket.io/engine"
+	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/engineio/frame"
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 func main() {
 	ctx := context.Background()
-	client, err := engine.NewClient(
-		engine.OptionMaxBufferSize(1*1024*1024),
-		engine.OptionLogLevel(engine.LogDebug),
-		engine.OptionTransports("polling", "sse", "websocket"),
+	client, err := engineio.NewClient(
+		engineio.OptionMaxBufferSize(1*1024*1024),
+		engineio.OptionTransports(transport.Polling, transport.Websocket, transport.SSE),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	client.With(func(ctx *engine.Context) {
-		log.Printf("session %s get %v packet", ctx.Session.ID(), ctx.PacketType)
-		ctx.Next()
+	client.With(func(ctx *engineio.Context, pkt *engineio.Packet) {
+		log.Printf("session %s get %v packet", ctx.Session.ID(), pkt.Type)
+		ctx.Next(pkt)
 	})
 
-	client.OnMessage(func(ctx *engine.Context, msg io.Reader) {
+	client.OnMessage(func(ctx *engineio.Context, rd io.Reader) {
 		var data [1024]byte
-		n, err := msg.Read(data[:])
+		n, err := rd.Read(data[:])
 		if err != nil {
 			log.Fatalf("read from engineio sid %s error: %s", ctx.Session.ID(), err)
 			ctx.Session.Close()
@@ -39,12 +40,12 @@ func main() {
 		fmt.Println(string(data[:n]))
 	})
 
-	client.OnError(func(ctx *engine.Context, err error) {
+	client.OnError(func(ctx *engineio.Context, err error) {
 		log.Printf("engineio sid %s got error: %s", ctx.Session.ID(), err)
 		ctx.Session.Close()
 	})
 
-	client.OnClosed(func(ctx *engine.Context) {
+	client.OnClose(func(ctx *engineio.Context) {
 		url := ctx.Session.Get("url").(string)
 		log.Printf("engineio sid %s from %s closed", ctx.Session.ID(), url)
 	})
@@ -60,7 +61,7 @@ func main() {
 	}
 	defer client.Close()
 
-	w, err := client.SendFrame(engine.FrameText)
+	w, err := client.SendFrame(frame.Text)
 	if err != nil {
 		log.Fatalln(err)
 	}
