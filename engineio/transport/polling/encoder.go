@@ -2,18 +2,11 @@ package polling
 
 import (
 	"encoding/base64"
-	"errors"
 	"io"
 	"sync/atomic"
 	"time"
 
 	"github.com/googollee/go-socket.io/engineio/frame"
-)
-
-var (
-	ErrPingTimeout          = errors.New("ping timeout")
-	ErrSeparatorInTextFrame = errors.New("should not write 0x1e to text frames")
-	ErrNonCloseFrame        = errors.New("has a non-closed frame")
 )
 
 // encoder encodes frames to the writer.

@@ -1,7 +1,6 @@
 package polling
 
 import (
-	"fmt"
 	"io"
 )
 
@@ -57,7 +56,7 @@ func (r *bufReader) Read(b []byte) (int, error) {
 // It can't push back data out of the buffer.
 func (r *bufReader) PushBack(n int) error {
 	if n > r.start || n < 0 {
-		return fmt.Errorf("not enough buf to push back.")
+		return ErrNoEnoughBuf
 	}
 
 	r.start -= n

@@ -1,6 +1,7 @@
 package polling
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -13,6 +14,14 @@ import (
 const (
 	separator    = 0x1e
 	binaryPrefix = 'b'
+)
+
+var (
+	ErrNoEnoughBuf          = errors.New("not enough buf to push back")
+	ErrNoSpace              = errors.New("no enough space to write")
+	ErrPingTimeout          = errors.New("ping timeout")
+	ErrSeparatorInTextFrame = errors.New("should not write 0x1e to text frames")
+	ErrNonCloseFrame        = errors.New("has a non-closed frame")
 )
 
 func init() {
@@ -83,8 +92,7 @@ func (p *polling) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		p.servePost(w, r)
 	default:
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("invalid method " + r.Method))
+		p.responseHTTP(w, r, http.StatusBadRequest, "invalid method "+r.Method)
 	}
 }
 
@@ -100,12 +108,10 @@ func (p *polling) servePost(w http.ResponseWriter, r *http.Request) {
 			p.post <- struct{}{}
 		}()
 	case <-p.closed:
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("closed session"))
+		p.responseHTTP(w, r, http.StatusBadRequest, "closed session")
 		return
 	default:
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("overlapped post"))
+		p.responseHTTP(w, r, http.StatusBadRequest, "overlapped post")
 		return
 	}
 
@@ -126,14 +132,12 @@ func (p *polling) servePost(w http.ResponseWriter, r *http.Request) {
 			if he, ok := err.(httpError); ok {
 				code = he.Code()
 			}
-			w.WriteHeader(code)
-			_, _ = w.Write([]byte(err.Error()))
+			p.responseHTTP(w, r, code, err.Error())
 			return
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
+	p.responseHTTP(w, r, http.StatusOK, "ok")
 }
 
 func (p *polling) serveGet(w http.ResponseWriter, r *http.Request) {
@@ -143,12 +147,10 @@ func (p *polling) serveGet(w http.ResponseWriter, r *http.Request) {
 			p.get <- struct{}{}
 		}()
 	case <-p.closed:
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("closed session"))
+		p.responseHTTP(w, r, http.StatusBadRequest, "closed session")
 		return
 	default:
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("overlapped get"))
+		p.responseHTTP(w, r, http.StatusBadRequest, "overlapped get")
 		return
 	}
 
@@ -158,12 +160,24 @@ func (p *polling) serveGet(w http.ResponseWriter, r *http.Request) {
 			p.callbacks.OnPingTimeout(p)
 			// loop again to write ping frame out or break if the session is closed.
 		case io.EOF:
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte("closed session"))
+			p.responseHTTP(w, r, http.StatusBadRequest, "closed session")
 			return
 		case nil:
 			return
 		default:
+			p.callbacks.OnError(p, err)
+			return
+		}
+	}
+}
+
+func (p *polling) responseHTTP(w http.ResponseWriter, r *http.Request, code int, msg string) {
+	w.WriteHeader(code)
+	data := []byte(msg)
+	for len(data) > 0 {
+		n, err := w.Write([]byte(msg))
+		data = data[n:]
+		if err != nil {
 			p.callbacks.OnError(p, err)
 			return
 		}

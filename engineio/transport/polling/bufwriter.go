@@ -2,12 +2,9 @@ package polling
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"sync"
 )
-
-var ErrNoSpace = errors.New("no enough space to write")
 
 // bufWriter provides a buffer to write. It could write finished frames to other writer.
 type bufWriter struct {
