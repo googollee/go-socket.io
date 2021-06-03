@@ -19,7 +19,7 @@ func init() {
 	transport.Register(transport.Polling, newPolling)
 }
 
-type Polling struct {
+type polling struct {
 	allocator transport.BufferAllocator
 	callbacks transport.Callbacks
 
@@ -34,7 +34,7 @@ type Polling struct {
 }
 
 func newPolling(pingInterval time.Duration, alloc transport.BufferAllocator, callbacks transport.Callbacks) transport.Transport {
-	ret := &Polling{
+	ret := &polling{
 		allocator: alloc,
 		callbacks: callbacks,
 		post:      make(chan struct{}, 1),
@@ -51,11 +51,11 @@ func newPolling(pingInterval time.Duration, alloc transport.BufferAllocator, cal
 	return ret
 }
 
-func (p *Polling) Name() string {
+func (p *polling) Name() string {
 	return string(transport.Polling)
 }
 
-func (p *Polling) Close() error {
+func (p *polling) Close() error {
 	p.closeOnce.Do(func() {
 		close(p.closed)
 
@@ -72,11 +72,11 @@ func (p *Polling) Close() error {
 	return nil
 }
 
-func (p *Polling) SendFrame(ft frame.Type) (io.WriteCloser, error) {
+func (p *polling) SendFrame(ft frame.Type) (io.WriteCloser, error) {
 	return p.encoder.NextFrame(ft)
 }
 
-func (p *Polling) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p *polling) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		p.serveGet(w, r)
@@ -93,7 +93,7 @@ type httpError interface {
 	Code() int
 }
 
-func (p *Polling) servePost(w http.ResponseWriter, r *http.Request) {
+func (p *polling) servePost(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-p.post:
 		defer func() {
@@ -136,7 +136,7 @@ func (p *Polling) servePost(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("ok"))
 }
 
-func (p *Polling) serveGet(w http.ResponseWriter, r *http.Request) {
+func (p *polling) serveGet(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-p.get:
 		defer func() {

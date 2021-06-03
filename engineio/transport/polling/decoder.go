@@ -8,9 +8,10 @@ import (
 	"github.com/googollee/go-socket.io/engineio/frame"
 )
 
+// decoder decodes frames from the reader.
 type decoder struct {
 	reader    *bufReader
-	lastFrame *FrameReader
+	lastFrame *frameReader
 }
 
 func newDecoder(buf []byte, r io.Reader) *decoder {
@@ -19,6 +20,7 @@ func newDecoder(buf []byte, r io.Reader) *decoder {
 	}
 }
 
+// NextFrame returns a reader to read the next frame.
 func (d *decoder) NextFrame() (frame.Type, io.Reader, error) {
 	if d.lastFrame != nil {
 		if err := d.lastFrame.Discard(); err != nil {
@@ -43,7 +45,7 @@ func (d *decoder) NextFrame() (frame.Type, io.Reader, error) {
 		}
 	}
 
-	d.lastFrame = &FrameReader{
+	d.lastFrame = &frameReader{
 		reader:   d.reader,
 		finished: false,
 	}
@@ -62,12 +64,14 @@ func (d *decoder) NextFrame() (frame.Type, io.Reader, error) {
 	return frame.Text, d.lastFrame, nil
 }
 
-type FrameReader struct {
+// frameReader is a reader to read one frame.
+type frameReader struct {
 	reader   *bufReader
 	finished bool
 }
 
-func (r *FrameReader) Read(b []byte) (int, error) {
+// Read reads data of the frame to buffer b.
+func (r *frameReader) Read(b []byte) (int, error) {
 	n, err := r.reader.Read(b)
 	for i := 0; i < n; i++ {
 		if b[i] == separator {
@@ -90,7 +94,8 @@ func (r *FrameReader) Read(b []byte) (int, error) {
 	return n, err
 }
 
-func (r *FrameReader) ReadByte() (byte, error) {
+// ReadByte reads a byte in the frame.
+func (r *frameReader) ReadByte() (byte, error) {
 	ret, err := r.reader.ReadByte()
 	if err != nil {
 		return 0, err
@@ -106,7 +111,8 @@ func (r *FrameReader) ReadByte() (byte, error) {
 	return ret, nil
 }
 
-func (r *FrameReader) Discard() error {
+// Discard discards all data in the frame.
+func (r *frameReader) Discard() error {
 	var buf [1024]byte
 	for {
 		_, err := r.Read(buf[:])

@@ -12,10 +12,11 @@ import (
 
 var (
 	ErrPingTimeout          = errors.New("ping timeout")
-	ErrSeparatorInTextFrame = errors.New("should not write 0x1e to text frames.")
-	ErrNonCloseFrame        = errors.New("has a non-closed frame writer")
+	ErrSeparatorInTextFrame = errors.New("should not write 0x1e to text frames")
+	ErrNonCloseFrame        = errors.New("has a non-closed frame")
 )
 
+// encoder encodes frames to the writer.
 type encoder struct {
 	pingTimeout       time.Duration
 	lastPing          time.Time
@@ -35,6 +36,7 @@ func newEncoder(pingTimouet time.Duration, closed chan struct{}, buf []byte) *en
 	}
 }
 
+// NextFrame returns a writer to write the next frame.
 func (e *encoder) NextFrame(ft frame.Type) (io.WriteCloser, error) {
 	select {
 	case <-e.closed:
@@ -62,6 +64,7 @@ func (e *encoder) NextFrame(ft frame.Type) (io.WriteCloser, error) {
 	return ret, nil
 }
 
+// WriteFramesTo writes finished frames to the writer w.
 func (e *encoder) WriteFramesTo(w io.Writer) error {
 	pingTimeout := e.pingTimeout - time.Since(e.lastPing)
 	select {
@@ -80,6 +83,7 @@ func (e *encoder) WriteFramesTo(w io.Writer) error {
 	return nil
 }
 
+// WaitFrameClose waits for the current frame writer finishing.
 func (e *encoder) WaitFrameClose() {
 	if atomic.LoadInt32(&e.hasNonClosedFrame) == 0 {
 		return

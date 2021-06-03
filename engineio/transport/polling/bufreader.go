@@ -5,6 +5,7 @@ import (
 	"io"
 )
 
+// bufReader is similar to bufio.Reader, with a customed buffer.
 type bufReader struct {
 	buf        []byte
 	start, end int
@@ -19,6 +20,7 @@ func newBufReader(buf []byte, rd io.Reader) *bufReader {
 	}
 }
 
+// Fill reads data from underline reader to the buffer.
 func (r *bufReader) Fill() error {
 	if r.start != r.end {
 		return nil
@@ -35,6 +37,7 @@ func (r *bufReader) Fill() error {
 	return err
 }
 
+// Read store bytes to b.
 func (r *bufReader) Read(b []byte) (int, error) {
 	if err := r.Fill(); err != nil {
 		return 0, err
@@ -50,6 +53,8 @@ func (r *bufReader) Read(b []byte) (int, error) {
 	return n, nil
 }
 
+// PushBack pushes n bytes back to the buffer.
+// It can't push back data out of the buffer.
 func (r *bufReader) PushBack(n int) error {
 	if n > r.start || n < 0 {
 		return fmt.Errorf("not enough buf to push back.")
@@ -59,6 +64,7 @@ func (r *bufReader) PushBack(n int) error {
 	return nil
 }
 
+// ReadByte reads a byte from buffer.
 func (r *bufReader) ReadByte() (byte, error) {
 	if err := r.Fill(); err != nil {
 		return 0, err

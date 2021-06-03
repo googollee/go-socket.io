@@ -9,6 +9,7 @@ import (
 
 var ErrNoSpace = errors.New("no enough space to write")
 
+// bufWriter provides a buffer to write. It could write finished frames to other writer.
 type bufWriter struct {
 	locker sync.Mutex
 	data   []byte
@@ -21,6 +22,8 @@ func newBufWriter(buf []byte) *bufWriter {
 	}
 }
 
+// Write writes data b to the buffer.
+// This method is thread safe.
 func (w *bufWriter) Write(b []byte) (int, error) {
 	if len(b) == 0 {
 		return 0, nil
@@ -43,6 +46,8 @@ func (w *bufWriter) Write(b []byte) (int, error) {
 	return l, nil
 }
 
+// WriteByte writes a byte b to the buffer.
+// This method is thread safe.
 func (w *bufWriter) WriteByte(b byte) error {
 	w.locker.Lock()
 	defer w.locker.Unlock()
@@ -58,6 +63,8 @@ func (w *bufWriter) WriteByte(b byte) error {
 	return nil
 }
 
+// WriteFinishedFrames write finished frames in the buffer to the writer to.
+// This method is thread safe.
 func (w *bufWriter) WriteFinishedFrames(to io.Writer) (int, error) {
 	w.locker.Lock()
 	defer w.locker.Unlock()
