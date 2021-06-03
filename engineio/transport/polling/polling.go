@@ -3,6 +3,7 @@ package polling
 import (
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/googollee/go-socket.io/engineio/frame"
@@ -22,9 +23,10 @@ type Polling struct {
 	allocator transport.BufferAllocator
 	callbacks transport.Callbacks
 
-	post   chan struct{}
-	get    chan struct{}
-	closed chan struct{}
+	post      chan struct{}
+	get       chan struct{}
+	closed    chan struct{}
+	closeOnce sync.Once
 
 	readBuf  []byte
 	writeBuf []byte
@@ -54,17 +56,19 @@ func (p *Polling) Name() string {
 }
 
 func (p *Polling) Close() error {
-	<-p.post
-	<-p.get
-	close(p.closed)
+	p.closeOnce.Do(func() {
+		close(p.closed)
 
-	p.encoder.WaitFrameClose()
-	p.encoder = nil
+		// wait for all requests.
+		<-p.post
+		<-p.get
 
-	p.allocator.Free(p.readBuf)
-	p.allocator.Free(p.writeBuf)
-	p.readBuf = nil
-	p.writeBuf = nil
+		p.allocator.Free(p.readBuf)
+		p.allocator.Free(p.writeBuf)
+		p.readBuf = nil
+		p.writeBuf = nil
+	})
+
 	return nil
 }
 
@@ -149,16 +153,19 @@ func (p *Polling) serveGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for {
-		err := p.encoder.WriteFramesTo(w)
-		if err == nil {
+		switch err := p.encoder.WriteFramesTo(w); err {
+		case ErrPingTimeout:
+			p.callbacks.OnPingTimeout(p)
+			// loop again to write ping frame out or break if the session is closed.
+		case io.EOF:
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("closed session"))
+			return
+		case nil:
+			return
+		default:
+			p.callbacks.OnError(p, err)
 			return
 		}
-
-		if err == ErrPingTimeout {
-			p.callbacks.OnPingTimeout(p)
-			continue
-		}
-
-		p.callbacks.OnError(p, err)
 	}
 }

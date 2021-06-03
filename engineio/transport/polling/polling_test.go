@@ -222,3 +222,283 @@ func TestPolllingGetPingTimeout(t *testing.T) {
 		t.Fatalf("the duration of get response should wait %s, but %s", pingInterval, dur)
 	}
 }
+
+func TestPollingGetOverlapped(t *testing.T) {
+	alloc := allocator()
+	wait := make(chan int)
+	callbacks := callbackFuncs{}
+	callbacks.onPingTimeout = func(t transport.Transport) {
+		wait <- 1
+		time.Sleep(time.Second / 3) // Let the other GET request go.
+
+		// Write something to let this GET request go.
+		wr, _ := t.SendFrame(frame.Text)
+		_, _ = wr.Write([]byte("ping"))
+		_ = wr.Close()
+	}
+	pingInterval := time.Second / 10
+	polling := newPolling(pingInterval, alloc, callbacks)
+
+	req1, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatalf("new request errro: %s", err)
+	}
+	resp1 := httptest.NewRecorder()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		polling.ServeHTTP(resp1, req1)
+	}()
+
+	<-wait
+
+	req2, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatalf("new request error: %s", err)
+	}
+	resp2 := httptest.NewRecorder()
+
+	polling.ServeHTTP(resp2, req2)
+
+	if resp2.Code != http.StatusBadRequest {
+		t.Fatalf("The second GET should response with code: StatusBadRequest, got: %d", resp2.Code)
+	}
+
+	wg.Wait()
+
+	if resp1.Code != http.StatusOK {
+		t.Fatalf("The first GET should response with code: StatusOK, got: %d", resp1.Code)
+	}
+}
+
+func TestPollingPostOverlapped(t *testing.T) {
+	alloc := allocator()
+	wait := make(chan int)
+	callbacks := callbackFuncs{}
+	callbacks.onFrame = func(t transport.Transport, req *http.Request, ft frame.Type, rd io.Reader) error {
+		wait <- 1
+		time.Sleep(time.Second / 3) // Let the other POST request go.
+		return nil
+	}
+	pingInterval := time.Second / 3
+	polling := newPolling(pingInterval, alloc, callbacks)
+
+	data := "12345"
+	req1, err := http.NewRequest("POST", "/", strings.NewReader(data))
+	if err != nil {
+		t.Fatalf("new request errro: %s", err)
+	}
+	resp1 := httptest.NewRecorder()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		polling.ServeHTTP(resp1, req1)
+	}()
+
+	<-wait
+
+	req2, err := http.NewRequest("POST", "/", strings.NewReader(data))
+	if err != nil {
+		t.Fatalf("new request errro: %s", err)
+	}
+	resp2 := httptest.NewRecorder()
+
+	polling.ServeHTTP(resp2, req2)
+
+	if resp2.Code != http.StatusBadRequest {
+		t.Fatalf("The second GET should response with code: StatusBadRequest, got: %d", resp2.Code)
+	}
+
+	wg.Wait()
+
+	if resp1.Code != http.StatusOK {
+		t.Fatalf("The first GET should response with code: StatusOK, got: %d", resp1.Code)
+	}
+}
+
+func TestPollingMethods(t *testing.T) {
+	tests := []struct {
+		method       string
+		responseCode int
+	}{
+		{"GET", http.StatusOK},
+		{"POST", http.StatusOK},
+
+		{"HEAD", http.StatusBadRequest},
+		{"OPTIONS", http.StatusBadRequest},
+		{"PUT", http.StatusBadRequest},
+		{"DELETE", http.StatusBadRequest},
+		{"CONNECT", http.StatusBadRequest},
+	}
+
+	alloc := allocator()
+	callbacks := callbackFuncs{}
+	callbacks.onPingTimeout = func(t transport.Transport) {
+		wr, _ := t.SendFrame(frame.Text)
+		_, _ = wr.Write([]byte("123"))
+		_ = wr.Close()
+	}
+	pingInterval := time.Second / 10
+	polling := newPolling(pingInterval, alloc, callbacks)
+	defer polling.Close()
+
+	for _, test := range tests {
+		req, err := http.NewRequest(test.method, "/", strings.NewReader(""))
+		if err != nil {
+			t.Fatalf("create method %s request error: %s", test.method, err)
+		}
+		resp := httptest.NewRecorder()
+
+		polling.ServeHTTP(resp, req)
+
+		if want, got := test.responseCode, resp.Code; want != got {
+			t.Errorf("the response of method %s, want: %d, got: %d", test.method, want, got)
+		}
+	}
+}
+
+func TestPollingClose(t *testing.T) {
+	wait := make(chan int)
+	alloc := allocator()
+	callbacks := callbackFuncs{}
+	blocking := time.Second / 4
+	callbacks.onFrame = func(t transport.Transport, req *http.Request, ft frame.Type, rd io.Reader) error {
+		wait <- 1
+		time.Sleep(blocking)
+		return nil
+	}
+	pingInterval := blocking * 10 // Long ping interval to block writing to Get request.
+	polling := newPolling(pingInterval, alloc, callbacks)
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	getReq, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatalf("get request error: %s", err)
+	}
+	getResp := httptest.NewRecorder()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		polling.ServeHTTP(getResp, getReq)
+	}()
+
+	postReq, err := http.NewRequest("POST", "/", strings.NewReader("1234"))
+	if err != nil {
+		t.Fatalf("post request error: %s", err)
+	}
+	postResp := httptest.NewRecorder()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		polling.ServeHTTP(postResp, postReq)
+	}()
+
+	time.Sleep(blocking / 10) // wait a while to let requests fire.
+
+	<-wait // get
+	start := time.Now()
+	if err := polling.Close(); err != nil {
+		t.Fatalf("close error: %s", err)
+	}
+	dur := time.Since(start)
+	if math.Abs(float64(dur-blocking)) >= 0.01*float64(time.Second) {
+		t.Fatalf("wait %s to close, too long", dur)
+	}
+
+	wg.Wait()
+
+	if want, got := http.StatusBadRequest, getResp.Code; want != got {
+		t.Fatalf("get response when closing, want: %d, got: %d", want, got)
+	}
+	if want, got := http.StatusOK, postResp.Code; want != got {
+		t.Fatalf("post response when closing, want: %d, got: %d", want, got)
+	}
+
+	// Close could be called mutiply times.
+	if err := polling.Close(); err != nil {
+		t.Fatalf("close error: %s", err)
+	}
+
+	// Requests after closed.
+	getResp = httptest.NewRecorder()
+	polling.ServeHTTP(getResp, getReq)
+	if want, got := http.StatusBadRequest, getResp.Code; want != got {
+		t.Fatalf("get response when closing, want: %d, got: %d", want, got)
+	}
+
+	postResp = httptest.NewRecorder()
+	polling.ServeHTTP(postResp, postReq)
+	if want, got := http.StatusBadRequest, postResp.Code; want != got {
+		t.Fatalf("post response when closing, want: %d, got: %d", want, got)
+	}
+}
+
+type testError struct {
+	error
+	code int
+}
+
+func (e testError) Code() int {
+	return e.code
+}
+
+func codeError(code int, err error) httpError {
+	return testError{
+		error: err,
+		code:  code,
+	}
+}
+
+func TestPollingOnFrameError(t *testing.T) {
+	tests := []struct {
+		code int
+	}{
+		{http.StatusBadRequest},
+	}
+
+	alloc := allocator()
+	callbacks := callbackFuncs{}
+	pingInterval := time.Second / 4
+
+	for _, test := range tests {
+		callbacks.onFrame = func(t transport.Transport, req *http.Request, ft frame.Type, rd io.Reader) error {
+			return codeError(test.code, io.EOF)
+		}
+		polling := newPolling(pingInterval, alloc, callbacks)
+
+		req, err := http.NewRequest("POST", "/", strings.NewReader("1234"))
+		if err != nil {
+			t.Fatalf("create request for code %d error: %s", test.code, err)
+		}
+		resp := httptest.NewRecorder()
+
+		polling.ServeHTTP(resp, req)
+
+		if want, got := test.code, resp.Code; want != got {
+			t.Fatalf("response code with OnFrame error, want: %d, got: %d", want, got)
+		}
+
+		if err := polling.Close(); err != nil {
+			t.Fatalf("code %d, close error: %s", test.code, err)
+		}
+	}
+}
+
+func TestPollingName(t *testing.T) {
+	alloc := allocator()
+	callbacks := callbackFuncs{}
+	pingInterval := time.Second / 4
+	polling := newPolling(pingInterval, alloc, callbacks)
+
+	if want, got := string(transport.Polling), polling.Name(); want != got {
+		t.Errorf("polling.Name(), want: %s, got: %s", want, got)
+	}
+}
