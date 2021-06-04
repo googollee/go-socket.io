@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<label for="ver">Choose EIO version:</label>
+<select name="ver" id="ver">
+  <option value="eio4">EIO4</option>
+  <option value="eio3">EIO3</option>
+</select>
+
+<label for="start">Choose a transport to start:</label>
+<select name="start" id="start">
+  <option value="polling">polling</option>
+  <option value="websocket">websocket</option>
+  <option value="sse">sse</option>
+</select>
+
+<label for="upgrade">Choose a transport to upgrade:</label>
+<select name="upgrade" id="upgrade">
+  <option value="websocket">websocket</option>
+  <option value="sse">sse</option>
+  <option value="">none</option>
+</select>
+
+<label for="jsonp">Use jsonp:</label>
+<select name="jsonp" id="jsonp">
+  <option value="no">no</option>
+  <option value="yes">yes</option>
+</select>
+
+<button type="button" onclick="go_io()">Go!</button>
+
+<script src="/sio3.js"></script>
+<script>let sio3 = io; io = undefined;</script>
+<script src="/sio2.js"></script>
+<script>let sio2 = io; io = undefined;</script>
+
+<script>
+  let go_io = function() {
+    let ver = document.getElementById("ver").value;
+    let start = document.getElementById("start").value;
+    let upgrade = document.getElementById("upgrade").value;
+    let jsonp = document.getElementById("jsonp").value;
+    let transports = [start];
+    if (upgrade != '') {
+      transports = [start, upgrade];
+    }
+
+    let sio = sio3;
+    if (ver == 'eio3') {
+      sio = sio2;
+    }
+
+    let socket = sio({
+      transports: transports,
+      jsonp: jsonp == 'yes',
+      forceJSONP: jsonp == 'yes',
+    });
+
+    socket.on('error', err => {
+      console.log('error: '+ err);
+    });
+
+    let count = 5;
+    let send = function() {
+      if (count <= 0) {
+        socket.close();
+        return;
+      }
+
+      count--;
+      socket.send('hello');
+      setTimeout(send, 1000);
+    }
+
+    socket.on('connect', so => {
+      socket.on('message', data => {
+        console.log('message: ' + data);
+      });
+      socket.emit('call', 'arg', data => {
+        console.log(data);
+      })
+      socket.on('disconnect', () => {
+        console.log('closed');
+      });
+      send();
+    });
+  }
+</script>
+
+</body>
+</html>
+
