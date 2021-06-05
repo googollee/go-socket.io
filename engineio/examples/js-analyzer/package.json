@@ -1,0 +1,16 @@
+{
+  "name": "eio-examples",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "eio3": "npm:engine.io-client@^3.5.2",
+    "eio4": "npm:engine.io-client@^4.1.4",
+    "engine.io": "^5.1.1"
+  }
+}
