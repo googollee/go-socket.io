@@ -17,7 +17,6 @@ var allowOriginFunc = func(r *http.Request) bool {
 }
 
 func main() {
-
 	server := socketio.NewServer(
 		engineio.WithTransports(
 			[]transport.Transport{

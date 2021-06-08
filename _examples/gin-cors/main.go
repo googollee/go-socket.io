@@ -30,7 +30,7 @@ func GinMiddleware(allowOrigin string) gin.HandlerFunc {
 func main() {
 	router := gin.New()
 
-	server := socketio.NewServer(nil)
+	server := socketio.NewServer()
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")

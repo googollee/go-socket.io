@@ -17,7 +17,7 @@ func cors(r *ghttp.Request) {
 func main() {
 	s := g.Server()
 
-	server := socketio.NewServer(nil)
+	server := socketio.NewServer()
 
 	s.BindMiddlewareDefault(cors)
 	s.BindHandler("/socket.io/", func(r *ghttp.Request) {

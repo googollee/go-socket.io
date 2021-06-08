@@ -18,7 +18,7 @@ const (
 )
 
 func main() {
-	server := socketio.NewServer(nil)
+	server := socketio.NewServer()
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")

@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	server := socketio.NewServer(nil)
+	server := socketio.NewServer()
 	
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")
@@ -58,7 +58,7 @@ func main() {
 
 ## How to use Redis broadcast adapter
 ```go
-server := socketio.NewServer(nil)
+server := socketio.NewServer()
 
 _, err := server.Adapter(&socketio.RedisAdapterOptions{
     Host:   "127.0.0.1",
