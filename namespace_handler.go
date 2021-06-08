@@ -19,12 +19,13 @@ type namespaceHandler struct {
 	onError      func(conn Conn, err error)
 }
 
-func newNamespaceHandler(nsp string, adapterOpts *RedisAdapterOptions) *namespaceHandler {
+func newNamespaceHandler(nsp string, adapter Broadcaster) *namespaceHandler {
 	var broadcast Broadcast
-	if adapterOpts == nil {
-		broadcast = newBroadcast()
+
+	if adapter != nil {
+		broadcast = adapter.NewBroadcast(nsp)
 	} else {
-		broadcast, _ = newRedisBroadcast(nsp, adapterOpts)
+		broadcast = newBroadcast()
 	}
 
 	return &namespaceHandler{
