@@ -85,6 +85,10 @@ func (p *polling) SendFrame(ft frame.Type) (io.WriteCloser, error) {
 	return p.encoder.NextFrame(ft)
 }
 
+func (p *polling) PrepareHTTP(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
+
 func (p *polling) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":

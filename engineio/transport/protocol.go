@@ -21,6 +21,10 @@ type Transport interface {
 	// SendFrame creates an frame writer to send an frame.
 	SendFrame(frame.Type) (io.WriteCloser, error)
 
+	// PrepareHTTP prepares the transport with the first http requests.
+	// If PrepareHTTP() returns an error, the transport will be closed and can't serve other HTTP requests.
+	PrepareHTTP(w http.ResponseWriter, r *http.Request) error
+
 	// ServeHTTP serves HTTP requests.
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
