@@ -48,3 +48,8 @@ type Callbacks interface {
 	// The call of OnError could be in different goroutines.
 	OnError(t Transport, err error)
 }
+
+type HTTPError interface {
+	error
+	Code() int
+}

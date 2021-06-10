@@ -100,11 +100,6 @@ func (p *polling) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type httpError interface {
-	error
-	Code() int
-}
-
 func (p *polling) servePost(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-p.post:
@@ -133,7 +128,7 @@ func (p *polling) servePost(w http.ResponseWriter, r *http.Request) {
 
 		if err := p.callbacks.OnFrame(p, r, ft, rd); err != nil {
 			code := http.StatusInternalServerError
-			if he, ok := err.(httpError); ok {
+			if he, ok := err.(transport.HTTPError); ok {
 				code = he.Code()
 			}
 			p.responseHTTP(w, r, code, err.Error())

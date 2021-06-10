@@ -41,6 +41,13 @@ func (a *bufAllocator) Free(b []byte) {
 	a.pool.Put(b) //nolint:staticcheck // []byte is a type of pointer.
 }
 
+func (a *bufAllocator) Check(t *testing.T) {
+	count := atomic.LoadInt64(&a.count)
+	if count != 0 {
+		t.Fatalf("allocator counter is not 0, value: %d", count)
+	}
+}
+
 type callbackFuncs struct {
 	onPingTimeout func(t transport.Transport)
 	onFrame       func(t transport.Transport, req *http.Request, ft frame.Type, rd io.Reader) error
@@ -89,6 +96,8 @@ func TestPollingPost(t *testing.T) {
 	}
 
 	alloc := allocator()
+	defer alloc.Check(t)
+
 	for _, test := range tests {
 		var got []packet
 		callbacks := callbackFuncs{}
@@ -118,10 +127,6 @@ func TestPollingPost(t *testing.T) {
 
 		polling.Close()
 	}
-
-	if c := atomic.LoadInt64(&alloc.count); c != 0 {
-		t.Errorf("buffer count is not 0, got: %d", c)
-	}
 }
 
 func TestPollingGet(t *testing.T) {
@@ -139,6 +144,8 @@ func TestPollingGet(t *testing.T) {
 	}
 
 	alloc := allocator()
+	defer alloc.Check(t)
+
 	for _, test := range tests {
 		callbacks := callbackFuncs{}
 
@@ -175,14 +182,11 @@ func TestPollingGet(t *testing.T) {
 
 		polling.Close()
 	}
-
-	if c := atomic.LoadInt64(&alloc.count); c != 0 {
-		t.Errorf("buffer count is not 0, got: %d", c)
-	}
 }
 
 func TestPolllingGetPingTimeout(t *testing.T) {
 	alloc := allocator()
+	defer alloc.Check(t)
 	callbacks := callbackFuncs{}
 	var pingAt time.Time
 	callbacks.onPingTimeout = func(tp transport.Transport) {
@@ -197,6 +201,7 @@ func TestPolllingGetPingTimeout(t *testing.T) {
 	}
 	pingInterval := time.Second / 3
 	polling := newPolling(pingInterval, alloc, callbacks)
+	defer polling.Close()
 
 	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -225,6 +230,7 @@ func TestPolllingGetPingTimeout(t *testing.T) {
 
 func TestPollingGetOverlapped(t *testing.T) {
 	alloc := allocator()
+	defer alloc.Check(t)
 	wait := make(chan int)
 	callbacks := callbackFuncs{}
 	callbacks.onPingTimeout = func(t transport.Transport) {
@@ -238,6 +244,7 @@ func TestPollingGetOverlapped(t *testing.T) {
 	}
 	pingInterval := time.Second / 10
 	polling := newPolling(pingInterval, alloc, callbacks)
+	defer polling.Close()
 
 	req1, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -276,6 +283,7 @@ func TestPollingGetOverlapped(t *testing.T) {
 
 func TestPollingPostOverlapped(t *testing.T) {
 	alloc := allocator()
+	defer alloc.Check(t)
 	wait := make(chan int)
 	callbacks := callbackFuncs{}
 	callbacks.onFrame = func(t transport.Transport, req *http.Request, ft frame.Type, rd io.Reader) error {
@@ -285,6 +293,7 @@ func TestPollingPostOverlapped(t *testing.T) {
 	}
 	pingInterval := time.Second / 3
 	polling := newPolling(pingInterval, alloc, callbacks)
+	defer polling.Close()
 
 	data := "12345"
 	req1, err := http.NewRequest("POST", "/", strings.NewReader(data))
@@ -338,6 +347,7 @@ func TestPollingMethods(t *testing.T) {
 	}
 
 	alloc := allocator()
+	defer alloc.Check(t)
 	callbacks := callbackFuncs{}
 	callbacks.onPingTimeout = func(t transport.Transport) {
 		wr, _ := t.SendFrame(frame.Text)
@@ -366,6 +376,7 @@ func TestPollingMethods(t *testing.T) {
 func TestPollingClose(t *testing.T) {
 	wait := make(chan int)
 	alloc := allocator()
+	defer alloc.Check(t)
 	callbacks := callbackFuncs{}
 	blocking := time.Second / 4
 	callbacks.onFrame = func(t transport.Transport, req *http.Request, ft frame.Type, rd io.Reader) error {
@@ -441,22 +452,6 @@ func TestPollingClose(t *testing.T) {
 	}
 }
 
-type testError struct {
-	error
-	code int
-}
-
-func (e testError) Code() int {
-	return e.code
-}
-
-func codeError(code int, err error) httpError {
-	return testError{
-		error: err,
-		code:  code,
-	}
-}
-
 func TestPollingOnFrameError(t *testing.T) {
 	tests := []struct {
 		code int
@@ -465,12 +460,13 @@ func TestPollingOnFrameError(t *testing.T) {
 	}
 
 	alloc := allocator()
+	defer alloc.Check(t)
 	callbacks := callbackFuncs{}
 	pingInterval := time.Second / 4
 
 	for _, test := range tests {
 		callbacks.onFrame = func(t transport.Transport, req *http.Request, ft frame.Type, rd io.Reader) error {
-			return codeError(test.code, io.EOF)
+			return transport.HTTPErr(io.EOF, test.code)
 		}
 		polling := newPolling(pingInterval, alloc, callbacks)
 
@@ -494,9 +490,11 @@ func TestPollingOnFrameError(t *testing.T) {
 
 func TestPollingName(t *testing.T) {
 	alloc := allocator()
+	defer alloc.Check(t)
 	callbacks := callbackFuncs{}
 	pingInterval := time.Second / 4
 	polling := newPolling(pingInterval, alloc, callbacks)
+	defer polling.Close()
 
 	if want, got := string(transport.Polling), polling.Name(); want != got {
 		t.Errorf("polling.Name(), want: %s, got: %s", want, got)
