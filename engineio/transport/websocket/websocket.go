@@ -2,9 +2,9 @@ package websocket
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -66,19 +66,29 @@ func (s *ws) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer s.conn.Close()
 
-	nextPing := time.Now().Add(s.pingTimeout)
-	for {
-		if err := s.conn.SetReadDeadline(nextPing); err != nil {
-			s.callbacks.OnError(s, err)
-			return
-		}
+	pingTicker := time.NewTicker(s.pingTimeout)
+	closeChan := make(chan struct{})
+	var wg sync.WaitGroup
+	defer func() {
+		pingTicker.Stop()
+		close(closeChan)
+		wg.Wait()
+	}()
 
-		typ, rd, err := s.conn.NextReader()
-		if err == websocket.ErrReadLimit {
-			s.callbacks.OnPingTimeout(s)
-			nextPing = time.Now().Add(s.pingTimeout)
-			continue
+	wg.Add(1)
+	go func() {
+		for {
+			select {
+			case <-pingTicker.C:
+				s.callbacks.OnPingTimeout(s)
+			case <-closeChan:
+				return
+			}
 		}
+	}()
+
+	for {
+		typ, rd, err := s.conn.NextReader()
 		if err != nil {
 			s.callbacks.OnError(s, err)
 			continue
@@ -86,10 +96,29 @@ func (s *ws) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		ft, ok := toFrameType(typ)
 		if !ok {
-			s.callbacks.OnError(s, fmt.Errorf("invalid websocket message type: %d", typ))
 			continue
 		}
-		s.callbacks.OnFrame(s, r, ft, rd)
+		if err := s.callbacks.OnFrame(s, r, ft, rd); err != nil {
+			code := http.StatusInternalServerError
+			if he, ok := err.(transport.HTTPError); ok {
+				code = he.Code()
+			}
+			s.responseHTTP(w, r, code, err.Error())
+			return
+		}
+	}
+}
+
+func (s *ws) responseHTTP(w http.ResponseWriter, r *http.Request, code int, msg string) {
+	w.WriteHeader(code)
+	data := []byte(msg)
+	for len(data) > 0 {
+		n, err := w.Write([]byte(msg))
+		data = data[n:]
+		if err != nil {
+			s.callbacks.OnError(s, err)
+			return
+		}
 	}
 }
 
