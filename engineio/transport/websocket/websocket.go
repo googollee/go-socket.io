@@ -60,7 +60,9 @@ func (s *ws) PrepareHTTP(w http.ResponseWriter, r *http.Request) error {
 func (s *ws) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.conn == nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("invalid transport"))
+		if _, err := w.Write([]byte("invalid transport")); err != nil {
+			s.callbacks.OnError(s, err)
+		}
 		return
 	}
 

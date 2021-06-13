@@ -121,7 +121,7 @@ func TestWebsocketOnPingTimeout(t *testing.T) {
 
 		if err := ws.PrepareHTTP(w, r); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 
