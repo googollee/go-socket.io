@@ -18,14 +18,16 @@ type ws struct {
 	allocator   transport.BufferAllocator
 	callbacks   transport.Callbacks
 
-	conn *websocket.Conn
+	conn         *websocket.Conn
+	writerLocker chan struct{}
 }
 
 func newWebsocket(pingTimeout time.Duration, alloc transport.BufferAllocator, callbacks transport.Callbacks) transport.Transport {
 	return &ws{
-		pingTimeout: pingTimeout,
-		allocator:   alloc,
-		callbacks:   callbacks,
+		pingTimeout:  pingTimeout,
+		allocator:    alloc,
+		callbacks:    callbacks,
+		writerLocker: make(chan struct{}, 1),
 	}
 }
 
@@ -43,7 +45,21 @@ func (s *ws) SendFrame(ft frame.Type) (io.WriteCloser, error) {
 		return nil, errors.New("invalid frame type")
 	}
 
-	return s.conn.NextWriter(typ)
+	select {
+	case s.writerLocker <- struct{}{}:
+	default:
+		return nil, errors.New("non-closed frame")
+	}
+
+	ret, err := s.conn.NextWriter(typ)
+	if err != nil {
+		return nil, err
+	}
+
+	return &writer{
+		WriteCloser: ret,
+		locker:      s.writerLocker,
+	}, nil
 }
 
 func (s *ws) PrepareHTTP(w http.ResponseWriter, r *http.Request) error {
@@ -144,4 +160,18 @@ func toMessageType(ft frame.Type) (int, bool) {
 	}
 
 	return 0, false
+}
+
+type writer struct {
+	io.WriteCloser
+	locker chan struct{}
+}
+
+func (w *writer) Close() error {
+	select {
+	case <-w.locker:
+	default:
+	}
+
+	return w.WriteCloser.Close()
 }
