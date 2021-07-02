@@ -15,6 +15,4 @@ var (
 	ErrPingTimeout          = errors.New("ping timeout")
 	ErrSeparatorInTextFrame = errors.New("should not write 0x1e to text frames")
 	ErrNonCloseFrame        = errors.New("has a non-closed frame")
-
-	_ = binaryPrefix
 )
