@@ -19,9 +19,9 @@ type encoder struct {
 	hasNonClosedFrame int32
 }
 
-func newEncoder(pingTimouet time.Duration, closed chan struct{}, buf []byte) *encoder {
+func newEncoder(pingTimeout time.Duration, closed chan struct{}, buf []byte) *encoder {
 	return &encoder{
-		pingTimeout:   pingTimouet,
+		pingTimeout:   pingTimeout,
 		lastPing:      time.Now(),
 		writer:        newBufWriter(buf),
 		hasFramesChan: make(chan struct{}, 1),
@@ -96,17 +96,17 @@ type frameWriter struct {
 	hasNonClosedFrame *int32
 }
 
-func (w *frameWriter) Write(b []byte) (int, error) {
+func (w *frameWriter) Write(d []byte) (int, error) {
 	if w.base64 != nil {
-		return w.base64.Write(b)
+		return w.base64.Write(d)
 	}
 
-	for _, by := range b {
+	for _, by := range d {
 		if by == separator {
 			return 0, ErrSeparatorInTextFrame
 		}
 	}
-	return w.writer.Write(b)
+	return w.writer.Write(d)
 }
 
 func (w *frameWriter) WriteByte(b byte) error {
