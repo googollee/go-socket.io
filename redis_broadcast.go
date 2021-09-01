@@ -336,11 +336,11 @@ func (bc *redisBroadcast) getNumSub(channel string) (int, error) {
 		return 0, err
 	}
 
-	numSub64, ok := rs.([]interface{})[1].(int)
+	numSub64, ok := rs.([]interface{})[1].(int64)
 	if !ok {
 		return 0, errors.New("redis reply cast to int error")
 	}
-	return numSub64, nil
+	return int(numSub64), nil
 }
 
 // Handle request from redis channel.
