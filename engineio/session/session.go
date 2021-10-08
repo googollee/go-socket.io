@@ -23,6 +23,8 @@ type Pauser interface {
 type Session struct {
 	conn      transport.Conn
 	params    transport.ConnParameters
+	manager   *Manager
+	closeOnce sync.Once
 	transport string
 
 	context interface{}
@@ -30,13 +32,14 @@ type Session struct {
 	upgradeLocker sync.RWMutex
 }
 
-func New(conn transport.Conn, sid, transport string, params transport.ConnParameters) (*Session, error) {
-	params.SID = sid
+func New(m *Manager, conn transport.Conn, transport string, params transport.ConnParameters) (*Session, error) {
+	params.SID = m.NewID()
 
 	ses := &Session{
 		transport: transport,
 		conn:      conn,
 		params:    params,
+		manager:   m,
 	}
 
 	if err := ses.setDeadline(); err != nil {
@@ -69,6 +72,9 @@ func (s *Session) Transport() string {
 func (s *Session) Close() error {
 	s.upgradeLocker.RLock()
 	defer s.upgradeLocker.RUnlock()
+	s.closeOnce.Do(func() {
+		s.manager.Remove(s.params.SID)
+	})
 
 	return s.conn.Close()
 }
