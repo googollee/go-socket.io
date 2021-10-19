@@ -46,7 +46,7 @@ It is some popular questions about this repository:
 - Is this library supported socket.io version 2?
     - No, but if you wanna you can help to do it. Join us in community chat Telegram   
 - How to use go-socket.io with CORS?
-    - Please see examples in [directory](https://github.com/googollee/go-socket.io/tree/master/_example)
+    - Please see examples in [directory](https://github.com/googollee/go-socket.io/tree/master/_examples)
 - What is minimal version Golang support for this library?
     - We required Go 1.9 or upper!
 - How to user?
