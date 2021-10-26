@@ -45,6 +45,7 @@ func (m *Manager) UpgradeFrom(name string) []string {
 }
 
 // Get returns the transport with given name.
-func (m *Manager) Get(name string) Transport {
-	return m.transports[name]
+func (m *Manager) Get(name string) (Transport, bool) {
+	t, ok := m.transports[name]
+	return t, ok
 }
