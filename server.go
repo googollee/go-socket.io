@@ -6,6 +6,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/parser"
 )
 
 // Server is a go-socket.io server.
@@ -198,7 +199,7 @@ func (s *Server) Count() int {
 	return s.engine.Count()
 }
 
-// ForEach sends data by DataFunc, if room does not exits sends nothing.
+// ForEach sends data by DataFunc, if room does not exit sends anything.
 func (s *Server) ForEach(namespace string, room string, f EachFunc) bool {
 	nspHandler := s.getNamespace(namespace)
 	if nspHandler != nil {
@@ -210,12 +211,103 @@ func (s *Server) ForEach(namespace string, room string, f EachFunc) bool {
 }
 
 func (s *Server) serveConn(conn engineio.Conn) {
-	err := newConn(conn, s.handlers)
-
-	if err != nil {
-		root, _ := s.handlers.Get(rootNamespace)
-		if root != nil && root.onError != nil {
+	c := newConn(conn, s.handlers)
+	if err := c.connect(); err != nil {
+		_ = c.Close()
+		if root, ok := s.handlers.Get(rootNamespace); ok && root.onError != nil {
 			root.onError(nil, err)
+		}
+
+		return
+	}
+
+	go s.serveError(c)
+	go s.serveWrite(c)
+	go s.serveRead(c)
+}
+
+func (s *Server) serveError(c *conn) {
+	defer func() {
+		c.Close()
+		s.engine.Remove(c.ID())
+	}()
+
+	for {
+		select {
+		case <-c.quitChan:
+			return
+		case err := <-c.errorChan:
+			errMsg, ok := err.(errorMessage)
+			if !ok {
+				continue
+			}
+
+			if handler := c.namespace(errMsg.namespace); handler != nil {
+				if handler.onError != nil {
+					nsConn, ok := c.namespaces.Get(errMsg.namespace)
+					if !ok {
+						continue
+					}
+					handler.onError(nsConn, errMsg.err)
+				}
+			}
+		}
+	}
+}
+
+func (s *Server) serveWrite(c *conn) {
+	defer func() {
+		c.Close()
+		s.engine.Remove(c.ID())
+	}()
+
+	for {
+		select {
+		case <-c.quitChan:
+			return
+		case pkg := <-c.writeChan:
+			if err := c.encoder.Encode(pkg.Header, pkg.Data); err != nil {
+				c.onError(pkg.Header.Namespace, err)
+			}
+		}
+	}
+}
+
+func (s *Server) serveRead(c *conn) {
+	defer func() {
+		c.Close()
+		s.engine.Remove(c.ID())
+	}()
+
+	var event string
+
+	for {
+		var header parser.Header
+
+		if err := c.decoder.DecodeHeader(&header, &event); err != nil {
+			c.onError(rootNamespace, err)
+			return
+		}
+
+		if header.Namespace == aliasRootNamespace {
+			header.Namespace = rootNamespace
+		}
+
+		var err error
+		switch header.Type {
+		case parser.Ack, parser.Connect, parser.Disconnect:
+			handler, ok := readHandlerMapping[header.Type]
+			if !ok {
+				return
+			}
+
+			err = handler(c, header)
+		case parser.Event:
+			err = eventPacketHandler(c, event, header)
+		}
+
+		if err != nil {
+			return
 		}
 	}
 }
