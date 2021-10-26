@@ -28,11 +28,12 @@ func (m *Manager) Add(s *Session) {
 	m.sessions[s.ID()] = s
 }
 
-func (m *Manager) Get(sid string) *Session {
+func (m *Manager) Get(sid string) (*Session, bool) {
 	m.locker.RLock()
 	defer m.locker.RUnlock()
 
-	return m.sessions[sid]
+	s, ok := m.sessions[sid]
+	return s, ok
 }
 
 func (m *Manager) Remove(sid string) {
