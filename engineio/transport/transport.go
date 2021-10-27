@@ -11,12 +11,12 @@ import (
 	"github.com/googollee/go-socket.io/engineio/packet"
 )
 
-// FrameReader reads a frame. It need be closed before next reading.
+// FrameReader reads a frame. It needs be closed before next reading.
 type FrameReader interface {
 	NextReader() (frame.Type, packet.Type, io.ReadCloser, error)
 }
 
-// FrameWriter writes a frame. It need be closed before next writing.
+// FrameWriter writes a frame. It needs be closed before next writing.
 type FrameWriter interface {
 	NextWriter(ft frame.Type, pt packet.Type) (io.WriteCloser, error)
 }
