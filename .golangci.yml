@@ -1,5 +1,6 @@
 run:
-  timeout: 180s
+  timeout: 3m
+  deadline: 5m
 
 output:
   format: colored-line-number
