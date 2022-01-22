@@ -72,7 +72,7 @@ if err != nil {
 
 ## Acknowledgements in go-socket.io 1.X.X
 
-[See documentation about acknowledgements](http://socket.io/docs/#sending-and-getting-data-(acknowledgements)
+[See documentation about acknowledgements](https://socket.io/docs/v4/emitting-events/#acknowledgements)
 
 ##### Sending ACK with data from SERVER to CLIENT
 
