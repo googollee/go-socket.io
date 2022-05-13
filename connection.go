@@ -42,8 +42,8 @@ type conn struct {
 	closeOnce sync.Once
 }
 
-func newConn(engineConn engineio.Conn, handlers *namespaceHandlers) error {
-	ret := &conn{
+func newConn(engineConn engineio.Conn, handlers *namespaceHandlers) *conn {
+	return &conn{
 		Conn:       engineConn,
 		encoder:    parser.NewEncoder(engineConn),
 		decoder:    parser.NewDecoder(engineConn),
@@ -53,13 +53,6 @@ func newConn(engineConn engineio.Conn, handlers *namespaceHandlers) error {
 		handlers:   handlers,
 		namespaces: newNamespaces(),
 	}
-
-	if err := ret.connect(); err != nil {
-		_ = ret.Close()
-		return err
-	}
-
-	return nil
 }
 
 func (c *conn) Close() error {
@@ -106,11 +99,6 @@ func (c *conn) connect() error {
 	}
 
 	handler, ok := c.handlers.Get(header.Namespace)
-
-	go c.serveError()
-	go c.serveWrite()
-	go c.serveRead()
-
 	if ok {
 		_, err := handler.dispatch(root, header)
 		return err
@@ -149,83 +137,6 @@ func (c *conn) onError(namespace string, err error) {
 	case c.errorChan <- newErrorMessage(namespace, err):
 	case <-c.quitChan:
 		return
-	}
-}
-
-func (c *conn) serveError() {
-	defer c.Close()
-
-	for {
-		select {
-		case <-c.quitChan:
-			return
-		case err := <-c.errorChan:
-			errMsg, ok := err.(errorMessage)
-			if !ok {
-				continue
-			}
-
-			if handler := c.namespace(errMsg.namespace); handler != nil {
-				if handler.onError != nil {
-					nsConn, ok := c.namespaces.Get(errMsg.namespace)
-					if !ok {
-						continue
-					}
-					handler.onError(nsConn, errMsg.err)
-				}
-			}
-		}
-	}
-}
-
-func (c *conn) serveWrite() {
-	defer c.Close()
-
-	for {
-		select {
-		case <-c.quitChan:
-			return
-		case pkg := <-c.writeChan:
-			if err := c.encoder.Encode(pkg.Header, pkg.Data); err != nil {
-				c.onError(pkg.Header.Namespace, err)
-			}
-		}
-	}
-}
-
-func (c *conn) serveRead() {
-	defer c.Close()
-
-	var event string
-
-	for {
-		var header parser.Header
-
-		if err := c.decoder.DecodeHeader(&header, &event); err != nil {
-			c.onError(rootNamespace, err)
-			return
-		}
-
-		if header.Namespace == aliasRootNamespace {
-			header.Namespace = rootNamespace
-		}
-
-		var err error
-		switch header.Type {
-		case parser.Ack, parser.Connect, parser.Disconnect:
-			handler, ok := readHandlerMapping[header.Type]
-			if !ok {
-				return
-			}
-
-			err = handler(c, header)
-		case parser.Event:
-			err = eventPacketHandler(c, event, header)
-		}
-
-		if err != nil {
-			return
-		}
 	}
 }
 
