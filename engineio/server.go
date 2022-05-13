@@ -87,7 +87,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sid := query.Get("sid")
 	reqSession, ok := s.sessions.Get(sid)
-	// if we can't find session in current session pool, let's create this. for new connections
+	// if we can't find session in current session pool, let's create this. behaviour for new connections
 	if !ok || reqSession == nil {
 		if sid != "" {
 			http.Error(w, fmt.Sprintf("invalid sid value: %s", sid), http.StatusBadRequest)
@@ -155,8 +155,8 @@ func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport
 		return nil, err
 	}
 
-	go func() {
-		if err := newSession.InitSession(); err != nil {
+	go func(newSession *session.Session) {
+		if err = newSession.InitSession(); err != nil {
 			log.Println("init new session:", err)
 
 			return
@@ -165,7 +165,7 @@ func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport
 		s.sessions.Add(newSession)
 
 		s.connChan <- newSession
-	}()
+	}(newSession)
 
 	return newSession, nil
 }
