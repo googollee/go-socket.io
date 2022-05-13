@@ -2,6 +2,7 @@ package engineio
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -66,22 +67,17 @@ func (s *Server) Addr() net.Addr {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
-	sid := query.Get("sid")
-
-	reqSession := s.sessions.Get(sid)
 
 	reqTransport := query.Get("transport")
-
-	srvTransport := s.transports.Get(reqTransport)
-
-	if srvTransport == nil {
-		http.Error(w, "invalid transport", http.StatusBadRequest)
+	srvTransport, ok := s.transports.Get(reqTransport)
+	if !ok || srvTransport == nil {
+		http.Error(w, fmt.Sprintf("invalid transport: %s", srvTransport), http.StatusBadRequest)
 		return
 	}
 
 	header, err := s.requestChecker(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		http.Error(w, fmt.Sprintf("request checker err: %s", err.Error()), http.StatusBadGateway)
 		return
 	}
 
@@ -89,27 +85,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header()[k] = v
 	}
 
-	if reqSession == nil {
+	sid := query.Get("sid")
+	reqSession, ok := s.sessions.Get(sid)
+	// if we can't find session in current session pool, let's create this. behaviour for new connections
+	if !ok || reqSession == nil {
 		if sid != "" {
-			http.Error(w, "invalid sid", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("invalid sid value: %s", sid), http.StatusBadRequest)
 			return
 		}
 
 		transportConn, err := srvTransport.Accept(w, r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			http.Error(w, fmt.Sprintf("transport accept err: %s", err.Error()), http.StatusBadGateway)
 			return
 		}
 
 		reqSession, err = s.newSession(r.Context(), transportConn, reqTransport)
 		if err != nil {
-			http.Error(w, "create new session", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("create new session err: %s", err.Error()), http.StatusBadRequest)
 			return
 		}
 
 		s.connInitor(r, reqSession)
 	}
 
+	// try upgrade current connection
 	if reqSession.Transport() != reqTransport {
 		transportConn, err := srvTransport.Accept(w, r)
 		if err != nil {
@@ -137,26 +137,35 @@ func (s *Server) Count() int {
 	return s.sessions.Count()
 }
 
-func (s *Server) newSession(ctx context.Context, conn transport.Conn, reqTransport string) (*session.Session, error) {
+// Remove session from sessions pool. Experimental API.
+func (s *Server) Remove(sid string) {
+	s.sessions.Remove(sid)
+}
+
+func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport string) (*session.Session, error) {
 	params := transport.ConnParameters{
 		PingInterval: s.pingInterval,
 		PingTimeout:  s.pingTimeout,
 		Upgrades:     s.transports.UpgradeFrom(reqTransport),
 	}
 
-	newSession, err := session.New(conn, s.sessions.NewID(), reqTransport, params)
+	sid := s.sessions.NewID()
+	newSession, err := session.New(conn, sid, reqTransport, params)
 	if err != nil {
 		return nil, err
 	}
-	s.sessions.Add(newSession)
 
-	go func() {
-		if err := newSession.InitSession(); err != nil {
-			log.Println("init new session", err)
+	go func(newSession *session.Session) {
+		if err = newSession.InitSession(); err != nil {
+			log.Println("init new session:", err)
+
+			return
 		}
 
+		s.sessions.Add(newSession)
+
 		s.connChan <- newSession
-	}()
+	}(newSession)
 
 	return newSession, nil
 }

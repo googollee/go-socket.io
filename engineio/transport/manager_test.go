@@ -39,10 +39,12 @@ func TestManager(t *testing.T) {
 		t4,
 	})
 
-	tg := m.Get("t1")
+	tg, ok := m.Get("t1")
+	at.True(ok)
 	at.Equal(t1, tg)
 
-	tg = m.Get("not_exist")
+	tg, ok = m.Get("not_exist")
+	at.False(ok)
 	at.Nil(tg)
 
 	names := m.UpgradeFrom("t2")
