@@ -34,7 +34,7 @@ func TestDecoder(t *testing.T) {
 		var gotType []frame.Type
 
 		for {
-			frame, err := decoder.NextFrame()
+			ft, rdFrame, err := decoder.NextFrame()
 			if err != nil {
 				if err == io.EOF {
 					break
@@ -42,13 +42,13 @@ func TestDecoder(t *testing.T) {
 				t.Fatalf("reading(%q) NextFrame() error: %s", test.input, err)
 			}
 
-			b, err := ioutil.ReadAll(frame.Data)
+			b, err := ioutil.ReadAll(rdFrame)
 			if err != nil {
 				t.Fatalf("reading(%q) frame error: %s", test.input, err)
 			}
 
 			got = append(got, string(b))
-			gotType = append(gotType, frame.Type)
+			gotType = append(gotType, ft)
 		}
 
 		if diff := cmp.Diff(test.want, got); diff != "" {
@@ -65,19 +65,19 @@ func TestDecoderIgnoreReading(t *testing.T) {
 	var buf [50]byte
 	decoder := newDecoder(buf[:], strings.NewReader(data))
 
-	if _, err := decoder.NextFrame(); err != nil {
+	if _, _, err := decoder.NextFrame(); err != nil {
 		t.Fatalf("get next frame error: %s", err)
 	}
-	f, err := decoder.NextFrame()
+	ft, rd, err := decoder.NextFrame()
 	if err != nil {
 		t.Fatalf("get next frame again error: %s", err)
 	}
 
-	b, err := ioutil.ReadAll(f.Data)
+	b, err := ioutil.ReadAll(rd)
 	if err != nil {
 		t.Fatalf("read frame error: %s", err)
 	}
-	if want, got := frame.Text, f.Type; want != got {
+	if want, got := frame.Text, ft; want != got {
 		t.Fatalf("frame type, want: %v, got: %v", want, got)
 	}
 	if want, got := "5678", string(b); want != got {
@@ -94,16 +94,16 @@ func TestDecoderTextWithReadByte(t *testing.T) {
 	var buf [50]byte
 	decoder := newDecoder(buf[:], strings.NewReader(data))
 
-	f, err := decoder.NextFrame()
+	ft, rd, err := decoder.NextFrame()
 	if err != nil {
 		t.Fatalf("get next frame error: %s", err)
 	}
-	if want, got := frame.Text, f.Type; want != got {
+	if want, got := frame.Text, ft; want != got {
 		t.Fatalf("frame type, want: %v, got: %v", want, got)
 	}
-	brd, ok := f.Data.(byteReader)
+	brd, ok := rd.(byteReader)
 	if !ok {
-		t.Fatalf("text frame reader should have ReadByte(), but not: %v", f.Data)
+		t.Fatalf("text frame reader should have ReadByte(), but not: %v", rd)
 	}
 	for _, want := range []byte("1234") {
 		got, err := brd.ReadByte()
@@ -119,14 +119,14 @@ func TestDecoderTextWithReadByte(t *testing.T) {
 		t.Fatalf("read text should return io.EOF, but got: byte(%x), error(%s)", bt, err)
 	}
 
-	f, err = decoder.NextFrame()
+	ft, rd, err = decoder.NextFrame()
 	if err != nil {
 		t.Fatalf("get next frame error: %s", err)
 	}
-	if want, got := frame.Binary, f.Type; want != got {
+	if want, got := frame.Binary, ft; want != got {
 		t.Fatalf("frame type, want: %v, got: %v", want, got)
 	}
-	if _, ok := f.Data.(byteReader); ok {
-		t.Fatalf("binary frame reader should not have ReadByte(), but it have: %v", f.Data)
+	if _, ok := rd.(byteReader); ok {
+		t.Fatalf("binary frame reader should not have ReadByte(), but it have: %v", rd)
 	}
 }
