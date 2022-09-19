@@ -61,6 +61,7 @@ func main() {
 server := socketio.NewServer(nil)
 
 _, err := server.Adapter(&socketio.RedisAdapterOptions{
+    Addr:   "127.0.0.1:6379",
     Host:   "127.0.0.1",
     Port:   "6379",
     Prefix: "socket.io",
