@@ -237,7 +237,7 @@ func (s *Server) serveError(c *conn) {
 		case <-c.quitChan:
 			return
 		case err := <-c.errorChan:
-			errMsg, ok := err.(errorMessage)
+			errMsg, ok := err.(*errorMessage)
 			if !ok {
 				continue
 			}
