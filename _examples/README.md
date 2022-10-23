@@ -82,7 +82,7 @@ if err != nil {
 ```javascript
  //using client-side socket.io-1.X.X.js
 socket.emit('some:event', JSON.stringify(someData), function(data){
-   console.log('ACK from server wtih data: ', data));
+   console.log('ACK from server wtih data: ', data);
 });
 ```
 
