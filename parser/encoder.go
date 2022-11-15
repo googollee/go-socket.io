@@ -3,9 +3,10 @@ package parser
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/vchitai/go-socket.io/engineio/session"
 	"io"
 	"reflect"
+
+	"github.com/vchitai/go-socket.io/engineio/session"
 )
 
 type FrameWriter interface {
@@ -24,7 +25,7 @@ func NewEncoder(w FrameWriter) *Encoder {
 
 func (e *Encoder) Encode(h Header, args ...interface{}) (err error) {
 	var w io.WriteCloser
-	w, err = e.w.NextWriter(session.TEXT)
+	w, err = e.w.NextWriter(session.BINARY)
 	if err != nil {
 		return
 	}
