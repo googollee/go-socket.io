@@ -44,7 +44,7 @@ func (e *encoder) NextWriter(ft frame.Type, pt packet.Type) (io.WriteCloser, err
 	e.pt = pt
 	e.frameCache.Reset()
 
-	if !e.supportBinary && ft == frame.Binary {
+	if e.supportBinary && ft == frame.Binary {
 		e.b64Writer = base64.NewEncoder(base64.StdEncoding, &e.frameCache)
 	} else {
 		e.b64Writer = nil

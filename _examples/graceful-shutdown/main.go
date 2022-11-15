@@ -55,7 +55,7 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir("../asset")))
 
 	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		if err := server.Serve(); err != nil {

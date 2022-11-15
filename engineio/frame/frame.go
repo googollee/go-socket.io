@@ -10,6 +10,8 @@ const (
 	Binary
 )
 
+const DefaultType = Binary
+
 // ByteToFrameType converts a byte to FrameType.
 func ByteToFrameType(b byte) Type {
 	return Type(b)

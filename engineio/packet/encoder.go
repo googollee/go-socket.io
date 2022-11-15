@@ -35,7 +35,7 @@ func (e *Encoder) NextWriter(ft frame.Type, pt Type) (io.WriteCloser, error) {
 	}
 
 	if _, err := w.Write(b[:]); err != nil {
-		w.Close()
+		_ = w.Close()
 		return nil, err
 	}
 
