@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/googollee/go-socket.io/engineio/frame"
-	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/vchitai/go-socket.io/engineio/frame"
+	"github.com/vchitai/go-socket.io/engineio/packet"
 )
 
 func TestPayloadFeedIn(t *testing.T) {

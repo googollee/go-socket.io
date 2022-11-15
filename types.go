@@ -1,7 +1,7 @@
 package socketio
 
 import (
-	"github.com/googollee/go-socket.io/parser"
+	"github.com/vchitai/go-socket.io/parser"
 	"reflect"
 )
 

@@ -3,7 +3,7 @@ package parser
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/googollee/go-socket.io/engineio/session"
+	"github.com/vchitai/go-socket.io/engineio/session"
 	"io"
 	"reflect"
 )

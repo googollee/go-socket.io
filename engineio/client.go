@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/frame"
-	"github.com/googollee/go-socket.io/engineio/packet"
-	"github.com/googollee/go-socket.io/engineio/session"
-	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/vchitai/go-socket.io/engineio/frame"
+	"github.com/vchitai/go-socket.io/engineio/packet"
+	"github.com/vchitai/go-socket.io/engineio/session"
+	"github.com/vchitai/go-socket.io/engineio/transport"
 )
 
 // Pauser is connection which can be paused and resumes.

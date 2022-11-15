@@ -1,8 +1,8 @@
 package payload
 
 import (
-	"github.com/googollee/go-socket.io/engineio/frame"
-	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/vchitai/go-socket.io/engineio/frame"
+	"github.com/vchitai/go-socket.io/engineio/packet"
 )
 
 type Packet struct {

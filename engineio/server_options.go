@@ -1,13 +1,13 @@
 package engineio
 
 import (
-	"github.com/googollee/go-socket.io/engineio/session"
+	"github.com/vchitai/go-socket.io/engineio/session"
 	"net/http"
 	"time"
 
-	"github.com/googollee/go-socket.io/engineio/transport"
-	"github.com/googollee/go-socket.io/engineio/transport/polling"
-	"github.com/googollee/go-socket.io/engineio/transport/websocket"
+	"github.com/vchitai/go-socket.io/engineio/transport"
+	"github.com/vchitai/go-socket.io/engineio/transport/polling"
+	"github.com/vchitai/go-socket.io/engineio/transport/websocket"
 )
 
 // Options is options to create a server.
