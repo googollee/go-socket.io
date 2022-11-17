@@ -1,7 +1,7 @@
 # go-socket.io
 
 [![GoDoc](http://godoc.org/github.com/vchitai/go-socket.io/v4?status.svg)](http://godoc.org/github.com/vchitai/go-socket.io/v4)
-[![Build Status](https://github.com/vchitai/go-socket.io/v4/workflows/Unit%20tests/badge.svg)](https://github.com/vchitai/go-socket.io/v4/actions/workflows/unittest.yaml)
+[![Build Status](https://github.com/vchitai/go-socket.io/v4/workflows/Unit%20tests/badge.svg)](https://github.com/vchitai/go-socket.io/actions/workflows/unittest.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/vchitai/go-socket.io/v4)](https://goreportcard.com/report/github.com/vchitai/go-socket.io/v4)
 
 go-socket.io is library an implementation of [Socket.IO](http://socket.io) in Golang, which is a realtime application
