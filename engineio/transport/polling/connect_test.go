@@ -3,7 +3,7 @@ package polling
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -52,7 +52,7 @@ func TestDialOpen(t *testing.T) {
 
 		if r.Method == "POST" {
 			must.Equal(cp.SID, sid)
-			b, err := ioutil.ReadAll(r.Body)
+			b, err := io.ReadAll(r.Body)
 			must.Nil(err)
 			should.Equal("6:4hello", string(b))
 		}

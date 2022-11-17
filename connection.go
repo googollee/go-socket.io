@@ -75,40 +75,6 @@ func (c *conn) Close() error {
 	return err
 }
 
-func (c *conn) connect() error {
-	rootHandler, ok := c.handlers.Get(rootNamespace)
-	if !ok {
-		return errUnavailableRootHandler
-	}
-
-	root := newNamespaceConn(c, aliasRootNamespace, rootHandler.broadcast)
-	c.namespaces.Set(rootNamespace, root)
-
-	root.Join(root.ID())
-
-	c.namespaces.Range(func(ns string, nc *namespaceConn) {
-		nc.SetContext(c.Conn.Context())
-	})
-
-	header := parser.Header{
-		Type: parser.Connect,
-	}
-
-	if err := c.encoder.Encode(header, map[string]interface{}{
-		"sid": root.ID(),
-	}); err != nil {
-		return err
-	}
-
-	handler, ok := c.handlers.Get(header.Namespace)
-	if ok {
-		_, err := handler.dispatch(root, header)
-		return err
-	}
-
-	return nil
-}
-
 func (c *conn) nextID() uint64 {
 	c.id++
 

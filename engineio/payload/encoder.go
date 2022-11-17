@@ -61,7 +61,7 @@ func (e *encoder) Close() error {
 		e.b64Writer.Close()
 	}
 
-	var writeHeader = e.writeTextHeader
+	var writeHeader func() error
 	if e.ft == frame.Binary {
 		writeHeader = e.writeB64Header
 	} else {

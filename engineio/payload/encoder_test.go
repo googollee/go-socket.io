@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"sync"
 	"testing"
 
@@ -161,7 +160,7 @@ func BenchmarkStringEncoder(b *testing.B) {
 	e := encoder{
 		supportBinary: false,
 		feeder: &fakeWriterFeeder{
-			w: ioutil.Discard,
+			w: io.Discard,
 		},
 	}
 
@@ -200,7 +199,7 @@ func BenchmarkB64Encoder(b *testing.B) {
 	e := encoder{
 		supportBinary: false,
 		feeder: &fakeWriterFeeder{
-			w: ioutil.Discard,
+			w: io.Discard,
 		},
 	}
 
@@ -242,7 +241,7 @@ func BenchmarkBinaryEncoder(b *testing.B) {
 	e := encoder{
 		supportBinary: true,
 		feeder: &fakeWriterFeeder{
-			w: ioutil.Discard,
+			w: io.Discard,
 		},
 	}
 

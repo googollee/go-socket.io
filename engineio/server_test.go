@@ -2,7 +2,7 @@ package engineio
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -48,7 +48,7 @@ func TestEnginePolling(t *testing.T) {
 		must.Nil(err)
 		should.Equal(session.TEXT, ft)
 
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		must.Nil(err)
 		should.Equal("hello你好", string(b))
 
@@ -82,7 +82,7 @@ func TestEnginePolling(t *testing.T) {
 	must.Nil(err)
 	should.Equal(session.BINARY, ft)
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	must.Nil(err)
 	should.Equal([]byte{1, 2, 3, 4}, b)
 
@@ -129,7 +129,7 @@ func TestEngineWebsocket(t *testing.T) {
 
 		should.Equal(session.TEXT, ft)
 
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		must.Nil(err)
 
 		should.Equal("hello你好", string(b))
@@ -172,7 +172,7 @@ func TestEngineWebsocket(t *testing.T) {
 	must.Nil(err)
 	should.Equal(session.BINARY, ft)
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	must.Nil(err)
 	should.Equal([]byte{1, 2, 3, 4}, b)
 
@@ -214,7 +214,7 @@ func TestEngineUpgrade(t *testing.T) {
 		must.Nil(err)
 		should.Equal(session.TEXT, ft)
 
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		must.Nil(err)
 		should.Equal("hello你好", string(b))
 
@@ -283,7 +283,7 @@ func TestEngineUpgrade(t *testing.T) {
 	should.Equal(frame.String, ft)
 	should.Equal(packet.PONG, pt)
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	must.Nil(err)
 
 	should.Equal("probe", string(b))
@@ -313,7 +313,7 @@ func TestEngineUpgrade(t *testing.T) {
 	should.Equal(frame.Binary, ft)
 	should.Equal(packet.MESSAGE, pt)
 
-	b, err = ioutil.ReadAll(r)
+	b, err = io.ReadAll(r)
 	must.Nil(err)
 
 	must.Nil(r.Close())

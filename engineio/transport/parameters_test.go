@@ -2,7 +2,7 @@ package transport
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
 	"time"
 
@@ -55,7 +55,7 @@ func BenchmarkConnParameters(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := param.WriteTo(ioutil.Discard)
+		_, err := param.WriteTo(io.Discard)
 		must.Nil(err)
 	}
 }

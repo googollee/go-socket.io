@@ -1,8 +1,9 @@
 package socketio
 
 import (
-	"github.com/vchitai/go-socket.io/parser"
 	"reflect"
+
+	"github.com/vchitai/go-socket.io/parser"
 )
 
 // namespace
@@ -19,5 +20,5 @@ const (
 type readHandler func(c *conn, header parser.Header) error
 
 var (
-	defaultHeaderType = []reflect.Type{reflect.TypeOf("")}
+	defaultHeaderType = []reflect.Type{reflect.TypeOf(make(map[string]interface{}))}
 )

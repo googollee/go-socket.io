@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +14,7 @@ import (
 	"github.com/vchitai/go-socket.io/engineio/payload"
 	"github.com/vchitai/go-socket.io/engineio/transport"
 	"github.com/vchitai/go-socket.io/engineio/transport/utils"
+	"github.com/vchitai/go-socket.io/logger"
 )
 
 type clientConn struct {
@@ -96,7 +95,8 @@ func (c *clientConn) servePost() {
 	req.Method = http.MethodPost
 
 	var buf bytes.Buffer
-	req.Body = ioutil.NopCloser(&buf)
+	req.Body = io.NopCloser(&buf)
+	var l = logger.GetLogger("engineio.polling.transport")
 
 	query := reqUrl.Query()
 	for {
@@ -111,7 +111,7 @@ func (c *clientConn) servePost() {
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			if err = c.Payload.Store("post", err); err != nil {
-				log.Println("store post error", err)
+				l.Error(err, "store post error")
 			}
 			c.Close()
 			return
@@ -122,7 +122,7 @@ func (c *clientConn) servePost() {
 		if resp.StatusCode != http.StatusOK {
 			err = c.Payload.Store("post", fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
 			if err != nil {
-				log.Println("store post error", err)
+				l.Error(err, "store post error")
 			}
 			c.Close()
 			return
@@ -142,11 +142,11 @@ func (c *clientConn) getOpen() {
 
 	query.Set("t", utils.Timestamp())
 	req.URL.RawQuery = query.Encode()
-
+	var l = logger.GetLogger("engineio.polling.transport")
 	resp, err := c.httpClient.Do(&req)
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			log.Println("store get error", err)
+			l.Error(err, "store get error")
 		}
 
 		c.Close()
@@ -166,13 +166,13 @@ func (c *clientConn) getOpen() {
 		mime := resp.Header.Get("Content-Type")
 		isSupportBinary, err = mimeIsSupportBinary(mime)
 		if err != nil {
-			log.Println("check mime support binary", err)
+			l.Error(err, "check mime support binary")
 		}
 	}
 
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			log.Println("store get error", err)
+			l.Error(err, "store get error")
 		}
 		c.Close()
 
@@ -192,7 +192,7 @@ func (c *clientConn) serveGet() {
 
 	req.URL = &reqUrl
 	req.Method = http.MethodGet
-
+	var l = logger.GetLogger("engineio.polling.connect")
 	query := req.URL.Query()
 	for {
 		query.Set("t", utils.Timestamp())
@@ -201,7 +201,7 @@ func (c *clientConn) serveGet() {
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			if err = c.Payload.Store("get", err); err != nil {
-				log.Println("store get error", err)
+				l.Error(err, "store get error")
 			}
 			c.Close()
 
@@ -217,7 +217,7 @@ func (c *clientConn) serveGet() {
 			mime := resp.Header.Get("Content-Type")
 			isSupportBinary, err = mimeIsSupportBinary(mime)
 			if err != nil {
-				log.Println("check mime support binary", err)
+				l.Error(err, "check mime support binary")
 			}
 		}
 
@@ -225,7 +225,7 @@ func (c *clientConn) serveGet() {
 			discardBody(resp.Body)
 
 			if err = c.Payload.Store("get", err); err != nil {
-				log.Println("store get error", err)
+				l.Error(err, "store get error")
 			}
 
 			c.Close()
@@ -244,9 +244,10 @@ func (c *clientConn) serveGet() {
 }
 
 func discardBody(body io.ReadCloser) {
-	_, err := io.Copy(ioutil.Discard, body)
+	var l = logger.GetLogger("engineio.polling.connect")
+	_, err := io.Copy(io.Discard, body)
 	if err != nil {
-		log.Println("copy from body resp to discard", err)
+		l.Error(err, "copy from body resp to discard")
 	}
 	body.Close()
 }

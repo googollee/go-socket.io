@@ -14,7 +14,7 @@ type namespaceHandler struct {
 	events     map[string]*funcHandler
 	eventsLock sync.RWMutex
 
-	onConnect    func(conn Conn) error
+	onConnect    func(conn Conn, req map[string]interface{}) error
 	onDisconnect func(conn Conn, msg string)
 	onError      func(conn Conn, err error)
 }
@@ -33,7 +33,7 @@ func newNamespaceHandler(nsp string, adapterOpts *RedisAdapterOptions) *namespac
 	}
 }
 
-func (nh *namespaceHandler) OnConnect(f func(Conn) error) {
+func (nh *namespaceHandler) OnConnect(f func(Conn, map[string]interface{}) error) {
 	nh.onConnect = f
 }
 
@@ -68,7 +68,7 @@ func (nh *namespaceHandler) dispatch(conn Conn, header parser.Header, args ...re
 	switch header.Type {
 	case parser.Connect:
 		if nh.onConnect != nil {
-			return nil, nh.onConnect(conn)
+			return nil, nh.onConnect(conn, getDispatchData(args...))
 		}
 		return nil, nil
 
@@ -110,4 +110,13 @@ func getDispatchMessage(args ...reflect.Value) string {
 	}
 
 	return msg
+}
+
+func getDispatchData(args ...reflect.Value) map[string]interface{} {
+	var val map[string]interface{}
+	if len(args) > 0 {
+		val = args[0].Interface().(map[string]interface{})
+	}
+
+	return val
 }

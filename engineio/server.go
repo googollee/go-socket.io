@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/vchitai/go-socket.io/logger"
 
 	"github.com/vchitai/go-socket.io/engineio/session"
 	"github.com/vchitai/go-socket.io/engineio/transport"
@@ -156,8 +156,9 @@ func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport
 	}
 
 	go func(newSession *session.Session) {
+		var l = logger.GetLogger("engineio.server")
 		if err = newSession.InitSession(); err != nil {
-			log.Println("init new session:", err)
+			l.Error(err, "init new session:")
 
 			return
 		}

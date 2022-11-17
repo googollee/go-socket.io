@@ -55,7 +55,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // OnConnect set a handler function f to handle open event for namespace.
-func (s *Server) OnConnect(namespace string, f func(Conn) error) {
+func (s *Server) OnConnect(namespace string, f func(Conn, map[string]interface{}) error) {
 	h := s.getNamespace(namespace)
 	if h == nil {
 		h = s.createNamespace(namespace)

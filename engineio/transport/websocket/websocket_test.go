@@ -1,7 +1,7 @@
 package websocket
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -93,7 +93,7 @@ func TestWebsocket(t *testing.T) {
 			assert.Equal(t, test.ft, ft)
 			assert.Equal(t, test.pt, pt)
 
-			b, err := ioutil.ReadAll(r)
+			b, err := io.ReadAll(r)
 			require.NoError(t, err)
 
 			err = r.Close()
@@ -128,7 +128,7 @@ func TestWebsocket(t *testing.T) {
 		assert.Equal(t, test.ft, ft)
 		assert.Equal(t, test.pt, pt)
 
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		require.NoError(t, err)
 
 		err = r.Close()

@@ -1,13 +1,14 @@
 package websocket
 
 import (
-	"github.com/vchitai/go-socket.io/engineio/transport"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/vchitai/go-socket.io/engineio/transport"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

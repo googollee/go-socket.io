@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"reflect"
 	"strings"
 
@@ -101,9 +100,7 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 
 func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 	r := d.packetReader.(io.Reader)
-	if d.isEvent {
-		r = io.MultiReader(strings.NewReader("["), r)
-	}
+	r = io.MultiReader(strings.NewReader("["), r, strings.NewReader("]"))
 
 	ret := make([]reflect.Value, len(types))
 	values := make([]interface{}, len(types))
@@ -330,7 +327,7 @@ func (d *Decoder) readBuffer(ft session.FrameType, r io.ReadCloser) ([]byte, err
 		return nil, errInvalidBinaryBufferType
 	}
 
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 func (d *Decoder) detachBuffer(v reflect.Value, buffers []Buffer) error {

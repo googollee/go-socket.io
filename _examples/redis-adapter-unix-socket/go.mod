@@ -6,3 +6,5 @@ require (
 	github.com/gin-gonic/gin v1.7.1
 	github.com/vchitai/go-socket.io v1.6.0
 )
+
+replace github.com/vchitai/go-socket.io => ../../.

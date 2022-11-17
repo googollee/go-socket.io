@@ -1,9 +1,10 @@
 package engineio
 
 import (
-	"github.com/vchitai/go-socket.io/engineio/session"
 	"net/http"
 	"time"
+
+	"github.com/vchitai/go-socket.io/engineio/session"
 
 	"github.com/vchitai/go-socket.io/engineio/transport"
 	"github.com/vchitai/go-socket.io/engineio/transport/polling"

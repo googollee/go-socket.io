@@ -2,7 +2,6 @@ package packet
 
 import (
 	"io"
-	"io/ioutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,7 +69,7 @@ func TestDecoder(t *testing.T) {
 				at.Equal(io.EOF, err)
 				break
 			}
-			b, err := ioutil.ReadAll(fr)
+			b, err := io.ReadAll(fr)
 			at.Nil(err)
 			fr.Close()
 

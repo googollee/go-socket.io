@@ -55,8 +55,8 @@ func main() {
 }
 ```
 
-
 ## How to use Redis broadcast adapter
+
 ```go
 server := socketio.NewServer(nil)
 
@@ -126,6 +126,7 @@ server.Emit("some:event", dataForClient, func (so socketio.Socket, data string) 
 ```
 
 ##### Broadcast to All connected Client
+
 * Server-side
 
 ```go
@@ -140,13 +141,14 @@ server.OnConnect("/", func(s socketio.Conn) error {
 //Broadcast message to all connected user
 server.BroadcastToRoom("", "bcast", "event:name", msg)
 ```
+
 * Client-side
+
 ```
 socket.on('some:event', function (msg) {
 	console.log(msg);
 });
 ```
-
 
 ##### Catch Disconnected reason
 
@@ -160,7 +162,6 @@ server.OnDisconnect("/", func(so socketio.Conn, reason string) {
 ```
 
 Possible reasons:
-
 
 | Reason | Side | Description |
 |------------|-------------|------------|

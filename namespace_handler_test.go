@@ -17,7 +17,7 @@ func TestNamespaceHandler(t *testing.T) {
 	h := newNamespaceHandler(t.Name(), nil)
 
 	onConnectCalled := false
-	h.OnConnect(func(c Conn) error {
+	h.OnConnect(func(c Conn, req map[string]interface{}) error {
 		onConnectCalled = true
 		return nil
 	})

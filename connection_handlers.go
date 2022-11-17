@@ -59,9 +59,11 @@ func eventPacketHandler(c *conn, event string, header parser.Header) error {
 }
 
 func connectPacketHandler(c *conn, header parser.Header) error {
-	if err := c.decoder.DiscardLast(); err != nil {
+	args, err := c.decoder.DecodeArgs(defaultHeaderType)
+	if err != nil {
+		log.Println(err)
 		c.onError(header.Namespace, err)
-		return nil
+		return errDecodeArgs
 	}
 
 	handler, ok := c.handlers.Get(header.Namespace)
@@ -77,13 +79,13 @@ func connectPacketHandler(c *conn, header parser.Header) error {
 		conn.Join(c.ID())
 	}
 
-	_, err := handler.dispatch(conn, header)
+	_, err = handler.dispatch(conn, header, args...)
 	if err != nil {
 		log.Println("dispatch connect packet", err)
 		c.onError(header.Namespace, err)
 		return errHandleDispatch
 	}
-	
+
 	c.writeWithArgs(header, reflect.ValueOf(map[string]interface{}{
 		"sid": conn.ID(),
 	}))

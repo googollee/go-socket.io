@@ -4,8 +4,6 @@ package main
 import (
 	"log"
 
-	"github.com/kataras/iris/v12"
-
 	socketio "github.com/vchitai/go-socket.io"
 )
 
