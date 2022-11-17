@@ -111,11 +111,8 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-		if c.supportBinary {
-			w.Header().Set("Content-Type", "application/octet-stream")
-		} else {
-			w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-		}
+
+		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 
 		if err := c.Payload.FlushOut(w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

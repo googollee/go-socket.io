@@ -31,9 +31,8 @@ func (e *Encoder) NextWriter(ft frame.Type, pt Type) (io.WriteCloser, error) {
 	if ft == frame.String {
 		b[0] = pt.StringByte()
 	} else {
-		b[0] = pt.BinaryByte()
+		b[0] = pt.StringByte() + 'b'
 	}
-
 	if _, err := w.Write(b[:]); err != nil {
 		_ = w.Close()
 		return nil, err

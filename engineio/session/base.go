@@ -11,5 +11,5 @@ const (
 	// TEXT is text type message.
 	TEXT = FrameType(frame.String)
 	// BINARY is binary type message.
-	BINARY = FrameType(frame.Binary)
+	BINARY = FrameType(frame.String)
 )

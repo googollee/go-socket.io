@@ -113,7 +113,7 @@ func (c *client) serve() {
 		case <-time.After(c.params.PingInterval):
 		}
 
-		w, err := c.conn.NextWriter(frame.DefaultType, packet.PING)
+		w, err := c.conn.NextWriter(frame.String, packet.PING)
 		if err != nil {
 			return
 		}

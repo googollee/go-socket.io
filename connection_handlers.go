@@ -2,6 +2,7 @@ package socketio
 
 import (
 	"log"
+	"reflect"
 
 	"github.com/vchitai/go-socket.io/parser"
 )
@@ -82,8 +83,10 @@ func connectPacketHandler(c *conn, header parser.Header) error {
 		c.onError(header.Namespace, err)
 		return errHandleDispatch
 	}
-
-	c.write(header)
+	
+	c.writeWithArgs(header, reflect.ValueOf(map[string]interface{}{
+		"sid": conn.ID(),
+	}))
 
 	return nil
 }

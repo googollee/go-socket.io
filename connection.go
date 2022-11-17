@@ -94,7 +94,9 @@ func (c *conn) connect() error {
 		Type: parser.Connect,
 	}
 
-	if err := c.encoder.Encode(header); err != nil {
+	if err := c.encoder.Encode(header, map[string]interface{}{
+		"sid": root.ID(),
+	}); err != nil {
 		return err
 	}
 
@@ -123,6 +125,25 @@ func (c *conn) write(header parser.Header, args ...reflect.Value) {
 	pkg := parser.Payload{
 		Header: header,
 		Data:   data,
+	}
+
+	select {
+	case c.writeChan <- pkg:
+	case <-c.quitChan:
+		return
+	}
+}
+
+func (c *conn) writeWithArgs(header parser.Header, args ...reflect.Value) {
+	data := make([]interface{}, len(args))
+
+	for i := range data {
+		data[i] = args[i].Interface()
+	}
+
+	pkg := parser.Payload{
+		Header: header,
+		Args:   data,
 	}
 
 	select {

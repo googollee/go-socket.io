@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gomodule/redigo/redis"
-
 	"github.com/vchitai/go-socket.io/engineio"
 	"github.com/vchitai/go-socket.io/parser"
 )
@@ -212,14 +211,6 @@ func (s *Server) ForEach(namespace string, room string, f EachFunc) bool {
 
 func (s *Server) serveConn(conn engineio.Conn) {
 	c := newConn(conn, s.handlers)
-	if err := c.connect(); err != nil {
-		_ = c.Close()
-		if root, ok := s.handlers.Get(rootNamespace); ok && root.onError != nil {
-			root.onError(nil, err)
-		}
-
-		return
-	}
 
 	go s.serveError(c)
 	go s.serveWrite(c)
@@ -266,8 +257,14 @@ func (s *Server) serveWrite(c *conn) {
 		case <-c.quitChan:
 			return
 		case pkg := <-c.writeChan:
-			if err := c.encoder.Encode(pkg.Header, pkg.Data); err != nil {
-				c.onError(pkg.Header.Namespace, err)
+			if len(pkg.Args) > 0 {
+				if err := c.encoder.Encode(pkg.Header, pkg.Args...); err != nil {
+					c.onError(pkg.Header.Namespace, err)
+				}
+			} else {
+				if err := c.encoder.Encode(pkg.Header, pkg.Data); err != nil {
+					c.onError(pkg.Header.Namespace, err)
+				}
 			}
 		}
 	}

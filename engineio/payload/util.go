@@ -2,6 +2,8 @@ package payload
 
 import "bytes"
 
+const separator = byte(0x1e)
+
 func writeBinaryLen(l int64, w *bytes.Buffer) error {
 	if l <= 0 {
 		if err := w.WriteByte(0x00); err != nil {

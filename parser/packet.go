@@ -35,4 +35,5 @@ type Payload struct {
 	Header Header
 
 	Data []interface{}
+	Args []interface{}
 }
