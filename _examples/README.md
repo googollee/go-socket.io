@@ -61,6 +61,7 @@ func main() {
 server := socketio.NewServer(nil)
 
 _, err := server.Adapter(&socketio.RedisAdapterOptions{
+    Addr:   "127.0.0.1:6379",
     Host:   "127.0.0.1",
     Port:   "6379",
     Prefix: "socket.io",
@@ -81,7 +82,7 @@ if err != nil {
 ```javascript
  //using client-side socket.io-1.X.X.js
 socket.emit('some:event', JSON.stringify(someData), function(data){
-   console.log('ACK from server wtih data: ', data));
+   console.log('ACK from server wtih data: ', data);
 });
 ```
 
