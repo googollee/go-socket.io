@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vchitai/go-socket.io/parser"
+	"github.com/vchitai/go-socket.io/v4/parser"
 )
 
 func TestNamespaceHandler(t *testing.T) {

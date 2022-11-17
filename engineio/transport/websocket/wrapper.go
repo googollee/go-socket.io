@@ -8,8 +8,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/vchitai/go-socket.io/engineio/frame"
-	"github.com/vchitai/go-socket.io/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport"
 )
 
 type wrapper struct {

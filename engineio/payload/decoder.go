@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"io"
 
-	"github.com/vchitai/go-socket.io/engineio/frame"
-	"github.com/vchitai/go-socket.io/engineio/packet"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/packet"
 )
 
 type byteReader interface {

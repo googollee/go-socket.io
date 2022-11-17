@@ -1,7 +1,7 @@
 package packet
 
 import (
-	"github.com/vchitai/go-socket.io/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
 )
 
 type Frame struct {

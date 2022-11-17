@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/vchitai/go-socket.io/logger"
+	"github.com/vchitai/go-socket.io/v4/logger"
 
-	"github.com/vchitai/go-socket.io/engineio/session"
-	"github.com/vchitai/go-socket.io/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/engineio/session"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport"
 )
 
 // Server is instance of server

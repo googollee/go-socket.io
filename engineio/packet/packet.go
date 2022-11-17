@@ -1,6 +1,6 @@
 package packet
 
-import "github.com/vchitai/go-socket.io/engineio/frame"
+import "github.com/vchitai/go-socket.io/v4/engineio/frame"
 
 // Type is the type of packet
 type Type int

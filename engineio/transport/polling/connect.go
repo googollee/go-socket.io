@@ -10,11 +10,11 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"github.com/vchitai/go-socket.io/engineio/packet"
-	"github.com/vchitai/go-socket.io/engineio/payload"
-	"github.com/vchitai/go-socket.io/engineio/transport"
-	"github.com/vchitai/go-socket.io/engineio/transport/utils"
-	"github.com/vchitai/go-socket.io/logger"
+	"github.com/vchitai/go-socket.io/v4/engineio/packet"
+	"github.com/vchitai/go-socket.io/v4/engineio/payload"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport/utils"
+	"github.com/vchitai/go-socket.io/v4/logger"
 )
 
 type clientConn struct {

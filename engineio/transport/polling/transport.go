@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/vchitai/go-socket.io/engineio/payload"
-	"github.com/vchitai/go-socket.io/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/engineio/payload"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport"
 )
 
 // Transport is the transport of polling.

@@ -3,7 +3,7 @@ package packet
 import (
 	"io"
 
-	"github.com/vchitai/go-socket.io/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
 )
 
 // FrameWriter is the writer which supports framing.

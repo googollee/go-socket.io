@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 
-	socketio "github.com/vchitai/go-socket.io"
+	socketio "github.com/vchitai/go-socket.io/v4"
 )
 
 func main() {

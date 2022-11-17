@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/vchitai/go-socket.io/engineio/session"
+	"github.com/vchitai/go-socket.io/v4/engineio/session"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vchitai/go-socket.io/engineio/frame"
-	"github.com/vchitai/go-socket.io/engineio/packet"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/packet"
 )
 
 type fakeWriterFeeder struct {

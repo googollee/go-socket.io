@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	socketio "github.com/vchitai/go-socket.io"
+	socketio "github.com/vchitai/go-socket.io/v4"
 )
 
 func main() {

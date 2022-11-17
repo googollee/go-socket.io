@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/vchitai/go-socket.io/engineio/session"
+	"github.com/vchitai/go-socket.io/v4/engineio/session"
 
-	"github.com/vchitai/go-socket.io/engineio/transport"
-	"github.com/vchitai/go-socket.io/engineio/transport/polling"
-	"github.com/vchitai/go-socket.io/engineio/transport/websocket"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport/polling"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport/websocket"
 )
 
 // Options is options to create a server.

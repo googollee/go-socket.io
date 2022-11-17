@@ -1,4 +1,4 @@
-module github.com/vchitai/go-socket.io
+module github.com/vchitai/go-socket.io/v4
 
 go 1.19
 

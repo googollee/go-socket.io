@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http/httptest"
 
-	"github.com/vchitai/go-socket.io/engineio"
+	"github.com/vchitai/go-socket.io/v4/engineio"
 )
 
 func main() {

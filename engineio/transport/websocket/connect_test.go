@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vchitai/go-socket.io/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

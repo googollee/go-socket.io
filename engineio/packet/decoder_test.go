@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vchitai/go-socket.io/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
 )
 
 var tests = []struct {

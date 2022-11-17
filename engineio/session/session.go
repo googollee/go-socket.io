@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vchitai/go-socket.io/engineio/frame"
-	"github.com/vchitai/go-socket.io/engineio/packet"
-	"github.com/vchitai/go-socket.io/engineio/payload"
-	"github.com/vchitai/go-socket.io/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/packet"
+	"github.com/vchitai/go-socket.io/v4/engineio/payload"
+	"github.com/vchitai/go-socket.io/v4/engineio/transport"
 )
 
 // Pauser is connection which can be paused and resumes.

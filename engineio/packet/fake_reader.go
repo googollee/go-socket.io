@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/vchitai/go-socket.io/engineio/frame"
+	"github.com/vchitai/go-socket.io/v4/engineio/frame"
 )
 
 type fakeConnReader struct {
