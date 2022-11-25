@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"fmt"
 	"io"
 	"math"
 	"sync"
