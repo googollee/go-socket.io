@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -191,10 +192,36 @@ func (s *Session) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.upgradeLocker.RUnlock()
 
 	if h, ok := conn.(http.Handler); ok {
+		go s.doHealthCheck(r)
 		h.ServeHTTP(w, r)
 	}
 }
 
+func (s *Session) doHealthCheck(req *http.Request) {
+	for {
+		select {
+		case <-req.Context().Done():
+			return
+		case <-time.After(s.params.PingInterval):
+		}
+		s.upgradeLocker.RLock()
+		conn := s.conn
+		s.upgradeLocker.RUnlock()
+
+		w, err := conn.NextWriter(frame.String, packet.PING)
+		if err != nil {
+			return
+		}
+
+		if err := w.Close(); err != nil {
+			return
+		}
+
+		if err = conn.SetWriteDeadline(time.Now().Add(s.params.PingInterval + s.params.PingTimeout)); err != nil {
+			fmt.Printf("set writer's deadline error,msg:%s\n", err.Error())
+		}
+	}
+}
 func (s *Session) nextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 	for {
 		s.upgradeLocker.RLock()
