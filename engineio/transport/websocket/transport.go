@@ -26,7 +26,7 @@ type Transport struct {
 	ReadBufferSize  int
 	WriteBufferSize int
 
-	Subprotocols     []string
+	SubProtocols     []string
 	TLSClientConfig  *tls.Config
 	HandshakeTimeout time.Duration
 
@@ -52,7 +52,7 @@ func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (transport.Conn,
 		Proxy:            t.Proxy,
 		TLSClientConfig:  t.TLSClientConfig,
 		HandshakeTimeout: t.HandshakeTimeout,
-		Subprotocols:     t.Subprotocols,
+		Subprotocols:     t.SubProtocols,
 	}
 
 	switch u.Scheme {

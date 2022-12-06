@@ -1,12 +1,12 @@
 package websocket
 
 import (
-	"fmt"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/vchitai/go-socket.io/v4/logger"
 
 	"github.com/vchitai/go-socket.io/v4/engineio/frame"
 	"github.com/vchitai/go-socket.io/v4/engineio/transport"
@@ -59,10 +59,11 @@ func newRcWrapper(l *sync.Mutex, r io.Reader) rcWrapper {
 	q := make(chan struct{})
 
 	go func() {
+		ll := logger.GetLogger("engineio.transport.websocket")
 		select {
 		case <-q:
 		case <-timer.C:
-			fmt.Println("Did you forget to Close() the ReadCloser from NextReader?")
+			ll.Info("Did you forget to Close() the ReadCloser from NextReader?")
 		}
 	}()
 
@@ -124,10 +125,11 @@ func newWcWrapper(l *sync.Mutex, w io.WriteCloser) wcWrapper {
 	chQuit := make(chan struct{})
 
 	go func() {
+		ll := logger.GetLogger("engineio.transport.websocket")
 		select {
 		case <-chQuit:
 		case <-timer.C:
-			fmt.Println("Did you forget to Close() the WriteCloser from NextWriter?")
+			ll.Info("Did you forget to Close() the WriteCloser from NextWriter?")
 		}
 	}()
 

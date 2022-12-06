@@ -12,7 +12,7 @@ func TestEncoder(t *testing.T) {
 	at := assert.New(t)
 
 	for _, test := range tests {
-		w := NewFakeConnWriter()
+		w := newFakeConnWriter()
 		encoder := NewEncoder(w)
 		for _, p := range test.packets {
 			fw, err := encoder.NextWriter(p.FType, p.PType)

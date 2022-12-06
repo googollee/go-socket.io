@@ -25,7 +25,7 @@ type Server struct {
 	sessions   *session.Manager
 
 	requestChecker CheckerFunc
-	connInitor     ConnInitorFunc
+	connInitiator  ConnInitiatorFunc
 
 	connChan  chan Conn
 	closeOnce sync.Once
@@ -38,7 +38,7 @@ func NewServer(opts *Options) *Server {
 		pingInterval:   opts.getPingInterval(),
 		pingTimeout:    opts.getPingTimeout(),
 		requestChecker: opts.getRequestChecker(),
-		connInitor:     opts.getConnInitor(),
+		connInitiator:  opts.getConnInitiator(),
 		sessions:       session.NewManager(opts.getSessionIDGenerator()),
 		connChan:       make(chan Conn, 1),
 	}
@@ -106,7 +106,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		s.connInitor(r, reqSession)
+		s.connInitiator(r, reqSession)
 	}
 
 	// try upgrade current connection
@@ -146,6 +146,7 @@ func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport
 	params := transport.ConnParameters{
 		PingInterval: s.pingInterval,
 		PingTimeout:  s.pingTimeout,
+		MaxPayload:   1e6,
 		Upgrades:     s.transports.UpgradeFrom(reqTransport),
 	}
 
@@ -156,9 +157,9 @@ func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport
 	}
 
 	go func(newSession *session.Session) {
-		var l = logger.GetLogger("engineio.server")
+		var ll = logger.GetLogger("engineio.server")
 		if err = newSession.InitSession(); err != nil {
-			l.Error(err, "init new session:")
+			ll.Error(err, "init new session:")
 
 			return
 		}

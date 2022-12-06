@@ -6,9 +6,9 @@ import "github.com/vchitai/go-socket.io/v4/engineio/frame"
 type Type int
 
 const (
-	// OPEN is sent from the server when a new transport is opened (recheck).
+	// OPEN is sent from the server when new transport is opened (recheck).
 	OPEN Type = iota
-	// CLOSE is request the close of this transport but does not shutdown the
+	// CLOSE is request the close of this transport but does not shut down the
 	// connection itself.
 	CLOSE
 	// PING is sent by the client. Server should answer with a pong packet
@@ -19,7 +19,7 @@ const (
 	// MESSAGE is actual message, client and server should call their callbacks
 	// with the data.
 	MESSAGE
-	// UPGRADE is sent before engine.io switches a transport to test if server
+	// UPGRADE is sent before engine.io switches transport to test if server
 	// and client can communicate over this transport. If this test succeed,
 	// the client sends an upgrade packets which requests the server to flush
 	// its cache on the old transport and switch to the new transport.

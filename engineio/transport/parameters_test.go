@@ -22,6 +22,7 @@ func TestConnParameters(t *testing.T) {
 			ConnParameters{
 				time.Second * 10,
 				time.Second * 5,
+				1e6,
 				"vCcJKmYQcIf801WDAAAB",
 				[]string{"websocket", "polling"},
 			},
@@ -48,6 +49,7 @@ func BenchmarkConnParameters(b *testing.B) {
 	param := ConnParameters{
 		time.Second * 10,
 		time.Second * 5,
+		1e6,
 		"vCcJKmYQcIf801WDAAAB",
 		[]string{"websocket", "polling"},
 	}

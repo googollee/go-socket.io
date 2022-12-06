@@ -2,7 +2,6 @@ package polling
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vchitai/go-socket.io/v4/engineio/payload"
+	"github.com/vchitai/go-socket.io/v4/logger"
 )
 
 type serverConn struct {
@@ -65,7 +65,7 @@ func (c *serverConn) SetHeaders(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-XSS-Protection", "0")
 	}
 
-	// just in case the default behaviour gets changed and it has to handle an origin check
+	// just in case the default behaviour gets changed, and it has to handle an origin check
 	checkOrigin := Default.CheckOrigin
 	if c.transport.CheckOrigin != nil {
 		checkOrigin = c.transport.CheckOrigin
@@ -132,10 +132,10 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
+		ll := logger.GetLogger("engineio.transport.polling")
 		_, err = w.Write([]byte("ok"))
 		if err != nil {
-			fmt.Printf("ack post err=%s\n", err.Error())
+			ll.Error(err, "Ack Post with error")
 		}
 
 	default:

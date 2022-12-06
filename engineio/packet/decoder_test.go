@@ -60,7 +60,7 @@ func TestDecoder(t *testing.T) {
 	at := assert.New(t)
 
 	for _, test := range tests {
-		r := NewFakeConnReader(test.frames)
+		r := newFakeConnReader(test.frames)
 		decoder := NewDecoder(r)
 		var output []Packet
 		for {

@@ -41,11 +41,11 @@ type roomLenRequest struct {
 	RequestType string
 	RequestID   string
 	Room        string
-	numSub      int        `json:"-"`
-	msgCount    int        `json:"-"`
-	connections int        `json:"-"`
-	mutex       sync.Mutex `json:"-"`
-	done        chan bool  `json:"-"`
+	numSub      int
+	msgCount    int
+	connections int
+	mutex       sync.Mutex
+	done        chan bool
 }
 
 type clearRoomRequest struct {
@@ -58,11 +58,11 @@ type clearRoomRequest struct {
 type allRoomRequest struct {
 	RequestType string
 	RequestID   string
-	rooms       map[string]bool `json:"-"`
-	numSub      int             `json:"-"`
-	msgCount    int             `json:"-"`
-	mutex       sync.Mutex      `json:"-"`
-	done        chan bool       `json:"-"`
+	rooms       map[string]bool
+	numSub      int
+	msgCount    int
+	mutex       sync.Mutex
+	done        chan bool
 }
 
 // response struct
@@ -231,7 +231,7 @@ func (bc *redisBroadcast) SendAll(event string, args ...interface{}) {
 	bc.publishMessage("", event, args...)
 }
 
-// ForEach sends data returned by DataFunc, if room does not exits sends nothing.
+// ForEach sends data returned by DataFunc, if room does not exit, sends nothing.
 func (bc *redisBroadcast) ForEach(room string, f EachFunc) {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()

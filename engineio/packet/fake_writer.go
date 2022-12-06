@@ -10,7 +10,7 @@ type fakeConnWriter struct {
 	Frames []Frame
 }
 
-func NewFakeConnWriter() *fakeConnWriter {
+func newFakeConnWriter() *fakeConnWriter {
 	return &fakeConnWriter{}
 }
 

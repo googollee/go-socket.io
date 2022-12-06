@@ -10,6 +10,7 @@ import (
 type ConnParameters struct {
 	PingInterval time.Duration
 	PingTimeout  time.Duration
+	MaxPayload   int
 	SID          string
 	Upgrades     []string
 }
@@ -19,6 +20,7 @@ type jsonParameters struct {
 	Upgrades     []string `json:"upgrades"`
 	PingInterval int      `json:"pingInterval"`
 	PingTimeout  int      `json:"pingTimeout"`
+	MaxPayload   int      `json:"maxPayload"`
 }
 
 // ReadConnParameters reads ConnParameters from r.
@@ -33,6 +35,7 @@ func ReadConnParameters(r io.Reader) (ConnParameters, error) {
 		Upgrades:     param.Upgrades,
 		PingInterval: time.Duration(param.PingInterval) * time.Millisecond,
 		PingTimeout:  time.Duration(param.PingTimeout) * time.Millisecond,
+		MaxPayload:   param.MaxPayload,
 	}, nil
 }
 
@@ -43,6 +46,7 @@ func (p ConnParameters) WriteTo(w io.Writer) (int64, error) {
 		Upgrades:     p.Upgrades,
 		PingInterval: int(p.PingInterval / time.Millisecond),
 		PingTimeout:  int(p.PingTimeout / time.Millisecond),
+		MaxPayload:   p.MaxPayload,
 	}
 	writer := writer{
 		w: w,

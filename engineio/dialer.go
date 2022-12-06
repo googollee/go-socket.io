@@ -30,7 +30,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 
 	for i := len(d.Transports) - 1; i >= 0; i-- {
 		if conn != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 
 		t := d.Transports[i]
@@ -54,7 +54,9 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 				continue
 			}
 			func() {
-				defer r.Close()
+				defer func() {
+					_ = r.Close()
+				}()
 				if pt != packet.OPEN {
 					err = errors.New("invalid open")
 					return

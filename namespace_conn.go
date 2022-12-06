@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/vchitai/go-socket.io/v4/parser"
 )
@@ -25,6 +26,7 @@ type Namespace interface {
 	Leave(room string)
 	LeaveAll()
 	Rooms() []string
+	Refuse(err error) error
 }
 
 type namespaceConn struct {
@@ -105,6 +107,20 @@ func (nc *namespaceConn) LeaveAll() {
 
 func (nc *namespaceConn) Rooms() []string {
 	return nc.broadcast.Rooms(nc)
+}
+
+func (nc *namespaceConn) Refuse(err error) error {
+	nc.writeWithArgs(parser.Header{
+		Type:      parser.Error,
+		Namespace: nc.namespace,
+	}, reflect.ValueOf(map[string]interface{}{
+		"message": err.Error(),
+		"data":    nil,
+	}))
+	time.AfterFunc(2*time.Second, func() {
+		_ = nc.Close()
+	})
+	return nil
 }
 
 func (nc *namespaceConn) dispatch(header parser.Header) {

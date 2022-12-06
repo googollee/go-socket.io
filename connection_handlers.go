@@ -1,7 +1,6 @@
 package socketio
 
 import (
-	"log"
 	"reflect"
 
 	"github.com/vchitai/go-socket.io/v4/parser"
@@ -61,7 +60,6 @@ func eventPacketHandler(c *conn, event string, header parser.Header) error {
 func connectPacketHandler(c *conn, header parser.Header) error {
 	args, err := c.decoder.DecodeArgs(defaultHeaderType)
 	if err != nil {
-		log.Println(err)
 		c.onError(header.Namespace, err)
 		return errDecodeArgs
 	}
@@ -81,7 +79,6 @@ func connectPacketHandler(c *conn, header parser.Header) error {
 
 	_, err = handler.dispatch(conn, header, args...)
 	if err != nil {
-		log.Println("dispatch connect packet", err)
 		c.onError(header.Namespace, err)
 		return errHandleDispatch
 	}
@@ -117,7 +114,6 @@ func disconnectPacketHandler(c *conn, header parser.Header) error {
 
 	_, err = handler.dispatch(conn, header, args...)
 	if err != nil {
-		log.Println("dispatch disconnect packet", err)
 		c.onError(header.Namespace, err)
 		return errHandleDispatch
 	}

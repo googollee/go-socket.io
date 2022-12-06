@@ -321,7 +321,9 @@ func (d *Decoder) readEvent(event *string) error {
 }
 
 func (d *Decoder) readBuffer(ft session.FrameType, r io.ReadCloser) ([]byte, error) {
-	defer r.Close()
+	defer func() {
+		_ = r.Close()
+	}()
 
 	if ft != session.BINARY {
 		return nil, errInvalidBinaryBufferType

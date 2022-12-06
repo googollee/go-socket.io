@@ -1,7 +1,7 @@
 package socketio
 
-import "github.com/gofrs/uuid"
+import "github.com/google/uuid"
 
 func newV4UUID() string {
-	return uuid.Must(uuid.NewV4()).String()
+	return uuid.Must(uuid.NewUUID()).String()
 }

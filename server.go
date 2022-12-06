@@ -2,6 +2,7 @@ package socketio
 
 import (
 	"net/http"
+	"reflect"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/vchitai/go-socket.io/v4/engineio"
@@ -304,6 +305,13 @@ func (s *Server) serveRead(c *conn) {
 		}
 
 		if err != nil {
+			c.onError(rootNamespace, err)
+			c.writeWithArgs(parser.Header{
+				Type: parser.Error,
+			}, reflect.ValueOf(map[string]interface{}{
+				"message": err.Error(),
+				"data":    nil,
+			}))
 			return
 		}
 	}

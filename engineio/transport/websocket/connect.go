@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
 	"github.com/vchitai/go-socket.io/v4/engineio/packet"
 	"github.com/vchitai/go-socket.io/v4/engineio/transport"
 )

@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// Buffer is an binary buffer handler used in emit args. All buffers will be
+// Buffer is a binary buffer handler used in emit args. All buffers will be
 // sent as binary in the transport layer.
 type Buffer struct {
 	num      uint64
@@ -22,7 +22,7 @@ type BufferData struct {
 }
 
 // MarshalJSON marshals to JSON.
-func (a Buffer) MarshalJSON() ([]byte, error) {
+func (a *Buffer) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	if err := a.marshalJSONBuf(&buf); err != nil {
 		return nil, err

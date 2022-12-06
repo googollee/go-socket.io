@@ -1,7 +1,6 @@
 package session
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 	"github.com/vchitai/go-socket.io/v4/engineio/packet"
 	"github.com/vchitai/go-socket.io/v4/engineio/payload"
 	"github.com/vchitai/go-socket.io/v4/engineio/transport"
+	"github.com/vchitai/go-socket.io/v4/logger"
 )
 
 // Pauser is connection which can be paused and resumes.
@@ -29,6 +29,8 @@ type Session struct {
 	context interface{}
 
 	upgradeLocker sync.RWMutex
+	quitChan      chan bool
+	quitOnce      sync.Once
 }
 
 func New(conn transport.Conn, sid, transport string, params transport.ConnParameters) (*Session, error) {
@@ -44,6 +46,9 @@ func New(conn transport.Conn, sid, transport string, params transport.ConnParame
 		ses.Close()
 		return nil, err
 	}
+
+	ses.quitChan = make(chan bool)
+	go ses.doHealthCheck()
 
 	return ses, nil
 }
@@ -71,6 +76,9 @@ func (s *Session) Close() error {
 	s.upgradeLocker.RLock()
 	defer s.upgradeLocker.RUnlock()
 
+	s.quitOnce.Do(func() {
+		close(s.quitChan)
+	})
 	return s.conn.Close()
 }
 
@@ -86,6 +94,11 @@ func (s *Session) NextReader() (FrameType, io.ReadCloser, error) {
 		}
 
 		switch pt {
+		case packet.PONG:
+			// Pong message received, skip to next
+			_ = r.Close()
+			_ = s.conn.SetReadDeadline(time.Now().Add(s.params.PingTimeout))
+
 		case packet.PING:
 			// Respond to a ping with a pong.
 			err := func() error {
@@ -192,36 +205,40 @@ func (s *Session) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.upgradeLocker.RUnlock()
 
 	if h, ok := conn.(http.Handler); ok {
-		go s.doHealthCheck(r)
 		h.ServeHTTP(w, r)
 	}
 }
 
-func (s *Session) doHealthCheck(req *http.Request) {
+func (s *Session) doHealthCheck() {
+	ll := logger.GetLogger("engineio.session.doHealthCheck")
 	for {
 		select {
-		case <-req.Context().Done():
+		case <-s.quitChan:
 			return
 		case <-time.After(s.params.PingInterval):
 		}
+
 		s.upgradeLocker.RLock()
 		conn := s.conn
 		s.upgradeLocker.RUnlock()
 
 		w, err := conn.NextWriter(frame.String, packet.PING)
 		if err != nil {
+			ll.Error(err, "failed to get ping writer")
 			return
 		}
 
 		if err := w.Close(); err != nil {
+			ll.Error(err, "failed to close ping writer")
 			return
 		}
 
 		if err = conn.SetWriteDeadline(time.Now().Add(s.params.PingInterval + s.params.PingTimeout)); err != nil {
-			fmt.Printf("set writer's deadline error,msg:%s\n", err.Error())
+			ll.Error(err, "failed to set writer's deadline")
 		}
 	}
 }
+
 func (s *Session) nextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 	for {
 		s.upgradeLocker.RLock()

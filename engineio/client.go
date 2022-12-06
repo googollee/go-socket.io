@@ -72,14 +72,14 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 			}
 
 		case packet.CLOSE:
-			c.Close()
+			_ = c.Close()
 			return 0, nil, io.EOF
 
 		case packet.MESSAGE:
 			return session.FrameType(ft), r, nil
 		}
 
-		r.Close()
+		_ = r.Close()
 	}
 }
 
@@ -104,7 +104,9 @@ func (c *client) RemoteHeader() http.Header {
 }
 
 func (c *client) serve() {
-	defer c.conn.Close()
+	defer func() {
+		_ = c.conn.Close()
+	}()
 
 	for {
 		select {

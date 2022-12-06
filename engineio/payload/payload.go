@@ -9,6 +9,7 @@ import (
 
 	"github.com/vchitai/go-socket.io/v4/engineio/frame"
 	"github.com/vchitai/go-socket.io/v4/engineio/packet"
+	"github.com/vchitai/go-socket.io/v4/logger"
 )
 
 type readArg struct {
@@ -59,7 +60,7 @@ func New(supportBinary bool) *Payload {
 // Multi-FeedIn needs be called sync.
 //
 // If Close called when FeedIn, it returns io.EOF.
-// If have Pause-ed when FeedIn, it returns ErrPaused.
+// If having Pause-ed when FeedIn, it returns ErrPaused.
 // If NextReader has timeout, it returns ErrTimeout.
 // If read error while FeedIn, it returns read error.
 func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
@@ -79,6 +80,7 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 	}
 	defer p.pauser.Done()
 
+	var ll = logger.GetLogger("engineio.payload.FeedIn")
 	for {
 		after, ok := p.readTimeout()
 		if !ok {
@@ -87,16 +89,19 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 
 		select {
 		case <-p.close:
+			ll.V(1).Info("Payload closed")
 			return p.load()
 
 		case <-after:
 			// it may changed during wait, need check again
+			ll.V(1).Info("Payload read timeout")
 			continue
 
 		case p.readerChan <- readArg{
 			r:             r,
 			supportBinary: supportBinary,
 		}:
+			ll.V(1).Info("Payload received")
 		}
 		break
 	}
@@ -109,10 +114,12 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 
 		select {
 		case <-after:
-			// it may changed during wait, need check again
+			// it may be changed during wait, need check again
+			ll.V(1).Info("Payload read timeout")
 			continue
 
 		case err := <-p.readError:
+			ll.V(1).Info("Payload read error")
 			return p.Store("read", err)
 		}
 	}
@@ -121,8 +128,8 @@ func (p *Payload) FeedIn(r io.Reader, supportBinary bool) error {
 // FlushOut write data from NextWriter.
 // FlushOut needs be called sync.
 //
-// If Close called when Flushout,  it return io.EOF.
-// If Pause called when Flushout, it flushs out a NOOP message and return
+// If Close called when FlushOut, it returns io.EOF.
+// If Pause called when FlushOut, it flushes out a NOOP message and return
 // nil.
 // If NextWriter has timeout, it returns ErrTimeout.
 // If write error while FlushOut, it returns write error.
@@ -144,6 +151,7 @@ func (p *Payload) FlushOut(w io.Writer) error {
 	}
 	defer p.pauser.Done()
 
+	var ll = logger.GetLogger("engineio.payload.FlushOut")
 	for {
 		after, ok := p.writeTimeout()
 		if !ok {
@@ -151,16 +159,20 @@ func (p *Payload) FlushOut(w io.Writer) error {
 		}
 		select {
 		case <-p.close:
+			ll.V(1).Info("Payload closed")
 			return p.load()
 
 		case <-after:
+			ll.V(1).Info("Payload write timeout")
 			continue
 
 		case <-p.pauser.PausingTrigger():
+			ll.V(1).Info("Payload paused with noop")
 			_, err := w.Write(p.encoder.NOOP())
 			return err
 
 		case p.writerChan <- w:
+			ll.V(1).Info("Payload new write")
 		}
 		break
 	}
@@ -172,7 +184,7 @@ func (p *Payload) FlushOut(w io.Writer) error {
 		}
 		select {
 		case <-after:
-			// it may changed during wait, need check again
+			// it may be changed during wait, need check again
 		case err := <-p.writeError:
 			return p.Store("write", err)
 		}
@@ -182,8 +194,8 @@ func (p *Payload) FlushOut(w io.Writer) error {
 // NextReader returns a reader for next frame.
 // NextReader and SetReadDeadline needs be called sync.
 //
-// If Close called when NextReader,  it return io.EOF.
-// Pause doesn't effect to NextReader. NextReader should wait till resumed
+// If Close called when NextReader, it returns io.EOF.
+// Pause doesn't affect to NextReader. NextReader should wait till resumed
 // and next FeedIn.
 func (p *Payload) NextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 	ft, pt, r, err := p.decoder.NextReader()
@@ -195,9 +207,9 @@ func (p *Payload) NextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 // NextReader will wait a FeedIn call, then it returns ReadCloser which
 // decodes packet from FeedIn's Reader.
 //
-// If Close called when SetReadDeadline,  it return io.EOF.
+// If Close called when SetReadDeadline, it returns io.EOF.
 // If beyond the time set by SetReadDeadline, it returns ErrTimeout.
-// Pause doesn't effect to SetReadDeadline.
+// Pause doesn't affect to SetReadDeadline.
 func (p *Payload) SetReadDeadline(t time.Time) error {
 	p.readDeadline.Store(t)
 	return nil
@@ -218,8 +230,8 @@ func (p *Payload) NextWriter(ft frame.Type, pt packet.Type) (io.WriteCloser, err
 // SetWriteDeadline sets next writer deadline.
 // NextWriter and SetWriteDeadline needs be called sync.
 //
-// If Close called when SetWriteDeadline,  it return io.EOF.
-// Pause doesn't effect to SetWriteDeadline.
+// If Close called when SetWriteDeadline, it returns io.EOF.
+// Pause doesn't affect to SetWriteDeadline.
 func (p *Payload) SetWriteDeadline(t time.Time) error {
 	p.writeDeadline.Store(t)
 	return nil
@@ -247,7 +259,7 @@ func (p *Payload) Close() error {
 	return nil
 }
 
-// Store stores a error in payload, and block all other request.
+// Store stores an error in payload, and block all other request.
 func (p *Payload) Store(op string, err error) error {
 	old := p.err.Load()
 	if old == nil {

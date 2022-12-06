@@ -27,7 +27,7 @@ type encoder struct {
 }
 
 func (e *encoder) NOOP() []byte {
-	return []byte{0x1e}
+	return []byte{'6'}
 }
 
 func (e *encoder) NextWriter(ft frame.Type, pt packet.Type) (io.WriteCloser, error) {
@@ -58,7 +58,7 @@ func (e *encoder) Write(p []byte) (int, error) {
 
 func (e *encoder) Close() error {
 	if e.b64Writer != nil {
-		e.b64Writer.Close()
+		_ = e.b64Writer.Close()
 	}
 
 	var writeHeader func() error

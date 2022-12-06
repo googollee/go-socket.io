@@ -60,7 +60,9 @@ type flusher interface {
 }
 
 func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([][]byte, error) {
-	defer w.Close()
+	defer func() {
+		_ = w.Close()
+	}()
 
 	bw, ok := w.(byteWriter)
 	if !ok {
@@ -190,7 +192,9 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 }
 
 func (e *Encoder) writeBuffer(w io.WriteCloser, buffer []byte) error {
-	defer w.Close()
+	defer func() {
+		_ = w.Close()
+	}()
 
 	_, err := w.Write(buffer)
 	return err

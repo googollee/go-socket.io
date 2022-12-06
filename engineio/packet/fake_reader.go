@@ -11,7 +11,7 @@ type fakeConnReader struct {
 	frames []Frame
 }
 
-func NewFakeConnReader(frames []Frame) *fakeConnReader {
+func newFakeConnReader(frames []Frame) *fakeConnReader {
 	return &fakeConnReader{
 		frames: frames,
 	}
