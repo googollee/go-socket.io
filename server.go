@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/gomodule/redigo/redis"
 	"github.com/vchitai/go-socket.io/v4/engineio"
 	"github.com/vchitai/go-socket.io/v4/parser"
 )
@@ -28,20 +27,8 @@ func NewServer(opts *engineio.Options) *Server {
 
 // Adapter sets redis broadcast adapter.
 func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
-	opts = getOptions(opts)
-	var redisOpts []redis.DialOption
-	if len(opts.Password) > 0 {
-		redisOpts = append(redisOpts, redis.DialPassword(opts.Password))
-	}
+	s.redisAdapter = getOptions(opts)
 
-	conn, err := redis.Dial(opts.Network, opts.getAddr(), redisOpts...)
-	if err != nil {
-		return false, err
-	}
-
-	s.redisAdapter = opts
-
-	conn.Close()
 	return true, nil
 }
 
@@ -220,7 +207,7 @@ func (s *Server) serveConn(conn engineio.Conn) {
 
 func (s *Server) serveError(c *conn) {
 	defer func() {
-		c.Close()
+		_ = c.Close()
 		s.engine.Remove(c.ID())
 	}()
 
@@ -249,7 +236,7 @@ func (s *Server) serveError(c *conn) {
 
 func (s *Server) serveWrite(c *conn) {
 	defer func() {
-		c.Close()
+		_ = c.Close()
 		s.engine.Remove(c.ID())
 	}()
 
@@ -273,7 +260,7 @@ func (s *Server) serveWrite(c *conn) {
 
 func (s *Server) serveRead(c *conn) {
 	defer func() {
-		c.Close()
+		_ = c.Close()
 		s.engine.Remove(c.ID())
 	}()
 

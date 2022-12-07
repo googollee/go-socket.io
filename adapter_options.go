@@ -6,6 +6,7 @@ type RedisAdapterOptions struct {
 	Prefix   string
 	Network  string
 	Password string
+	DB       int
 }
 
 func (ro *RedisAdapterOptions) getAddr() string {
@@ -34,6 +35,10 @@ func getOptions(opts *RedisAdapterOptions) *RedisAdapterOptions {
 
 		if opts.Network != "" {
 			options.Network = opts.Network
+		}
+
+		if opts.DB > 0 {
+			options.DB = opts.DB
 		}
 
 		if len(opts.Password) > 0 {
