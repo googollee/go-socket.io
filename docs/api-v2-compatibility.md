@@ -24,7 +24,6 @@ Source [docs](https://socket.io/docs/v2/server-api/)
 | []                  | server.of(nsp)                     |        |
 | []                  | server.close(callback)             |        |
 | []                  | server.engine.generateId           |        |
-| ---                 | ---                                | ---    |
 | coverage: 0/17 - 0% |
 
 ## Namespace
@@ -44,7 +43,6 @@ Source [docs](https://socket.io/docs/v2/server-api/)
 | []                  | Flag: 'volatile'                   |        |
 | []                  | Flag: 'binary'                     |        |
 | []                  | Flag: 'local'                      |        |
-| ---                 | ---                                | ---    |
 | coverage: 0/12 - 0% |
 
 ## Socket
@@ -78,7 +76,6 @@ Source [docs](https://socket.io/docs/v2/server-api/)
 | []                  | Event: 'disconnect'                        |        |
 | []                  | Event: 'error'                             |        |
 | []                  | Event: 'disconnecting'                     |        |
-| ---                 | ---                                        | ---    |
 | coverage: 0/26 - 0% |                                            |
 
 ## Client
@@ -87,5 +84,4 @@ Source [docs](https://socket.io/docs/v2/server-api/)
 |--------------------|----------------|--------|
 | []                 | client.conn    |        |
 | []                 | client.request |        |
-| ---                | ---            | ---    |
 | coverage: 0/2 - 0% |                |
