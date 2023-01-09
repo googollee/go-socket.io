@@ -143,9 +143,6 @@ func (bc *broadcast) Rooms(connection Conn) []string {
 
 // AllRooms gives list of all rooms available for broadcast
 func (bc *broadcast) AllRooms() []string {
-	bc.lock.RLock()
-	defer bc.lock.RUnlock()
-
 	rooms := make([]string, 0, len(bc.rooms))
 	for room := range bc.rooms {
 		rooms = append(rooms, room)
