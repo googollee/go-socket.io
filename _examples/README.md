@@ -64,7 +64,8 @@ _, err := server.Adapter(&socketio.RedisAdapterOptions{
     Addr:   "127.0.0.1:6379",
     Host:   "127.0.0.1",
     Port:   "6379",
-    Prefix: "socket.io",
+    Prefix: "socket.io", 
+    DB: 1,
 })
 if err != nil {
     log.Fatal("error:", err)

@@ -12,6 +12,8 @@ type RedisAdapterOptions struct {
 	Prefix   string
 	Network  string
 	Password string
+	// DB : specifies the database to select when dialing a connection.
+	DB int
 }
 
 func (ro *RedisAdapterOptions) getAddr() string {
