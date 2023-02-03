@@ -34,6 +34,9 @@ func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
 	if len(opts.Password) > 0 {
 		redisOpts = append(redisOpts, redis.DialPassword(opts.Password))
 	}
+	if opts.DB > 0 {
+		redisOpts = append(redisOpts, redis.DialDatabase(opts.DB))
+	}
 
 	conn, err := redis.Dial(opts.Network, opts.getAddr(), redisOpts...)
 	if err != nil {
