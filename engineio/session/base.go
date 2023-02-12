@@ -4,7 +4,7 @@ import (
 	"github.com/googollee/go-socket.io/engineio/frame"
 )
 
-// FrameType is type of a message frame.
+// FrameType is type of message frame.
 type FrameType frame.Type
 
 const (
