@@ -10,12 +10,34 @@ import (
 	"strings"
 
 	"github.com/googollee/go-socket.io/engineio/payload"
+	"github.com/googollee/go-socket.io/engineio/transport/utils"
 )
+
+type Addr struct {
+	Host      string
+	RemoteAdd string
+}
+
+func (a Addr) Network() string {
+	return "tcp"
+}
+
+func (a Addr) String() string {
+	return a.Host
+}
+
+type options struct {
+	checkOrigin func(r *http.Request) bool
+}
+
+type OptionFunc func(o *options)
 
 type Connection struct {
 	*payload.Payload
-	transport     *Transport
+	options *options
+
 	supportBinary bool
+	checkOrigin   func(r *http.Request) bool
 
 	remoteHeader http.Header
 	localAddr    Addr
@@ -24,7 +46,13 @@ type Connection struct {
 	jsonp        string
 }
 
-func newConnection(t *Transport, r *http.Request) *Connection {
+func New(r *http.Request, opts ...OptionFunc) (*Connection, error) {
+	var o options
+
+	for _, opt := range opts {
+		opt(&o)
+	}
+
 	query := r.URL.Query()
 	jsonp := query.Get("j")
 	supportBinary := query.Get("b64") == ""
@@ -34,14 +62,14 @@ func newConnection(t *Transport, r *http.Request) *Connection {
 
 	return &Connection{
 		Payload:       payload.New(supportBinary),
-		transport:     t,
 		supportBinary: supportBinary,
 		remoteHeader:  r.Header,
-		localAddr:     Addr{r.Host},
-		remoteAddr:    Addr{r.RemoteAddr},
-		url:           *r.URL,
-		jsonp:         jsonp,
-	}
+		checkOrigin:   o.checkOrigin,
+		//localAddr:     Addr{r.Host},
+		//remoteAddr:    Addr{r.RemoteAddr},
+		url:   *r.URL,
+		jsonp: jsonp,
+	}, nil
 }
 
 func (c *Connection) URL() url.URL {
@@ -65,13 +93,7 @@ func (c *Connection) SetHeaders(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-XSS-Protection", "0")
 	}
 
-	// just in case the default behaviour gets changed and it has to handle an origin check
-	checkOrigin := Default.CheckOrigin
-	if c.transport.CheckOrigin != nil {
-		checkOrigin = c.transport.CheckOrigin
-	}
-
-	if checkOrigin != nil && checkOrigin(r) {
+	if c.checkOrigin != nil && c.checkOrigin(r) {
 		if r.URL.Query().Get("j") == "" {
 			origin := r.Header.Get("Origin")
 			if origin == "" {
@@ -100,8 +122,10 @@ func (c *Connection) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			buf := bytes.NewBuffer(nil)
 			if err := c.Payload.FlushOut(buf); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+
 				return
 			}
+
 			w.Header().Set("Content-Type", "text/javascript; charset=UTF-8")
 			pl := template.JSEscapeString(buf.String())
 
@@ -125,7 +149,7 @@ func (c *Connection) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.SetHeaders(w, r)
 
 		mime := r.Header.Get("Content-Type")
-		isSupportBinary, err := mimeIsSupportBinary(mime)
+		isSupportBinary, err := utils.MimeIsSupportBinary(mime)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -139,6 +163,8 @@ func (c *Connection) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, err = w.Write([]byte("ok"))
 		if err != nil {
 			fmt.Printf("ack post err=%s\n", err.Error())
+
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 
 	default:

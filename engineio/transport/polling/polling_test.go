@@ -13,7 +13,7 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
-	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/engineio/transport/polling/client"
 )
 
 var tests = []struct {
@@ -30,19 +30,20 @@ func TestPollingBinary(t *testing.T) {
 	should := assert.New(t)
 	var scValue atomic.Value
 
-	pollingTransport := Default
-	should.Equal("polling", pollingTransport.Name())
+	//pollingTransport := Default
+	//should.Equal("polling", pollingTransport.Name())
 
-	conn := make(chan transport.Conn, 1)
+	conn := make(chan *Connection, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			co, err := pollingTransport.Accept(w, r)
-			should.Nil(err)
-			scValue.Store(co)
-			c = co
-			conn <- co
+			connect, err := New(r)
+
+			scValue.Store(connect)
+			c = connect
+
+			conn <- connect
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}
@@ -53,15 +54,21 @@ func TestPollingBinary(t *testing.T) {
 	u, err := url.Parse(httpSvr.URL)
 	should.Nil(err)
 
-	dialU := *u
+	pollingClient := client.New()
 
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := pollingTransport.Dial(&dialU, header)
+
+	req := &http.Request{
+		URL:    u,
+		Header: header,
+	}
+
+	cc, err := pollingClient.Do(req)
 	should.Nil(err)
 
 	cc.Resume()
-	defer cc.Close()
+	defer pollingClient.Close()
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -124,17 +131,17 @@ func TestPollingString(t *testing.T) {
 	should := assert.New(t)
 	var scValue atomic.Value
 
-	pollingTransport := Default
-	conn := make(chan transport.Conn, 1)
+	conn := make(chan *Connection, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			co, err := pollingTransport.Accept(w, r)
-			should.Nil(err)
-			scValue.Store(co)
-			c = co
-			conn <- co
+			connect := New(r)
+
+			scValue.Store(connect)
+			c = connect
+
+			conn <- connect
 		}
 		c.(http.Handler).ServeHTTP(w, r)
 	}

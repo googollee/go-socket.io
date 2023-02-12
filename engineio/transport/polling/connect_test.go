@@ -27,7 +27,7 @@ func TestServerJSONP(t *testing.T) {
 		c := scValue.Load()
 
 		if c == nil {
-			co, err := pollingTransport.Accept(w, r)
+			co, err := client.Accept(w, r)
 			require.NoError(t, err)
 
 			scValue.Store(co)

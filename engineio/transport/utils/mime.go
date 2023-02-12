@@ -1,4 +1,4 @@
-package polling
+package utils
 
 import (
 	"errors"
@@ -6,19 +6,7 @@ import (
 	"strings"
 )
 
-type Addr struct {
-	Host string
-}
-
-func (a Addr) Network() string {
-	return "tcp"
-}
-
-func (a Addr) String() string {
-	return a.Host
-}
-
-func mimeIsSupportBinary(m string) (bool, error) {
+func MimeIsSupportBinary(m string) (bool, error) {
 	typ, params, err := mime.ParseMediaType(m)
 	if err != nil {
 		return false, err

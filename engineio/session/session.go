@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -25,12 +26,17 @@ type Session struct {
 	params    transport.ConnParameters
 	transport string
 
-	context interface{}
+	context context.Context
 
 	upgradeLocker sync.RWMutex
 }
 
-func New(conn transport.Conn, sid, transport string, params transport.ConnParameters) (*Session, error) {
+func New(
+	ctx context.Context,
+	conn transport.Conn,
+	sid, transport string,
+	params transport.ConnParameters,
+) (*Session, error) {
 	params.SID = sid
 
 	ses := &Session{
@@ -47,11 +53,11 @@ func New(conn transport.Conn, sid, transport string, params transport.ConnParame
 	return ses, nil
 }
 
-func (s *Session) SetContext(v interface{}) {
-	s.context = v
+func (s *Session) SetContext(ctx context.Context) {
+	s.context = ctx
 }
 
-func (s *Session) Context() interface{} {
+func (s *Session) Context() context.Context {
 	return s.context
 }
 

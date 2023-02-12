@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/url"
@@ -10,12 +11,55 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/googollee/go-socket.io/engineio/packet"
-	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
+type options struct {
+	readBufferSize  int
+	writeBufferSize int
+
+	subProtocols      []string
+	tlsClientConfig   *tls.Config
+	handshakeTimeout  time.Duration
+	enableCompression bool
+
+	proxy       func(*http.Request) (*url.URL, error)
+	netDial     func(network, addr string) (net.Conn, error)
+	checkOrigin func(r *http.Request) bool
+}
+
+type OptionFunc func(o *options)
+
+func New(w http.ResponseWriter, r *http.Request, opts ...OptionFunc) (*Connection, error) {
+	var o options
+
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	upgrader := websocket.Upgrader{
+		HandshakeTimeout: o.handshakeTimeout,
+		ReadBufferSize:   o.readBufferSize,
+		WriteBufferSize:  o.writeBufferSize,
+		//WriteBufferPool:   o.writeBufferSize,
+		Subprotocols: o.subProtocols,
+		//Error:             o.err,
+		CheckOrigin:       o.checkOrigin,
+		EnableCompression: o.enableCompression,
+	}
+
+	conn, err := upgrader.Upgrade(w, r, w.Header())
+	if err != nil {
+		return nil, err
+	}
+
+	return newConn(conn, *r.URL, r.Header), nil
+}
+
 type Connection struct {
-	transport.FrameReader
-	transport.FrameWriter
+	*packet.Decoder
+	*packet.Encoder
+	//transport.FrameReader
+	//transport.FrameWriter
 
 	ws wrapper
 
@@ -26,6 +70,10 @@ type Connection struct {
 	closeOnce sync.Once
 }
 
+//wrapper
+//NextReader() (frame.Type, io.ReadCloser, error)
+//NextWriter(FType frame.Type) (io.WriteCloser, error)
+
 func newConn(ws *websocket.Conn, url url.URL, header http.Header) *Connection {
 	w := newWrapper(ws)
 
@@ -34,8 +82,8 @@ func newConn(ws *websocket.Conn, url url.URL, header http.Header) *Connection {
 		remoteHeader: header,
 		ws:           w,
 		closed:       make(chan struct{}),
-		FrameReader:  packet.NewDecoder(w),
-		FrameWriter:  packet.NewEncoder(w),
+		Decoder:      packet.NewDecoder(w),
+		Encoder:      packet.NewEncoder(w),
 	}
 }
 

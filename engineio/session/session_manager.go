@@ -5,19 +5,16 @@ import (
 )
 
 type Manager struct {
-	IDGenerator
+	Generator
 
 	sessions map[string]*Session
 	locker   sync.RWMutex
 }
 
-func NewManager(gen IDGenerator) *Manager {
-	if gen == nil {
-		gen = &DefaultIDGenerator{}
-	}
+func NewManager(gen Generator) *Manager {
 	return &Manager{
-		IDGenerator: gen,
-		sessions:    make(map[string]*Session),
+		Generator: gen,
+		sessions:  make(map[string]*Session),
 	}
 }
 

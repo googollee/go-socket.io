@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -19,6 +20,6 @@ type Conn interface {
 	LocalAddr() net.Addr
 	RemoteAddr() net.Addr
 	RemoteHeader() http.Header
-	SetContext(v interface{})
-	Context() interface{}
+	SetContext(ctx context.Context)
+	Context() context.Context
 }

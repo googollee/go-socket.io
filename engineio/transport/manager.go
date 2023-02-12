@@ -1,30 +1,21 @@
 package transport
 
-import (
-	"net/http"
-	"net/url"
-)
-
-// Transport is a transport which can creates base.Conn
-type Transport interface {
-	Name() string
-	Accept(w http.ResponseWriter, r *http.Request) (Conn, error)
-	Dial(u *url.URL, requestHeader http.Header) (Conn, error)
-}
-
 // Manager is a manager of transports.
 type Manager struct {
-	order      []string
-	transports map[string]Transport
+	order      []Type
+	transports map[string]Conn
 }
 
 // NewManager creates a new manager.
-func NewManager(transports []Transport) *Manager {
-	tranMap := make(map[string]Transport)
+func NewManager(transports []Type) *Manager {
+	tranMap := make(map[string]Conn)
 	names := make([]string, len(transports))
+
 	for i, t := range transports {
-		names[i] = t.Name()
-		tranMap[t.Name()] = t
+		transportString := t.String()
+
+		names[i] = transportString
+		tranMap[transportString] = t
 	}
 
 	return &Manager{
@@ -33,8 +24,7 @@ func NewManager(transports []Transport) *Manager {
 	}
 }
 
-// UpgradeFrom returns a name list of transports which can upgrade from given
-// name.
+// UpgradeFrom returns a name list of transports which can upgrade from given name.
 func (m *Manager) UpgradeFrom(name string) []string {
 	for i, n := range m.order {
 		if n == name {

@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -16,10 +15,9 @@ import (
 func TestWebsocketSetReadDeadline(t *testing.T) {
 	at := assert.New(t)
 
-	tran := &Transport{}
-	conn := make(chan transport.Conn, 1)
+	conn := make(chan *Connection, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		c, err := tran.Accept(w, r)
+		c, err := New(w, r)
 		require.NoError(t, err)
 
 		conn <- c
@@ -33,7 +31,8 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	u.Scheme = "ws"
 
 	header := make(http.Header)
-	cc, err := tran.Dial(u, header)
+	 := client.New()
+	connect.Do(u, header)
 	require.NoError(t, err)
 
 	defer cc.Close()

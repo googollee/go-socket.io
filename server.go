@@ -21,9 +21,33 @@ type Server struct {
 
 // NewServer returns a server.
 func NewServer(opts *engineio.Options) *Server {
+	// todo(sshaplygin): change public API NewServer() with engine array options
+
+	var optFuncs []engineio.OptionFunc
+	if opts != nil {
+		if opts.SessionGenerator != nil {
+		}
+
+		if opts.ConnInitor != nil {
+
+		}
+
+		if len(opts.Transports) > 0 {
+			// todo: add validation supported transports
+		}
+
+		if opts.PingTimeout > 0 {
+		}
+
+		if opts.PingInterval > 0 {
+
+		}
+
+	}
+
 	return &Server{
 		handlers: newNamespaceHandlers(),
-		engine:   engineio.NewServer(opts),
+		engine:   engineio.NewServer(optFuncs...),
 	}
 }
 

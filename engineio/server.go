@@ -32,14 +32,20 @@ type Server struct {
 }
 
 // NewServer returns a server.
-func NewServer(opts *Options) *Server {
+func NewServer(opts ...OptionFunc) *Server {
+	o := newDefaultOptions()
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
 	return &Server{
-		transports:     transport.NewManager(opts.getTransport()),
-		pingInterval:   opts.getPingInterval(),
-		pingTimeout:    opts.getPingTimeout(),
-		requestChecker: opts.getRequestChecker(),
-		connInitor:     opts.getConnInitor(),
-		sessions:       session.NewManager(opts.getSessionIDGenerator()),
+		transports:     transport.NewManager(o.Transports),
+		pingInterval:   o.PingInterval,
+		pingTimeout:    o.PingTimeout,
+		requestChecker: o.RequestChecker,
+		connInitor:     o.ConnInitor,
+		sessions:       session.NewManager(o.SessionGenerator),
 		connChan:       make(chan Conn, 1),
 	}
 }
@@ -70,8 +76,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	reqTransport := query.Get("transport")
 	srvTransport, ok := s.transports.Get(reqTransport)
-	if !ok || srvTransport == nil {
-		http.Error(w, fmt.Sprintf("invalid transport: %s", srvTransport), http.StatusBadRequest)
+	if !ok {
+		http.Error(w, fmt.Sprintf("invalid transport: %s", reqTransport), http.StatusBadRequest)
 		return
 	}
 
@@ -142,7 +148,7 @@ func (s *Server) Remove(sid string) {
 	s.sessions.Remove(sid)
 }
 
-func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport string) (*session.Session, error) {
+func (s *Server) newSession(ctx context.Context, conn transport.Conn, reqTransport string) (*session.Session, error) {
 	params := transport.ConnParameters{
 		PingInterval: s.pingInterval,
 		PingTimeout:  s.pingTimeout,
@@ -150,7 +156,7 @@ func (s *Server) newSession(_ context.Context, conn transport.Conn, reqTransport
 	}
 
 	sid := s.sessions.NewID()
-	newSession, err := session.New(conn, sid, reqTransport, params)
+	newSession, err := session.New(ctx, conn, sid, reqTransport, params)
 	if err != nil {
 		return nil, err
 	}

@@ -1,8 +1,9 @@
-package polling
+package utils
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNormalizeMime(t *testing.T) {
@@ -23,7 +24,7 @@ func TestNormalizeMime(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		isSupportBinary, err := mimeIsSupportBinary(test.mime)
+		isSupportBinary, err := MimeIsSupportBinary(test.mime)
 		at.Equal(test.ok, err == nil)
 
 		if err != nil {

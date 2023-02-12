@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	eio := engineio.NewServer(nil)
+	eio := engineio.NewServer()
 	httpSvr := httptest.NewServer(eio)
 	defer httpSvr.Close()
 

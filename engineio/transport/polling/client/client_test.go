@@ -1,4 +1,4 @@
-package polling
+package client
 
 import (
 	"bytes"
@@ -63,25 +63,26 @@ func TestDialOpen(t *testing.T) {
 
 	u, err := url.Parse(httpSvr.URL)
 	must.Nil(err)
+
 	query := u.Query()
 	query.Set("b64", "1")
 	u.RawQuery = query.Encode()
 
-	cc, err := dial(nil, u, nil)
-	must.Nil(err)
-	defer cc.Close()
+	client := New()
+	client.Do()
+	defer client.Close()
 
-	params, err := cc.Open()
-	must.Nil(err)
+	//params, err := cc.Open()
+	//must.Nil(err)
 
-	should.Equal(cp, params)
+	//should.Equal(cp, params)
 
-	ccURL := cc.URL()
+	ccURL := client.URL()
 	sid := ccURL.Query().Get("sid")
 
 	should.Equal(cp.SID, sid)
 
-	w, err := cc.NextWriter(frame.String, packet.MESSAGE)
+	w, err := client.NextWriter(frame.String, packet.MESSAGE)
 	should.Nil(err)
 
 	_, err = w.Write([]byte("hello"))

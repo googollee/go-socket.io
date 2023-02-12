@@ -25,7 +25,7 @@ func TestEnginePolling(t *testing.T) {
 	should := assert.New(t)
 	must := require.New(t)
 
-	svr := NewServer(nil)
+	svr := NewServer()
 	defer svr.Close()
 
 	httpSvr := httptest.NewServer(svr)
@@ -62,7 +62,7 @@ func TestEnginePolling(t *testing.T) {
 		must.Nil(w.Close())
 	}()
 
-	dialer := NewClient([]transport.Transport{polling.Default})
+	dialer := NewClient([]transport.Transport{transport.Polling})
 
 	header := http.Header{}
 	header.Set("X-EIO-Test", "client")
@@ -103,7 +103,7 @@ func TestEngineWebsocket(t *testing.T) {
 	should := assert.New(t)
 	must := require.New(t)
 
-	svr := NewServer(nil)
+	svr := NewServer()
 	defer svr.Close()
 
 	httpSvr := httptest.NewServer(svr)
@@ -151,7 +151,7 @@ func TestEngineWebsocket(t *testing.T) {
 		must.Nil(w.Close())
 	}()
 
-	dialer := NewClient([]transport.Transport{websocket.Default})
+	dialer := NewClient([]transport.Transport{transport.Websocket})
 
 	header := http.Header{}
 	header.Set("X-EIO-Test", "client")
@@ -206,7 +206,7 @@ func TestEngineUpgrade(t *testing.T) {
 	should := assert.New(t)
 	must := require.New(t)
 
-	svr := NewServer(nil)
+	svr := NewServer()
 	defer svr.Close()
 
 	httpSvr := httptest.NewServer(svr)
@@ -254,7 +254,7 @@ func TestEngineUpgrade(t *testing.T) {
 	p, err := polling.Default.Dial(u, nil)
 	must.Nil(err)
 
-	params, err := p.(Opener).Open()
+	params, err := p.Open()
 	must.Nil(err)
 
 	pRead := make(chan int, 1)

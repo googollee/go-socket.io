@@ -1,4 +1,4 @@
-package polling
+package client
 
 import (
 	"bytes"
@@ -12,24 +12,65 @@ import (
 	"net/url"
 	"sync/atomic"
 
+	"github.com/googollee/go-socket.io/engineio/Payload"
 	"github.com/googollee/go-socket.io/engineio/packet"
-	"github.com/googollee/go-socket.io/engineio/payload"
 	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/utils"
 )
 
-type ClientConnection struct {
+type Connection struct {
 	*payload.Payload
 
-	httpClient   *http.Client
+	client *http.Client
+
 	request      http.Request
 	remoteHeader atomic.Value
 }
 
-func (c *ClientConnection) Open() (transport.ConnParameters, error) {
+func New() *Connection {
+	return &Connection{
+		client: &http.Client{},
+	}
+}
+
+func (c *Connection) Do(req *http.Request) (*Connection, error) {
+	if req == nil {
+		return nil, errors.New("")
+	}
+
+	req.URL.Query().Set("transport", "polling")
+
+	return c.dial(req)
+}
+
+func (c *Connection) dial(req *http.Request) (*Connection, error) {
+	req, err := http.NewRequest(http.MethodGet, req.URL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range req.Header {
+		req.Header[k] = v
+	}
+
+	supportBinary := req.URL.Query().Get("b64") == ""
+	if supportBinary {
+		req.Header.Set("Content-Type", "application/octet-stream")
+	} else {
+		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
+	}
+
+	return &Connection{
+		Payload: payload.New(supportBinary),
+		client:  c.client,
+		request: *req,
+	}, nil
+}
+
+func (c *Connection) Open() (transport.ConnParameters, error) {
 	go c.getOpen()
 
-	_, pt, r, err := c.NextReader()
+	_, pt, r, err := c.Payload.NextReader()
 	if err != nil {
 		return transport.ConnParameters{}, err
 	}
@@ -61,19 +102,19 @@ func (c *ClientConnection) Open() (transport.ConnParameters, error) {
 	return conn, nil
 }
 
-func (c *ClientConnection) URL() url.URL {
+func (c *Connection) URL() url.URL {
 	return *c.request.URL
 }
 
-func (c *ClientConnection) LocalAddr() net.Addr {
+func (c *Connection) LocalAddr() net.Addr {
 	return Addr{""}
 }
 
-func (c *ClientConnection) RemoteAddr() net.Addr {
+func (c *Connection) RemoteAddr() net.Addr {
 	return Addr{c.request.Host}
 }
 
-func (c *ClientConnection) RemoteHeader() http.Header {
+func (c *Connection) RemoteHeader() http.Header {
 	ret := c.remoteHeader.Load()
 	if ret == nil {
 		return nil
@@ -81,14 +122,14 @@ func (c *ClientConnection) RemoteHeader() http.Header {
 	return ret.(http.Header)
 }
 
-func (c *ClientConnection) Resume() {
+func (c *Connection) Resume() {
 	c.Payload.Resume()
 
 	go c.serveGet()
 	go c.servePost()
 }
 
-func (c *ClientConnection) servePost() {
+func (c *Connection) servePost() {
 	req := c.request
 	reqUrl := *req.URL
 
@@ -113,7 +154,9 @@ func (c *ClientConnection) servePost() {
 			if err = c.Payload.Store("post", err); err != nil {
 				log.Println("store post error", err)
 			}
-			c.Close()
+
+			c.Payload.Close()
+
 			return
 		}
 
@@ -124,7 +167,9 @@ func (c *ClientConnection) servePost() {
 			if err != nil {
 				log.Println("store post error", err)
 			}
-			c.Close()
+
+			c.Payload.Close()
+
 			return
 		}
 
@@ -132,7 +177,7 @@ func (c *ClientConnection) servePost() {
 	}
 }
 
-func (c *ClientConnection) getOpen() {
+func (c *Connection) getOpen() {
 	req := c.request
 	query := req.URL.Query()
 
@@ -143,13 +188,13 @@ func (c *ClientConnection) getOpen() {
 	query.Set("t", utils.Timestamp())
 	req.URL.RawQuery = query.Encode()
 
-	resp, err := c.httpClient.Do(&req)
+	resp, err := c.client.Do(&req)
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
 			log.Println("store get error", err)
 		}
 
-		c.Close()
+		c.Payload.Close()
 		return
 	}
 
@@ -164,7 +209,7 @@ func (c *ClientConnection) getOpen() {
 	var isSupportBinary bool
 	if err == nil {
 		mime := resp.Header.Get("Content-Type")
-		isSupportBinary, err = mimeIsSupportBinary(mime)
+		isSupportBinary, err = utils.MimeIsSupportBinary(mime)
 		if err != nil {
 			log.Println("check mime support binary", err)
 		}
@@ -174,7 +219,7 @@ func (c *ClientConnection) getOpen() {
 		if err = c.Payload.Store("get", err); err != nil {
 			log.Println("store get error", err)
 		}
-		c.Close()
+		c.Payload.Close()
 
 		return
 	}
@@ -186,7 +231,7 @@ func (c *ClientConnection) getOpen() {
 	}
 }
 
-func (c *ClientConnection) serveGet() {
+func (c *Connection) serveGet() {
 	req := c.request
 	reqUrl := *req.URL
 
@@ -215,7 +260,7 @@ func (c *ClientConnection) serveGet() {
 		var isSupportBinary bool
 		if err == nil {
 			mime := resp.Header.Get("Content-Type")
-			isSupportBinary, err = mimeIsSupportBinary(mime)
+			isSupportBinary, err = utils.MimeIsSupportBinary(mime)
 			if err != nil {
 				log.Println("check mime support binary", err)
 			}
