@@ -12,7 +12,7 @@ import (
 	"github.com/googollee/go-socket.io/engineio/payload"
 )
 
-type serverConn struct {
+type Connection struct {
 	*payload.Payload
 	transport     *Transport
 	supportBinary bool
@@ -24,7 +24,7 @@ type serverConn struct {
 	jsonp        string
 }
 
-func newServerConn(t *Transport, r *http.Request) *serverConn {
+func newConnection(t *Transport, r *http.Request) *Connection {
 	query := r.URL.Query()
 	jsonp := query.Get("j")
 	supportBinary := query.Get("b64") == ""
@@ -32,7 +32,7 @@ func newServerConn(t *Transport, r *http.Request) *serverConn {
 		supportBinary = false
 	}
 
-	return &serverConn{
+	return &Connection{
 		Payload:       payload.New(supportBinary),
 		transport:     t,
 		supportBinary: supportBinary,
@@ -44,23 +44,23 @@ func newServerConn(t *Transport, r *http.Request) *serverConn {
 	}
 }
 
-func (c *serverConn) URL() url.URL {
+func (c *Connection) URL() url.URL {
 	return c.url
 }
 
-func (c *serverConn) LocalAddr() net.Addr {
+func (c *Connection) LocalAddr() net.Addr {
 	return c.localAddr
 }
 
-func (c *serverConn) RemoteAddr() net.Addr {
+func (c *Connection) RemoteAddr() net.Addr {
 	return c.remoteAddr
 }
 
-func (c *serverConn) RemoteHeader() http.Header {
+func (c *Connection) RemoteHeader() http.Header {
 	return c.remoteHeader
 }
 
-func (c *serverConn) SetHeaders(w http.ResponseWriter, r *http.Request) {
+func (c *Connection) SetHeaders(w http.ResponseWriter, r *http.Request) {
 	if strings.Contains(r.UserAgent(), ";MSIE") || strings.Contains(r.UserAgent(), "Trident/") {
 		w.Header().Set("X-XSS-Protection", "0")
 	}
@@ -84,7 +84,7 @@ func (c *serverConn) SetHeaders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (c *Connection) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodOptions:
 		if r.URL.Query().Get("j") == "" {

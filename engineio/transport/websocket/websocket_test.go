@@ -13,7 +13,6 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
-	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 var tests = []struct {
@@ -30,14 +29,15 @@ func TestWebsocket(t *testing.T) {
 	wsTransport := &Transport{}
 	assert.Equal(t, "websocket", wsTransport.Name())
 
-	conn := make(chan transport.Conn, 1)
+	conn := make(chan *Connection, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c, err := wsTransport.Accept(w, r)
 		require.NoError(t, err)
 
 		conn <- c
-		c.(http.Handler).ServeHTTP(w, r)
+
+		c.ServeHTTP(w, r)
 	}
 	httpSvr := httptest.NewServer(http.HandlerFunc(handler))
 	defer httpSvr.Close()

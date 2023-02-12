@@ -60,7 +60,7 @@ func TestPollingBinary(t *testing.T) {
 	cc, err := pollingTransport.Dial(&dialU, header)
 	should.Nil(err)
 
-	cc.(*clientConn).Resume()
+	cc.Resume()
 	defer cc.Close()
 
 	wg := sync.WaitGroup{}
@@ -154,7 +154,7 @@ func TestPollingString(t *testing.T) {
 	cc, err := pollingTransport.Dial(&dialU, header)
 	should.Nil(err)
 
-	cc.(*clientConn).Resume()
+	cc.Resume()
 	defer cc.Close()
 
 	sc := <-conn

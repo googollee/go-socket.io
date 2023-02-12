@@ -18,7 +18,7 @@ import (
 	"github.com/googollee/go-socket.io/engineio/transport/utils"
 )
 
-type clientConn struct {
+type ClientConnection struct {
 	*payload.Payload
 
 	httpClient   *http.Client
@@ -26,7 +26,7 @@ type clientConn struct {
 	remoteHeader atomic.Value
 }
 
-func (c *clientConn) Open() (transport.ConnParameters, error) {
+func (c *ClientConnection) Open() (transport.ConnParameters, error) {
 	go c.getOpen()
 
 	_, pt, r, err := c.NextReader()
@@ -61,19 +61,19 @@ func (c *clientConn) Open() (transport.ConnParameters, error) {
 	return conn, nil
 }
 
-func (c *clientConn) URL() url.URL {
+func (c *ClientConnection) URL() url.URL {
 	return *c.request.URL
 }
 
-func (c *clientConn) LocalAddr() net.Addr {
+func (c *ClientConnection) LocalAddr() net.Addr {
 	return Addr{""}
 }
 
-func (c *clientConn) RemoteAddr() net.Addr {
+func (c *ClientConnection) RemoteAddr() net.Addr {
 	return Addr{c.request.Host}
 }
 
-func (c *clientConn) RemoteHeader() http.Header {
+func (c *ClientConnection) RemoteHeader() http.Header {
 	ret := c.remoteHeader.Load()
 	if ret == nil {
 		return nil
@@ -81,14 +81,14 @@ func (c *clientConn) RemoteHeader() http.Header {
 	return ret.(http.Header)
 }
 
-func (c *clientConn) Resume() {
+func (c *ClientConnection) Resume() {
 	c.Payload.Resume()
 
 	go c.serveGet()
 	go c.servePost()
 }
 
-func (c *clientConn) servePost() {
+func (c *ClientConnection) servePost() {
 	req := c.request
 	reqUrl := *req.URL
 
@@ -132,7 +132,7 @@ func (c *clientConn) servePost() {
 	}
 }
 
-func (c *clientConn) getOpen() {
+func (c *ClientConnection) getOpen() {
 	req := c.request
 	query := req.URL.Query()
 
@@ -186,7 +186,7 @@ func (c *clientConn) getOpen() {
 	}
 }
 
-func (c *clientConn) serveGet() {
+func (c *ClientConnection) serveGet() {
 	req := c.request
 	reqUrl := *req.URL
 

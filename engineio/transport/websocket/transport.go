@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/utils"
 )
 
@@ -44,7 +43,7 @@ func (t *Transport) Name() string {
 }
 
 // Dial creates a new client connection.
-func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (transport.Conn, error) {
+func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (*Connection, error) {
 	dialer := websocket.Dialer{
 		ReadBufferSize:   t.ReadBufferSize,
 		WriteBufferSize:  t.WriteBufferSize,
@@ -79,7 +78,7 @@ func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (transport.Conn,
 }
 
 // Accept accepts a http request and create Conn.
-func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (transport.Conn, error) {
+func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (*Connection, error) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  t.ReadBufferSize,
 		WriteBufferSize: t.WriteBufferSize,

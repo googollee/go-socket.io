@@ -15,25 +15,27 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
-	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 func TestServerJSONP(t *testing.T) {
 	var scValue atomic.Value
 
 	pollingTransport := Default
-	conn := make(chan transport.Conn, 1)
+	conn := make(chan *Connection, 1)
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
+
 		if c == nil {
 			co, err := pollingTransport.Accept(w, r)
 			require.NoError(t, err)
 
 			scValue.Store(co)
 			c = co
+
 			conn <- co
 		}
+
 		c.(http.Handler).ServeHTTP(w, r)
 	}
 

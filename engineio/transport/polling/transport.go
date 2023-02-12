@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/googollee/go-socket.io/engineio/payload"
-	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 // Transport is the transport of polling.
@@ -29,13 +28,12 @@ func (t *Transport) Name() string {
 }
 
 // Accept accepts a http request and create Conn.
-func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (transport.Conn, error) {
-	conn := newServerConn(t, r)
-	return conn, nil
+func (t *Transport) Accept(w http.ResponseWriter, r *http.Request) (*Connection, error) {
+	return newConnection(t, r), nil
 }
 
 // Dial dials connection to url.
-func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (transport.Conn, error) {
+func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (*ClientConnection, error) {
 	query := u.Query()
 	query.Set("transport", t.Name())
 	u.RawQuery = query.Encode()
@@ -48,7 +46,7 @@ func (t *Transport) Dial(u *url.URL, requestHeader http.Header) (transport.Conn,
 	return dial(client, u, requestHeader)
 }
 
-func dial(client *http.Client, url *url.URL, requestHeader http.Header) (*clientConn, error) {
+func dial(client *http.Client, url *url.URL, requestHeader http.Header) (*ClientConnection, error) {
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -66,7 +64,7 @@ func dial(client *http.Client, url *url.URL, requestHeader http.Header) (*client
 		req.Header.Set("Content-Type", "text/plain;charset=UTF-8")
 	}
 
-	return &clientConn{
+	return &ClientConnection{
 		Payload:    payload.New(supportBinary),
 		httpClient: client,
 		request:    *req,
