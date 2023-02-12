@@ -13,7 +13,6 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
-	"github.com/googollee/go-socket.io/engineio/transport/polling/client"
 )
 
 var tests = []struct {
@@ -54,7 +53,7 @@ func TestPollingBinary(t *testing.T) {
 	u, err := url.Parse(httpSvr.URL)
 	should.Nil(err)
 
-	pollingClient := client.New()
+	pollingClient := polling.New()
 
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")

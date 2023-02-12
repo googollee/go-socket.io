@@ -23,6 +23,7 @@ type Server struct {
 func NewServer(opts *engineio.Options) *Server {
 	// todo(sshaplygin): change public API NewServer() with engine array options
 
+	// todo(sshaplygin): move to method
 	var optFuncs []engineio.OptionFunc
 	if opts != nil {
 		if opts.SessionGenerator != nil {
@@ -42,7 +43,6 @@ func NewServer(opts *engineio.Options) *Server {
 		if opts.PingInterval > 0 {
 
 		}
-
 	}
 
 	return &Server{

@@ -24,7 +24,7 @@ type Pauser interface {
 type Session struct {
 	conn      transport.Conn
 	params    transport.ConnParameters
-	transport string
+	transport transport.Type
 
 	context context.Context
 
@@ -34,7 +34,8 @@ type Session struct {
 func New(
 	ctx context.Context,
 	conn transport.Conn,
-	sid, transport string,
+	sid string,
+	transport transport.Type,
 	params transport.ConnParameters,
 ) (*Session, error) {
 	params.SID = sid
@@ -43,6 +44,7 @@ func New(
 		transport: transport,
 		conn:      conn,
 		params:    params,
+		context:   ctx,
 	}
 
 	if err := ses.setDeadline(); err != nil {
@@ -65,7 +67,7 @@ func (s *Session) ID() string {
 	return s.params.SID
 }
 
-func (s *Session) Transport() string {
+func (s *Session) Transport() transport.Type {
 	s.upgradeLocker.RLock()
 	defer s.upgradeLocker.RUnlock()
 
@@ -166,8 +168,8 @@ func (s *Session) NextWriter(typ FrameType) (io.WriteCloser, error) {
 	return s.nextWriter(frame.Type(typ), packet.MESSAGE)
 }
 
-func (s *Session) Upgrade(transport string, conn transport.Conn) {
-	go s.upgrading(transport, conn)
+func (s *Session) Upgrade(transportType transport.Type, conn transport.Conn) {
+	go s.upgrading(transportType, conn)
 }
 
 func (s *Session) InitSession() error {
@@ -196,9 +198,7 @@ func (s *Session) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	conn := s.conn
 	s.upgradeLocker.RUnlock()
 
-	if h, ok := conn.(http.Handler); ok {
-		h.ServeHTTP(w, r)
-	}
+	conn.ServeHTTP(w, r)
 }
 
 func (s *Session) nextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
@@ -251,7 +251,7 @@ func (s *Session) setDeadline() error {
 	return s.conn.SetWriteDeadline(deadline)
 }
 
-func (s *Session) upgrading(t string, conn transport.Conn) {
+func (s *Session) upgrading(transportType transport.Type, conn transport.Conn) {
 	// Read a ping from the client.
 	err := conn.SetReadDeadline(time.Now().Add(s.params.PingTimeout))
 	if err != nil {
@@ -344,7 +344,7 @@ func (s *Session) upgrading(t string, conn transport.Conn) {
 	// Successful upgrade.
 	s.upgradeLocker.Lock()
 	s.conn = conn
-	s.transport = t
+	s.transport = transportType
 	s.upgradeLocker.Unlock()
 
 	p = nil

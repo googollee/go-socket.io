@@ -46,7 +46,7 @@ type Connection struct {
 	jsonp        string
 }
 
-func New(r *http.Request, opts ...OptionFunc) (*Connection, error) {
+func New(_ http.ResponseWriter, r *http.Request, opts ...OptionFunc) (*Connection, error) {
 	var o options
 
 	for _, opt := range opts {

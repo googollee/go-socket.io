@@ -23,8 +23,11 @@ type FrameWriter interface {
 
 // Conn is a transport connection.
 type Conn interface {
+	http.Handler
+
 	FrameReader
 	FrameWriter
+
 	io.Closer
 	URL() url.URL
 	LocalAddr() net.Addr

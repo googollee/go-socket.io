@@ -1,11 +1,23 @@
 package transport
 
-type Type uint
+type Type int
 
 const (
 	Polling Type = iota
 	Websocket
 )
+
+func GetType(req string) Type {
+	if req == "polling" {
+		return Polling
+	}
+
+	if req == "websocket" {
+		return Websocket
+	}
+
+	return -1
+}
 
 func (t Type) String() string {
 	if t == Polling {

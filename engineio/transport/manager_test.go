@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"github.com/googollee/go-socket.io/engineio"
 	"net/http"
 	"net/url"
 	"testing"
@@ -16,11 +17,11 @@ func (f fakeTransport) Name() string {
 	return f.name
 }
 
-func (f fakeTransport) Dial(url *url.URL, header http.Header) (Conn, error) {
+func (f fakeTransport) Dial(url *url.URL, header http.Header) (engineio.Conn, error) {
 	return nil, nil
 }
 
-func (f fakeTransport) Accept(http.ResponseWriter, *http.Request) (Conn, error) {
+func (f fakeTransport) Accept(http.ResponseWriter, *http.Request) (engineio.Conn, error) {
 	return nil, nil
 }
 

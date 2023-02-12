@@ -8,6 +8,12 @@ import (
 	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
+// CheckerFunc is function to check request.
+type CheckerFunc func(*http.Request) (http.Header, error)
+
+// ConnInitorFunc is function to do after create connection.
+type ConnInitorFunc func(*http.Request, Conn)
+
 type OptionFunc func(o *Options)
 
 type Options struct {

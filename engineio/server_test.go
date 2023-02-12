@@ -2,6 +2,7 @@ package engineio
 
 import (
 	"fmt"
+	"github.com/googollee/go-socket.io/engineio/client"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -62,7 +63,7 @@ func TestEnginePolling(t *testing.T) {
 		must.Nil(w.Close())
 	}()
 
-	dialer := NewClient([]transport.Transport{transport.Polling})
+	dialer := client.NewClient([]transport.Transport{transport.Polling})
 
 	header := http.Header{}
 	header.Set("X-EIO-Test", "client")
@@ -151,7 +152,7 @@ func TestEngineWebsocket(t *testing.T) {
 		must.Nil(w.Close())
 	}()
 
-	dialer := NewClient([]transport.Transport{transport.Websocket})
+	dialer := client.NewClient([]transport.Transport{transport.Websocket})
 
 	header := http.Header{}
 	header.Set("X-EIO-Test", "client")

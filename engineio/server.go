@@ -75,7 +75,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
 	reqTransport := query.Get("transport")
-	srvTransport, ok := s.transports.Get(reqTransport)
+
+	transportType := transport.GetType(reqTransport)
+	createTransportConnect, ok := s.transports.Get(transportType)
 	if !ok {
 		http.Error(w, fmt.Sprintf("invalid transport: %s", reqTransport), http.StatusBadRequest)
 		return
@@ -100,13 +102,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		transportConn, err := srvTransport.Accept(w, r)
+		transportConn, err := createTransportConnect(w, r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("transport accept err: %s", err.Error()), http.StatusBadGateway)
 			return
 		}
 
-		reqSession, err = s.newSession(r.Context(), transportConn, reqTransport)
+		reqSession, err = s.newSession(r.Context(), transportConn, transportType)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("create new session err: %s", err.Error()), http.StatusBadRequest)
 			return
@@ -116,8 +118,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// try upgrade current connection
-	if reqSession.Transport() != reqTransport {
-		transportConn, err := srvTransport.Accept(w, r)
+	if reqSession.Transport() != transportType {
+		transportConn, err := createTransportConnect(w, r)
 		if err != nil {
 			// don't call http.Error() for HandshakeErrors because
 			// they get handled by the websocket library internally.
@@ -127,12 +129,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		reqSession.Upgrade(reqTransport, transportConn)
-
-		if handler, ok := transportConn.(http.Handler); ok {
-			handler.ServeHTTP(w, r)
-		}
-		return
+		reqSession.Upgrade(transportType, transportConn)
 	}
 
 	reqSession.ServeHTTP(w, r)
@@ -148,15 +145,19 @@ func (s *Server) Remove(sid string) {
 	s.sessions.Remove(sid)
 }
 
-func (s *Server) newSession(ctx context.Context, conn transport.Conn, reqTransport string) (*session.Session, error) {
+func (s *Server) newSession(
+	ctx context.Context,
+	conn transport.Conn,
+	transportType transport.Type,
+) (*session.Session, error) {
 	params := transport.ConnParameters{
 		PingInterval: s.pingInterval,
 		PingTimeout:  s.pingTimeout,
-		Upgrades:     s.transports.UpgradeFrom(reqTransport),
+		Upgrades:     s.transports.UpgradeFrom(transportType),
 	}
 
 	sid := s.sessions.NewID()
-	newSession, err := session.New(ctx, conn, sid, reqTransport, params)
+	newSession, err := session.New(ctx, conn, sid, transportType, params)
 	if err != nil {
 		return nil, err
 	}

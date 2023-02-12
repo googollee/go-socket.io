@@ -22,13 +22,14 @@ type jsonParameters struct {
 }
 
 // ReadConnParameters reads ConnParameters from r.
-func ReadConnParameters(r io.Reader) (ConnParameters, error) {
+func ReadConnParameters(r io.Reader) (*ConnParameters, error) {
 	var param jsonParameters
+
 	if err := json.NewDecoder(r).Decode(&param); err != nil {
-		return ConnParameters{}, err
+		return nil, err
 	}
 
-	return ConnParameters{
+	return &ConnParameters{
 		SID:          param.SID,
 		Upgrades:     param.Upgrades,
 		PingInterval: time.Duration(param.PingInterval) * time.Millisecond,

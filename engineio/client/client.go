@@ -1,4 +1,4 @@
-package engineio
+package client
 
 import (
 	"errors"
@@ -28,16 +28,16 @@ type Opener interface {
 }
 
 type Client struct {
-	Transports []transport.Transport
+	Transports []transport.Type
 }
 
-func NewClient(transports []transport.Transport) *Client {
+func NewClient(transports []transport.Type) *Client {
 	return &Client{
 		Transports: transports,
 	}
 }
 
-func (c *Client) Do(req *http.Request) (Conn, error) {
+func (c *Client) Do(req *http.Request) (transport.Conn, error) {
 	if req == nil {
 		return nil, errors.New("")
 	}
