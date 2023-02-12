@@ -1,6 +1,7 @@
 package engineio
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -24,6 +25,86 @@ type Pauser interface {
 // Opener is client connection which need receive open message first.
 type Opener interface {
 	Open() (transport.ConnParameters, error)
+}
+
+type Client struct {
+	Transports []transport.Transport
+}
+
+func NewClient(transports []transport.Transport) *Client {
+	return &Client{
+		Transports: transports,
+	}
+}
+
+func (c *Client) Do(req *http.Request) (Conn, error) {
+	if req == nil {
+		return nil, errors.New("")
+	}
+
+	query := req.URL.Query()
+
+	query.Set("EIO", "3")
+	req.URL.RawQuery = query.Encode()
+
+	var conn transport.Conn
+	var err error
+
+	for i := len(c.Transports) - 1; i >= 0; i-- {
+		if conn != nil {
+			conn.Close()
+		}
+
+		t := c.Transports[i]
+
+		conn, err = t.Dial(req.URL, req.Header)
+		if err != nil {
+			continue
+		}
+
+		var params transport.ConnParameters
+		if p, ok := conn.(Opener); ok {
+			params, err = p.Open()
+			if err != nil {
+				continue
+			}
+		} else {
+			var pt packet.Type
+			var r io.ReadCloser
+
+			_, pt, r, err = conn.NextReader()
+			if err != nil {
+				continue
+			}
+
+			func() {
+				defer r.Close()
+				if pt != packet.OPEN {
+					err = errors.New("invalid open")
+					return
+				}
+				params, err = transport.ReadConnParameters(r)
+				if err != nil {
+					return
+				}
+			}()
+		}
+		if err != nil {
+			continue
+		}
+		ret := &client{
+			conn:      conn,
+			params:    params,
+			transport: t.Name(),
+			close:     make(chan struct{}),
+		}
+
+		go ret.serve()
+
+		return ret, nil
+	}
+
+	return nil, err
 }
 
 type client struct {
