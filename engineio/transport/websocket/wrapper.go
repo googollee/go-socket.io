@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/googollee/go-socket.io/engineio/frame"
-	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 type wrapper struct {
@@ -45,7 +44,7 @@ func (w wrapper) NextReader() (frame.Type, io.ReadCloser, error) {
 		return frame.Binary, newRcWrapper(w.readLocker, r), nil
 	}
 
-	return 0, nil, transport.ErrInvalidFrame
+	return 0, nil, ErrInvalidFrame
 }
 
 type rcWrapper struct {
@@ -98,7 +97,7 @@ func (w wrapper) NextWriter(FType frame.Type) (io.WriteCloser, error) {
 	case frame.Binary:
 		t = websocket.BinaryMessage
 	default:
-		return nil, transport.ErrInvalidFrame
+		return nil, ErrInvalidFrame
 	}
 
 	w.writeLocker.Lock()
