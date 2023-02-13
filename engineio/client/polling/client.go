@@ -12,8 +12,9 @@ import (
 	"net/url"
 	"sync/atomic"
 
-	"github.com/googollee/go-socket.io/engineio/Payload"
 	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/payload"
+	"github.com/googollee/go-socket.io/engineio/protocol"
 	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/utils"
 )
@@ -38,7 +39,7 @@ func (c *Connection) Do(req *http.Request) (*Connection, error) {
 		return nil, errors.New("")
 	}
 
-	req.URL.Query().Set("transport", "polling")
+	req.URL.Query().Set(protocol.Transport, transport.Polling)
 
 	return c.dial(req)
 }
@@ -53,7 +54,7 @@ func (c *Connection) dial(req *http.Request) (*Connection, error) {
 		req.Header[k] = v
 	}
 
-	supportBinary := req.URL.Query().Get("b64") == ""
+	supportBinary := req.URL.Query().Get(protocol.Base64Encoding) == ""
 	if supportBinary {
 		req.Header.Set("Content-Type", "application/octet-stream")
 	} else {
@@ -93,7 +94,7 @@ func (c *Connection) Open() (transport.ConnParameters, error) {
 	}
 
 	query := c.request.URL.Query()
-	query.Set("sid", conn.SID)
+	query.Set(protocol.SID, conn.SID)
 	c.request.URL.RawQuery = query.Encode()
 
 	go c.serveGet()
@@ -146,12 +147,12 @@ func (c *Connection) servePost() {
 		if err := c.Payload.FlushOut(&buf); err != nil {
 			return
 		}
-		query.Set("t", utils.Timestamp())
+		query.Set(protocol.TimestampTag, utils.Timestamp())
 		req.URL.RawQuery = query.Encode()
 
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
-			if err = c.Payload.Store("post", err); err != nil {
+			if err = c.Payload.Store(http.MethodPost, err); err != nil {
 				log.Println("store post error", err)
 			}
 
@@ -163,7 +164,7 @@ func (c *Connection) servePost() {
 		discardBody(resp.Body)
 
 		if resp.StatusCode != http.StatusOK {
-			err = c.Payload.Store("post", fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
+			err = c.Payload.Store(http.MethodPost, fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
 			if err != nil {
 				log.Println("store post error", err)
 			}
@@ -185,12 +186,12 @@ func (c *Connection) getOpen() {
 	req.URL = &reqUrl
 	req.Method = http.MethodGet
 
-	query.Set("t", utils.Timestamp())
+	query.Set(protocol.TimestampTag, utils.Timestamp())
 	req.URL.RawQuery = query.Encode()
 
 	resp, err := c.client.Do(&req)
 	if err != nil {
-		if err = c.Payload.Store("get", err); err != nil {
+		if err = c.Payload.Store(http.MethodGet, err); err != nil {
 			log.Println("store get error", err)
 		}
 
@@ -216,7 +217,7 @@ func (c *Connection) getOpen() {
 	}
 
 	if err != nil {
-		if err = c.Payload.Store("get", err); err != nil {
+		if err = c.Payload.Store(http.MethodGet, err); err != nil {
 			log.Println("store get error", err)
 		}
 		c.Payload.Close()
@@ -240,12 +241,12 @@ func (c *Connection) serveGet() {
 
 	query := req.URL.Query()
 	for {
-		query.Set("t", utils.Timestamp())
+		query.Set(protocol.TimestampTag, utils.Timestamp())
 		req.URL.RawQuery = query.Encode()
 
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
-			if err = c.Payload.Store("get", err); err != nil {
+			if err = c.Payload.Store(http.MethodGet, err); err != nil {
 				log.Println("store get error", err)
 			}
 			c.Close()
@@ -269,7 +270,7 @@ func (c *Connection) serveGet() {
 		if err != nil {
 			discardBody(resp.Body)
 
-			if err = c.Payload.Store("get", err); err != nil {
+			if err = c.Payload.Store(http.MethodGet, err); err != nil {
 				log.Println("store get error", err)
 			}
 

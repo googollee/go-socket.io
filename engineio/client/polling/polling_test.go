@@ -1,6 +1,7 @@
 package polling
 
 import (
+	"github.com/googollee/go-socket.io/engineio/transport/polling"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
@@ -26,18 +28,18 @@ var tests = []struct {
 }
 
 func TestPollingBinary(t *testing.T) {
+	must := require.New(t)
 	should := assert.New(t)
+
 	var scValue atomic.Value
 
-	//pollingTransport := Default
-	//should.Equal("polling", pollingTransport.Name())
-
-	conn := make(chan *Connection, 1)
+	conn := make(chan *polling.Connection, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			connect, err := New(r)
+			connect, err := polling.New(w, r)
+			must.NoError(err)
 
 			scValue.Store(connect)
 			c = connect
@@ -53,7 +55,7 @@ func TestPollingBinary(t *testing.T) {
 	u, err := url.Parse(httpSvr.URL)
 	should.Nil(err)
 
-	pollingClient := polling.New()
+	pollingClient := New()
 
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
@@ -127,15 +129,18 @@ func TestPollingBinary(t *testing.T) {
 }
 
 func TestPollingString(t *testing.T) {
+	must := require.New(t)
 	should := assert.New(t)
+
 	var scValue atomic.Value
 
-	conn := make(chan *Connection, 1)
+	conn := make(chan *polling.Connection, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 		c := scValue.Load()
 		if c == nil {
-			connect := New(r)
+			connect, err := polling.New(w, r)
+			must.NoError(err)
 
 			scValue.Store(connect)
 			c = connect
@@ -154,10 +159,17 @@ func TestPollingString(t *testing.T) {
 	query.Set("b64", "1")
 	u.RawQuery = query.Encode()
 
-	dialU := *u
 	header := make(http.Header)
 	header.Set("X-Eio-Test", "client")
-	cc, err := pollingTransport.Dial(&dialU, header)
+
+	pollingClient := New()
+
+	req := &http.Request{
+		URL:    u,
+		Header: header,
+	}
+
+	cc, err := pollingClient.Do(req)
 	should.Nil(err)
 
 	cc.Resume()

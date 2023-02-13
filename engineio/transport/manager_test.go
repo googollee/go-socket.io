@@ -33,7 +33,7 @@ func TestManager(t *testing.T) {
 	t3 := fakeTransport{"t3"}
 	t4 := fakeTransport{"t4"}
 
-	m := NewManager([]Transport{
+	m := NewManager([]Type{
 		t1,
 		t2,
 		t3,

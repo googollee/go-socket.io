@@ -58,8 +58,6 @@ func New(w http.ResponseWriter, r *http.Request, opts ...OptionFunc) (*Connectio
 type Connection struct {
 	*packet.Decoder
 	*packet.Encoder
-	//transport.FrameReader
-	//transport.FrameWriter
 
 	ws wrapper
 
@@ -69,10 +67,6 @@ type Connection struct {
 	closed    chan struct{}
 	closeOnce sync.Once
 }
-
-//wrapper
-//NextReader() (frame.Type, io.ReadCloser, error)
-//NextWriter(FType frame.Type) (io.WriteCloser, error)
 
 func newConn(ws *websocket.Conn, url url.URL, header http.Header) *Connection {
 	w := newWrapper(ws)

@@ -19,6 +19,11 @@ func GetType(req string) Type {
 	return -1
 }
 
+// todo:
+func (t Type) IsSupported() bool {
+	return true
+}
+
 func (t Type) String() string {
 	if t == Polling {
 		return "polling"

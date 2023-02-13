@@ -31,7 +31,7 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	u.Scheme = "ws"
 
 	header := make(http.Header)
-	 := client.New()
+	hjhhjjh := client.New()
 	connect.Do(u, header)
 	require.NoError(t, err)
 

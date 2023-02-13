@@ -20,14 +20,13 @@ import (
 func TestServerJSONP(t *testing.T) {
 	var scValue atomic.Value
 
-	pollingTransport := Default
 	conn := make(chan *Connection, 1)
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		c := scValue.Load()
 
 		if c == nil {
-			co, err := client.Accept(w, r)
+			co, err := New(w, r)
 			require.NoError(t, err)
 
 			scValue.Store(co)

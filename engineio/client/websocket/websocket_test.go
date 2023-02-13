@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -26,11 +27,14 @@ var tests = []struct {
 }
 
 func TestWebsocket(t *testing.T) {
-	conn := make(chan *Connection, 1)
+	must := require.New(t)
+
+	conn := make(chan *websocket.Connection, 1)
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Eio-Test", "server")
 
-		connect, err := New(w, r)
+		connect, err := websocket.New(w, r)
+		must.NoError(err)
 
 		conn <- connect
 

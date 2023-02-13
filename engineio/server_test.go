@@ -63,7 +63,7 @@ func TestEnginePolling(t *testing.T) {
 		must.Nil(w.Close())
 	}()
 
-	dialer := client.NewClient([]transport.Transport{transport.Polling})
+	dialer := client.NewClient([]transport.Type{transport.Polling})
 
 	header := http.Header{}
 	header.Set("X-EIO-Test", "client")
@@ -152,7 +152,7 @@ func TestEngineWebsocket(t *testing.T) {
 		must.Nil(w.Close())
 	}()
 
-	dialer := client.NewClient([]transport.Transport{transport.Websocket})
+	dialer := client.NewClient([]transport.Type{transport.Websocket})
 
 	header := http.Header{}
 	header.Set("X-EIO-Test", "client")

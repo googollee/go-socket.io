@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/googollee/go-socket.io/engineio/protocol"
 	"github.com/googollee/go-socket.io/engineio/session"
 	"github.com/googollee/go-socket.io/engineio/transport"
 )
@@ -74,11 +75,10 @@ func (s *Server) Addr() net.Addr {
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
-	reqTransport := query.Get("transport")
+	reqTransport := query.Get(protocol.Transport)
 
 	transportType := transport.GetType(reqTransport)
-	createTransportConnect, ok := s.transports.Get(transportType)
-	if !ok {
+	if !transportType.IsSupported() {
 		http.Error(w, fmt.Sprintf("invalid transport: %s", reqTransport), http.StatusBadRequest)
 		return
 	}
@@ -93,16 +93,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header()[k] = v
 	}
 
-	sid := query.Get("sid")
+	sid := query.Get(protocol.SID)
 	reqSession, ok := s.sessions.Get(sid)
 	// if we can't find session in current session pool, let's create this. behaviour for new connections
-	if !ok || reqSession == nil {
+	if !ok {
 		if sid != "" {
 			http.Error(w, fmt.Sprintf("invalid sid value: %s", sid), http.StatusBadRequest)
 			return
 		}
 
-		transportConn, err := createTransportConnect(w, r)
+		transportConn, err := s.transports.CreateConnection(transportType, w, r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("transport accept err: %s", err.Error()), http.StatusBadGateway)
 			return
@@ -119,7 +119,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// try upgrade current connection
 	if reqSession.Transport() != transportType {
-		transportConn, err := createTransportConnect(w, r)
+		transportConn, err := s.transports.CreateConnection(reqSession.Transport(), w, r)
 		if err != nil {
 			// don't call http.Error() for HandshakeErrors because
 			// they get handled by the websocket library internally.

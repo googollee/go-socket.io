@@ -10,8 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/googollee/go-socket.io/engineio"
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
+	"github.com/googollee/go-socket.io/engineio/protocol"
 	"github.com/googollee/go-socket.io/engineio/session"
 	"github.com/googollee/go-socket.io/engineio/transport"
 )
@@ -37,14 +39,14 @@ func NewClient(transports []transport.Type) *Client {
 	}
 }
 
-func (c *Client) Do(req *http.Request) (transport.Conn, error) {
+func (c *Client) Do(req *http.Request) (engineio.Conn, error) {
 	if req == nil {
 		return nil, errors.New("")
 	}
 
 	query := req.URL.Query()
 
-	query.Set("EIO", "3")
+	query.Set(protocol.EngineIOTag, protocol.EngineIOVersion)
 	req.URL.RawQuery = query.Encode()
 
 	var conn transport.Conn
