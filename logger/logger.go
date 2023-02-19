@@ -1,65 +1,101 @@
 package logger
 
 import (
-	"io/ioutil"
+	"io"
+	"os"
 
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	"github.com/kelseyhightower/envconfig"
 )
+
+const prefix = "GO_SOCKET_IO"
 
 var (
-	l *logger
+	global Logger
 )
 
-type logger struct {
-	logger *logrus.Logger
-	opts   *options
+type Logger interface {
+	Debugln(args ...interface{})
+	Warnln(args ...interface{})
+	Infoln(args ...interface{})
+	Errorln(args ...interface{})
+	Panicln(args ...interface{})
 }
 
-// DEBUG = true debug level by default
-// DEBUG = false -- default value by error message
-// LOG_LEVEL = info
-// LOG_ENABLE = true // false disable any server logs
-// fatal level never used, because fatal method call os.Exist(1) without closing resources.
-
-type options struct {
-	isEnable bool
-	level    string
+type config struct {
+	Level    string `envconfig:"LOG_LEVEL" default:"error"`
+	IsEnable bool   `envconfig:"LOG_ENABLE" default:"true"`
+	IsDebug  bool   `envconfig:"DEBUG" default:"false"`
 }
 
 func init() {
-	log := logrus.New()
+	var cfg config
+	envconfig.MustProcess(prefix, &cfg)
 
-	log.SetFormatter(&logrus.JSONFormatter{})
-
-	level, err := logrus.ParseLevel(envString(envLogLevel, "error"))
-	if err != nil || level == logrus.FatalLevel {
-		panic("not supported log level")
+	level, err := zap.ParseAtomicLevel(cfg.Level)
+	if err != nil {
+		panic(err)
 	}
 
-	log.SetLevel(level)
-	if !l.opts.isEnable {
-		log.Out = ioutil.Discard
+	var opts []zap.Option
+	if cfg.IsDebug {
+		opts = append(opts, zap.AddStacktrace(level))
 	}
 
-	l.logger = log
+	sync := io.Discard
+
+	if cfg.IsEnable {
+		sync = os.Stdout
+	}
+
+	SetLogger(New(level, sync))
+}
+
+func New(level zapcore.LevelEnabler, sink io.Writer, opts ...zap.Option) *zap.SugaredLogger {
+	return zap.New(
+		zapcore.NewCore(
+			zapcore.NewJSONEncoder(zapcore.EncoderConfig{
+				TimeKey:        "ts",
+				LevelKey:       "level",
+				NameKey:        "logger",
+				CallerKey:      "caller",
+				MessageKey:     "message",
+				StacktraceKey:  "stacktrace",
+				LineEnding:     zapcore.DefaultLineEnding,
+				EncodeLevel:    zapcore.LowercaseLevelEncoder,
+				EncodeTime:     zapcore.ISO8601TimeEncoder,
+				EncodeDuration: zapcore.SecondsDurationEncoder,
+				EncodeCaller:   zapcore.ShortCallerEncoder,
+			}),
+			zapcore.AddSync(sink),
+			level,
+		),
+		opts...,
+	).Sugar()
+}
+
+func SetLogger(l Logger) {
+	global = l
 }
 
 func Debug(args ...interface{}) {
-	l.logger.Debugln(args)
+	global.Debugln(args)
 }
 
 func Warn(args ...interface{}) {
-	l.logger.Warnln(args)
+	global.Warnln(args)
 }
 
 func Info(args ...interface{}) {
-	l.logger.Infoln(args)
+	global.Infoln(args)
 }
 
 func Error(args ...interface{}) {
-	l.logger.Errorln(args)
+	global.Errorln(args)
 }
 
 func Panic(args ...interface{}) {
-	l.logger.Panicln(args)
+	global.Panicln(args)
 }

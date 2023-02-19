@@ -2,7 +2,6 @@ package polling
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -138,7 +137,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		_, err = w.Write([]byte("ok"))
 		if err != nil {
-			fmt.Printf("ack post err=%s\n", err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 
 	default:
