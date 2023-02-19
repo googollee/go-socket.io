@@ -137,7 +137,7 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		_, err = w.Write([]byte("ok"))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("ack post err=%s\n", err.Error())
 		}
 
 	default:
