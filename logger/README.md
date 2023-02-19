@@ -1,7 +1,7 @@
 ## Debug mode
 
 Golang socket.io support [uber zap](https://github.com/uber-go/zap) logger by global state from package `logger`.
-This logger used in internal logic and you could use into your logic.
+This logger used in internal logic, and you could use into your logic.
 
 ## Default configuration from env:
 ```
