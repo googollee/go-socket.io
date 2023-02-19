@@ -2,6 +2,7 @@ package logger
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 
 	"go.uber.org/zap"
@@ -44,7 +45,7 @@ func init() {
 		opts = append(opts, zap.AddStacktrace(level))
 	}
 
-	sync := io.Discard
+	sync := ioutil.Discard
 
 	if cfg.IsEnable {
 		sync = os.Stdout
