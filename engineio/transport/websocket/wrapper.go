@@ -63,7 +63,7 @@ func newRcWrapper(l *sync.Mutex, r io.Reader) rcWrapper {
 		select {
 		case <-q:
 		case <-timer.C:
-			logger.Error("Did you forget to Close() the WriteCloser from NextWriter?")
+			logger.Error("Did you forget to Close() the ReadCloser from NextReader?")
 		}
 	}()
 
