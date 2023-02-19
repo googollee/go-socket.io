@@ -51,7 +51,7 @@ func init() {
 		sync = os.Stdout
 	}
 
-	SetLogger(New(level, sync))
+	SetLogger(New(level, sync, opts...))
 }
 
 func New(level zapcore.LevelEnabler, sink io.Writer, opts ...zap.Option) *zap.SugaredLogger {

@@ -2,6 +2,7 @@ package polling
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"net"
 	"net/http"
