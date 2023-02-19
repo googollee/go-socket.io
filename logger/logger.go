@@ -81,6 +81,10 @@ func SetLogger(l Logger) {
 	global = l
 }
 
+func GetLogger() Logger {
+	return global
+}
+
 func Debug(args ...interface{}) {
 	global.Debugln(args)
 }
