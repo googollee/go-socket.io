@@ -6,3 +6,8 @@ output:
   format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
+
+issues:
+  exclude-use-default: false
+  exclude:
+    - SA1019

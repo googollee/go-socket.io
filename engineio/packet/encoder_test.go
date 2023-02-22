@@ -33,9 +33,9 @@ func BenchmarkEncoder(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		w, _ := encoder.NextWriter(frame.String, MESSAGE)
-		w.Close()
+		_ = w.Close()
 
 		w, _ = encoder.NextWriter(frame.Binary, MESSAGE)
-		w.Close()
+		_ = w.Close()
 	}
 }

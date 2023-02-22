@@ -61,7 +61,9 @@ func (e *encoder) Write(p []byte) (int, error) {
 
 func (e *encoder) Close() error {
 	if e.b64Writer != nil {
-		e.b64Writer.Close()
+		if err := e.b64Writer.Close(); err != nil {
+			return err
+		}
 	}
 
 	var writeHeader func() error

@@ -27,6 +27,8 @@ var tests = []struct {
 }
 
 func TestWebsocket(t *testing.T) {
+	must := require.New(t)
+
 	wsTransport := &Transport{}
 	assert.Equal(t, "websocket", wsTransport.Name())
 
@@ -53,10 +55,14 @@ func TestWebsocket(t *testing.T) {
 	cc, err := wsTransport.Dial(&dialU, header)
 	require.NoError(t, err)
 
-	defer cc.Close()
+	defer func() {
+		must.NoError(cc.Close())
+	}()
 
 	sc := <-conn
-	defer sc.Close()
+	defer func() {
+		must.NoError(sc.Close())
+	}()
 
 	ccURL := cc.URL()
 	query := ccURL.Query()
