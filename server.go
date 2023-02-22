@@ -268,7 +268,7 @@ func (s *Server) serveWrite(c *conn) {
 			logger.Error("", err)
 		}
 
-		s.engine.Remove(c.ID())
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	for {
@@ -289,7 +289,7 @@ func (s *Server) serveRead(c *conn) {
 			logger.Error(":", err)
 		}
 
-		s.engine.Remove(c.ID())
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	var event string

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"net/http"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/polling"
 	"github.com/googollee/go-socket.io/engineio/transport/websocket"
-	"github.com/googollee/go-socket.io/logger"
 )
 
 // Easier to get running with CORS. Thanks for help @Vindexus and @erkie
@@ -29,8 +27,6 @@ func main() {
 			},
 		},
 	})
-
-	logger.Error("start:", errors.New("test error"))
 
 	server.OnConnect("/", func(s socketio.Conn) error {
 		s.SetContext("")

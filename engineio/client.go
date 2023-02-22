@@ -105,7 +105,9 @@ func (c *client) RemoteHeader() http.Header {
 
 func (c *client) serve() {
 	defer func() {
-		_ = c.conn.Close()
+		if closeErr := c.conn.Close(); closeErr != nil {
+			logger.Error(":", closeErr)
+		}
 	}()
 
 	for {
