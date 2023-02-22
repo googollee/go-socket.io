@@ -236,7 +236,7 @@ func (s *Server) serveError(c *conn) {
 			logger.Error("", err)
 		}
 
-		s.engine.Remove(c.ID())
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	for {

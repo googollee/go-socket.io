@@ -1,3 +1,4 @@
+# More info on config here: https://github.com/golangci/golangci-lint#config-file
 run:
   timeout: 3m
   deadline: 5m
