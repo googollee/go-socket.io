@@ -28,7 +28,7 @@ func (e *Encoder) Encode(h Header, args ...interface{}) (err error) {
 	var w io.WriteCloser
 	w, err = e.w.NextWriter(session.TEXT)
 	if err != nil {
-		logger.Error(":", err)
+		logger.Error("next writer session text:", err)
 
 		return
 	}
@@ -36,7 +36,7 @@ func (e *Encoder) Encode(h Header, args ...interface{}) (err error) {
 	var buffers [][]byte
 	buffers, err = e.writePacket(w, h, args)
 	if err != nil {
-		logger.Error(":", err)
+		logger.Error("write packet header with args:", err)
 
 		return
 	}
@@ -44,14 +44,14 @@ func (e *Encoder) Encode(h Header, args ...interface{}) (err error) {
 	for _, b := range buffers {
 		w, err = e.w.NextWriter(session.BINARY)
 		if err != nil {
-			logger.Error(":", err)
+			logger.Error("next writer session binary:", err)
 
 			return
 		}
 
 		err = e.writeBuffer(w, b)
 		if err != nil {
-			logger.Error(":", err)
+			logger.Error("write packet buffer:", err)
 
 			return
 		}
@@ -72,7 +72,7 @@ type flusher interface {
 func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([][]byte, error) {
 	defer func() {
 		if err := w.Close(); err != nil {
-			logger.Error(":", err)
+			logger.Error("close writer:", err)
 		}
 	}()
 
@@ -206,7 +206,7 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 func (e *Encoder) writeBuffer(w io.WriteCloser, buffer []byte) error {
 	defer func() {
 		if closeErr := w.Close(); closeErr != nil {
-			logger.Error(":", closeErr)
+			logger.Error("close writer:", closeErr)
 		}
 	}()
 
