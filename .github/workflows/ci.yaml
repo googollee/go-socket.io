@@ -15,7 +15,6 @@ jobs:
     name: ${{ matrix.os }} Go ${{ matrix.go }}
     timeout-minutes: 5
     strategy:
-      fail-fast: true
       matrix:
         go: ['stable','oldstable']
         os: [ubuntu-latest, macos-latest, windows-latest]
