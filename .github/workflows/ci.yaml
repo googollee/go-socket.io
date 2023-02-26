@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    name: Go ${{ matrix.go }}
+    name: ${{ matrix.os }} Go ${{ matrix.go }}
     timeout-minutes: 5
     strategy:
       fail-fast: true
