@@ -233,7 +233,7 @@ func (s *Server) serveConn(conn engineio.Conn) {
 func (s *Server) serveError(c *conn) {
 	defer func() {
 		if err := c.Close(); err != nil {
-			logger.Error("", err)
+			logger.Error("close connect:", err)
 		}
 
 		s.engine.Remove(c.Conn.ID())
@@ -265,7 +265,7 @@ func (s *Server) serveError(c *conn) {
 func (s *Server) serveWrite(c *conn) {
 	defer func() {
 		if err := c.Close(); err != nil {
-			logger.Error("", err)
+			logger.Error("close connect:", err)
 		}
 
 		s.engine.Remove(c.Conn.ID())
@@ -286,7 +286,7 @@ func (s *Server) serveWrite(c *conn) {
 func (s *Server) serveRead(c *conn) {
 	defer func() {
 		if err := c.Close(); err != nil {
-			logger.Error(":", err)
+			logger.Error("close connect:", err)
 		}
 
 		s.engine.Remove(c.Conn.ID())
@@ -320,7 +320,7 @@ func (s *Server) serveRead(c *conn) {
 		}
 
 		if err != nil {
-			logger.Error(":", err)
+			logger.Error("serve read:", err)
 
 			return
 		}
