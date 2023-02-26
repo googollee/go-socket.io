@@ -95,13 +95,21 @@ func BenchmarkDecoder(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, _, fr, _ := decoder.NextReader()
-		err := fr.Close()
+		_, _, fr, err := decoder.NextReader()
 		if err != nil {
 			b.Error(err)
 		}
 
-		_, _, fr, _ = decoder.NextReader()
+		err = fr.Close()
+		if err != nil {
+			b.Error(err)
+		}
+
+		_, _, fr, err = decoder.NextReader()
+		if err != nil {
+			b.Error(err)
+		}
+
 		err = fr.Close()
 		if err != nil {
 			b.Error(err)
