@@ -85,7 +85,7 @@ func (s *Session) NextReader() (FrameType, io.ReadCloser, error) {
 		ft, pt, r, err := s.nextReader()
 		if err != nil {
 			if closeErr := s.Close(); closeErr != nil {
-				logger.Error("close session after nextReader:", closeErr)
+				logger.Error("close session after next reader:", closeErr)
 			}
 
 			return 0, nil, err

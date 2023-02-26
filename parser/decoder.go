@@ -331,7 +331,7 @@ func (d *Decoder) readEvent(event *string) error {
 func (d *Decoder) readBuffer(ft session.FrameType, r io.ReadCloser) ([]byte, error) {
 	defer func() {
 		if err := r.Close(); err != nil {
-			logger.Error(":", err)
+			logger.Error("close reader:", err)
 		}
 	}()
 
