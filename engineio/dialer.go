@@ -20,7 +20,7 @@ type Dialer struct {
 func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
-		logger.Error(":", err)
+		logger.Error("parse url str:", err)
 
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 	for i := len(d.Transports) - 1; i >= 0; i-- {
 		if conn != nil {
 			if closeErr := conn.Close(); closeErr != nil {
-				logger.Error(":", closeErr)
+				logger.Error("close connect:", closeErr)
 			}
 		}
 
@@ -42,7 +42,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 
 		conn, err = t.Dial(u, requestHeader)
 		if err != nil {
-			logger.Error(":", err)
+			logger.Error("transport dial:", err)
 
 			continue
 		}
@@ -51,7 +51,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 		if p, ok := conn.(Opener); ok {
 			params, err = p.Open()
 			if err != nil {
-				logger.Error(":", err)
+				logger.Error("open transport connect:", err)
 
 				continue
 			}
@@ -67,7 +67,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 			func() {
 				defer func() {
 					if closeErr := r.Close(); closeErr != nil {
-						logger.Error(":", closeErr)
+						logger.Error("close connect reader:", closeErr)
 					}
 				}()
 
@@ -84,7 +84,7 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 			}()
 		}
 		if err != nil {
-			logger.Error(":", err)
+			logger.Error("transport dialer:", err)
 
 			continue
 		}
