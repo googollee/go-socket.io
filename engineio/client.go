@@ -1,7 +1,6 @@
 package engineio
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -68,7 +67,7 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 
 		case packet.CLOSE:
 			if err = c.Close(); err != nil {
-				logger.Error(":", err)
+				logger.Error("close client with packet close:", err)
 			}
 
 			return 0, nil, io.EOF
@@ -78,7 +77,7 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 		}
 
 		if err = r.Close(); err != nil {
-			logger.Error(":", err)
+			logger.Error("close reader:", err)
 		}
 	}
 }
@@ -106,7 +105,7 @@ func (c *client) RemoteHeader() http.Header {
 func (c *client) serve() {
 	defer func() {
 		if closeErr := c.conn.Close(); closeErr != nil {
-			logger.Error(":", closeErr)
+			logger.Error("close connect:", closeErr)
 		}
 	}()
 
@@ -119,21 +118,19 @@ func (c *client) serve() {
 
 		w, err := c.conn.NextWriter(frame.String, packet.PING)
 		if err != nil {
-			logger.Error(":", err)
+			logger.Error("get next writer with string frame and packet ping:", err)
 
 			return
 		}
 
 		if err = w.Close(); err != nil {
-			logger.Error(":", err)
+			logger.Error("close writer:", err)
 
 			return
 		}
 
 		if err = c.conn.SetWriteDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout)); err != nil {
-			fmt.Printf("set writer's deadline error,msg:%s\n", err.Error())
-
-			logger.Error(":", err)
+			logger.Error("set writer deadline:", err)
 		}
 	}
 }
