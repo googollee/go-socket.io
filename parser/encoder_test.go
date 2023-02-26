@@ -81,28 +81,28 @@ func TestAttachBuffer(t *testing.T) {
 		max    uint64
 		binary [][]byte
 	}{
-		{"&Buffer", &Buffer{Data: []byte{1, 2}}, 1, [][]byte{[]byte{1, 2}}},
-		{"[]interface{}{Buffer}", []interface{}{&Buffer{Data: []byte{1, 2}}}, 1, [][]byte{[]byte{1, 2}}},
+		{"&Buffer", &Buffer{Data: []byte{1, 2}}, 1, [][]byte{{1, 2}}},
+		{"[]interface{}{Buffer}", []interface{}{&Buffer{Data: []byte{1, 2}}}, 1, [][]byte{{1, 2}}},
 		{"[]interface{}{Buffer,Buffer}", []interface{}{
 			&Buffer{Data: []byte{1, 2}},
 			&Buffer{Data: []byte{3, 4}},
-		}, 2, [][]byte{[]byte{1, 2}, []byte{3, 4}}},
-		{"[1]interface{}{Buffer}", [...]interface{}{&Buffer{Data: []byte{1, 2}}}, 1, [][]byte{[]byte{1, 2}}},
+		}, 2, [][]byte{{1, 2}, {3, 4}}},
+		{"[1]interface{}{Buffer}", [...]interface{}{&Buffer{Data: []byte{1, 2}}}, 1, [][]byte{{1, 2}}},
 		{"[2]interface{}{Buffer,Buffer}", [...]interface{}{
 			&Buffer{Data: []byte{1, 2}},
 			&Buffer{Data: []byte{3, 4}},
-		}, 2, [][]byte{[]byte{1, 2}, []byte{3, 4}}},
+		}, 2, [][]byte{{1, 2}, {3, 4}}},
 		{"Struct{Buffer}", struct {
 			Data *Buffer
 			I    int
 		}{
 			&Buffer{Data: []byte{1, 2}},
 			3,
-		}, 1, [][]byte{[]byte{1, 2}}},
+		}, 1, [][]byte{{1, 2}}},
 		{"map{Buffer}", map[string]interface{}{
 			"data": &Buffer{Data: []byte{1, 2}},
 			"i":    3,
-		}, 1, [][]byte{[]byte{1, 2}}},
+		}, 1, [][]byte{{1, 2}}},
 	}
 
 	e := Encoder{}
