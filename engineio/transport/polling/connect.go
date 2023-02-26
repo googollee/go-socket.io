@@ -36,7 +36,7 @@ func (c *clientConn) Open() (transport.ConnParameters, error) {
 
 	if pt != packet.OPEN {
 		if err = r.Close(); err != nil {
-			logger.Error(":", err)
+			logger.Error("close transport reader:", err)
 		}
 
 		return transport.ConnParameters{}, errors.New("invalid open")
@@ -45,7 +45,7 @@ func (c *clientConn) Open() (transport.ConnParameters, error) {
 	conn, err := transport.ReadConnParameters(r)
 	if err != nil {
 		if closeErr := r.Close(); closeErr != nil {
-			logger.Error("", closeErr)
+			logger.Error("close transport reader:", err)
 		}
 
 		return transport.ConnParameters{}, err
@@ -115,11 +115,11 @@ func (c *clientConn) servePost() {
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			if err = c.Payload.Store("post", err); err != nil {
-				logger.Error("store post error", err)
+				logger.Error("store post:", err)
 			}
 
 			if err = c.Close(); err != nil {
-				logger.Error("store post error", err)
+				logger.Error("close client connect:", err)
 			}
 
 			return
@@ -130,11 +130,11 @@ func (c *clientConn) servePost() {
 		if resp.StatusCode != http.StatusOK {
 			err = c.Payload.Store("post", fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
 			if err != nil {
-				logger.Error("store post error", err)
+				logger.Error("store post:", err)
 			}
 
 			if err = c.Close(); err != nil {
-				logger.Error("store post error", err)
+				logger.Error("close client connect:", err)
 			}
 
 			return
@@ -158,11 +158,11 @@ func (c *clientConn) getOpen() {
 	resp, err := c.httpClient.Do(&req)
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			logger.Error("store get error", err)
+			logger.Error("store get:", err)
 		}
 
 		if err = c.Close(); err != nil {
-			logger.Error(":", err)
+			logger.Error("close client connect:", err)
 		}
 
 		return
@@ -187,11 +187,11 @@ func (c *clientConn) getOpen() {
 
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			logger.Error("store get error", err)
+			logger.Error("store get:", err)
 		}
 
 		if err = c.Close(); err != nil {
-			logger.Error("store get error", err)
+			logger.Error("close client connect:", err)
 		}
 
 		return
@@ -200,7 +200,7 @@ func (c *clientConn) getOpen() {
 	c.remoteHeader.Store(resp.Header)
 
 	if err = c.Payload.FeedIn(resp.Body, isSupportBinary); err != nil {
-		logger.Error("store get error:", err)
+		logger.Error("payload feedin:", err)
 
 		return
 	}
@@ -221,11 +221,11 @@ func (c *clientConn) serveGet() {
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			if err = c.Payload.Store("get", err); err != nil {
-				logger.Error("store get error:", err)
+				logger.Error("store get:", err)
 			}
 
 			if err = c.Close(); err != nil {
-				logger.Error(":", err)
+				logger.Error("close client connect:", err)
 			}
 
 			return
@@ -252,7 +252,7 @@ func (c *clientConn) serveGet() {
 			}
 
 			if err = c.Close(); err != nil {
-				logger.Error(":", err)
+				logger.Error("close client connect:", err)
 			}
 
 			return
@@ -275,6 +275,6 @@ func discardBody(body io.ReadCloser) {
 	}
 
 	if err = body.Close(); err != nil {
-		logger.Error("copy from body resp to discard:", err)
+		logger.Error("body close:", err)
 	}
 }
