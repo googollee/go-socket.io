@@ -8,7 +8,7 @@ get_dev:
 
 .PHONY: test
 test:
-	go clean -testcache && go test -race -cover -covermode=atomic ./...
+	go clean -testcache && go test -v -race -count=1 ./...
 
 .PHONY: bench
 bench:

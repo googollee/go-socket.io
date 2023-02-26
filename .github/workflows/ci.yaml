@@ -1,35 +1,58 @@
----
 name: CI
+permissions:
+  contents: read
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: '0 8 * * 1' # run "At 08:00 on Monday"
 
 jobs:
   build:
-    name: Go ${{ matrix.go-version }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} Go (${{ matrix.go }})
+    timeout-minutes: 5
     strategy:
       matrix:
-        go-version: ['1.13','1.14','1.15','1.16','1.17']
-      fail-fast: false
+        go: ['stable','oldstable']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Install Go
-        uses: actions/setup-go@v2
+      - name: Install Go 1.x
+        uses: actions/setup-go@v3
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: ${{ matrix.go }}
+          check-latest: true
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
 
       - name: Check go version
         run: go version
 
+      - name: Go Format
+        run: gofmt -s -w . && git diff --exit-code
+
+      - name: Go Tidy
+        run: go mod tidy && git diff --exit-code
+
+      - name: Go Mod
+        run: go mod download
+
+      - name: Go Mod Verify
+        run: go mod verify
+
       - name: Run linter
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          skip-go-installation: true
 
       - name: Run tests
-        run: make test
+        run: |
+          make test
 
       - name: Run benchmarks
-        run: make bench
+        run: |
+          make bench
