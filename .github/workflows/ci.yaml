@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }} Go (${{ matrix.go }})
+    name: Os (${{ matrix.os }}) Go (${{ matrix.go }})
     timeout-minutes: 5
     strategy:
       matrix:
@@ -37,9 +37,6 @@ jobs:
 
       - name: Go Tidy
         run: go mod tidy && git diff --exit-code
-
-      - name: Go Mod
-        run: go mod download
 
       - name: Go Mod Verify
         run: go mod verify
