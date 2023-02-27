@@ -19,6 +19,8 @@ import (
 )
 
 func TestServerJSONP(t *testing.T) {
+	must := require.New(t)
+
 	var scValue atomic.Value
 
 	pollingTransport := Default
@@ -47,7 +49,9 @@ func TestServerJSONP(t *testing.T) {
 		defer wg.Done()
 		sc := <-conn
 
-		defer sc.Close()
+		defer func() {
+			must.NoError(sc.Close())
+		}()
 
 		w, err := sc.NextWriter(frame.Binary, packet.MESSAGE)
 		require.NoError(t, err)
@@ -73,7 +77,10 @@ func TestServerJSONP(t *testing.T) {
 		resp, err := http.Get(u)
 		require.NoError(t, err)
 
-		defer resp.Body.Close()
+		defer func() {
+			err = resp.Body.Close()
+			require.NoError(t, err)
+		}()
 
 		assert.Equal(t, "text/javascript; charset=UTF-8", resp.Header.Get("Content-Type"))
 		bs, err := ioutil.ReadAll(resp.Body)
@@ -86,7 +93,10 @@ func TestServerJSONP(t *testing.T) {
 		resp, err := http.Get(u)
 		require.NoError(t, err)
 
-		defer resp.Body.Close()
+		defer func() {
+			err = resp.Body.Close()
+			require.NoError(t, err)
+		}()
 
 		assert.Equal(t, "text/javascript; charset=UTF-8", resp.Header.Get("Content-Type"))
 

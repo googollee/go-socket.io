@@ -38,9 +38,6 @@ jobs:
       - name: Go Tidy
         run: go mod tidy && git diff --exit-code
 
-      - name: Go Mod
-        run: go mod download
-
       - name: Go Mod Verify
         run: go mod verify
 
@@ -48,6 +45,9 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
+          skip-cache: true
+          skip-pkg-cache: true
+          skip-build-cache: true
 
       - name: Run tests
         run: |

@@ -7,6 +7,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/logger"
 	"github.com/googollee/go-socket.io/parser"
 )
 
@@ -45,8 +46,7 @@ func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
 
 	s.redisAdapter = opts
 
-	conn.Close()
-	return true, nil
+	return true, conn.Close()
 }
 
 // Close closes server.
@@ -232,8 +232,11 @@ func (s *Server) serveConn(conn engineio.Conn) {
 
 func (s *Server) serveError(c *conn) {
 	defer func() {
-		c.Close()
-		s.engine.Remove(c.ID())
+		if err := c.Close(); err != nil {
+			logger.Error("close connect:", err)
+		}
+
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	for {
@@ -261,8 +264,11 @@ func (s *Server) serveError(c *conn) {
 
 func (s *Server) serveWrite(c *conn) {
 	defer func() {
-		c.Close()
-		s.engine.Remove(c.ID())
+		if err := c.Close(); err != nil {
+			logger.Error("close connect:", err)
+		}
+
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	for {
@@ -279,8 +285,11 @@ func (s *Server) serveWrite(c *conn) {
 
 func (s *Server) serveRead(c *conn) {
 	defer func() {
-		c.Close()
-		s.engine.Remove(c.ID())
+		if err := c.Close(); err != nil {
+			logger.Error("close connect:", err)
+		}
+
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	var event string
@@ -311,6 +320,8 @@ func (s *Server) serveRead(c *conn) {
 		}
 
 		if err != nil {
+			logger.Error("serve read:", err)
+
 			return
 		}
 	}

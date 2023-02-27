@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"github.com/googollee/go-socket.io/engineio/session"
 	"io"
 	"io/ioutil"
 	"reflect"
 	"strings"
+
+	"github.com/googollee/go-socket.io/engineio/session"
+	"github.com/googollee/go-socket.io/logger"
 )
 
 const (
@@ -95,6 +97,7 @@ func (d *Decoder) DecodeHeader(header *Header, event *string) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -120,6 +123,7 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 			err = nil
 		}
 		_ = d.DiscardLast()
+
 		return nil, err
 	}
 
@@ -151,6 +155,7 @@ func (d *Decoder) DecodeArgs(types []reflect.Type) ([]reflect.Value, error) {
 			return nil, err
 		}
 	}
+
 	return ret, nil
 }
 
@@ -164,6 +169,7 @@ func (d *Decoder) readUint64FromText(r byteReader) (uint64, bool, error) {
 			if hasRead {
 				return ret, true, nil
 			}
+
 			return 0, false, err
 		}
 
@@ -323,7 +329,11 @@ func (d *Decoder) readEvent(event *string) error {
 }
 
 func (d *Decoder) readBuffer(ft session.FrameType, r io.ReadCloser) ([]byte, error) {
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			logger.Error("close reader:", err)
+		}
+	}()
 
 	if ft != session.BINARY {
 		return nil, errInvalidBinaryBufferType

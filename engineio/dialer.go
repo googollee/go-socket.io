@@ -8,6 +8,7 @@ import (
 
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/logger"
 )
 
 // Dialer is dialer configure.
@@ -19,6 +20,8 @@ type Dialer struct {
 func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
+		logger.Error("parse url str:", err)
+
 		return nil, err
 	}
 
@@ -30,13 +33,17 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 
 	for i := len(d.Transports) - 1; i >= 0; i-- {
 		if conn != nil {
-			conn.Close()
+			if closeErr := conn.Close(); closeErr != nil {
+				logger.Error("close connect:", closeErr)
+			}
 		}
 
 		t := d.Transports[i]
 
 		conn, err = t.Dial(u, requestHeader)
 		if err != nil {
+			logger.Error("transport dial:", err)
+
 			continue
 		}
 
@@ -44,21 +51,32 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 		if p, ok := conn.(Opener); ok {
 			params, err = p.Open()
 			if err != nil {
+				logger.Error("open transport connect:", err)
+
 				continue
 			}
 		} else {
 			var pt packet.Type
 			var r io.ReadCloser
+
 			_, pt, r, err = conn.NextReader()
 			if err != nil {
 				continue
 			}
+
 			func() {
-				defer r.Close()
+				defer func() {
+					if closeErr := r.Close(); closeErr != nil {
+						logger.Error("close connect reader:", closeErr)
+					}
+				}()
+
 				if pt != packet.OPEN {
 					err = errors.New("invalid open")
+
 					return
 				}
+
 				params, err = transport.ReadConnParameters(r)
 				if err != nil {
 					return
@@ -66,8 +84,11 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 			}()
 		}
 		if err != nil {
+			logger.Error("transport dialer:", err)
+
 			continue
 		}
+
 		ret := &client{
 			conn:      conn,
 			params:    params,

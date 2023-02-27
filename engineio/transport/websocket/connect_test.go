@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"github.com/googollee/go-socket.io/engineio/transport"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -11,10 +10,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/googollee/go-socket.io/engineio/transport"
 )
 
 func TestWebsocketSetReadDeadline(t *testing.T) {
 	at := assert.New(t)
+	must := assert.New(t)
 
 	tran := &Transport{}
 	conn := make(chan transport.Conn, 1)
@@ -36,10 +38,14 @@ func TestWebsocketSetReadDeadline(t *testing.T) {
 	cc, err := tran.Dial(u, header)
 	require.NoError(t, err)
 
-	defer cc.Close()
+	defer func() {
+		must.NoError(cc.Close())
+	}()
 
 	sc := <-conn
-	defer sc.Close()
+	defer func() {
+		must.NoError(sc.Close())
+	}()
 
 	err = cc.SetReadDeadline(time.Now().Add(time.Second / 10))
 	require.NoError(t, err)
