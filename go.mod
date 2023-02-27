@@ -3,7 +3,7 @@ module github.com/googollee/go-socket.io
 go 1.16
 
 require (
-	github.com/gofrs/uuid v4.0.0+incompatible
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/gomodule/redigo v1.8.4
 	github.com/gorilla/websocket v1.5.0
 	github.com/kelseyhightower/envconfig v1.4.0
