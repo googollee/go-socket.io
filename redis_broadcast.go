@@ -499,8 +499,10 @@ func (bc *redisBroadcast) publishMessage(room string, event string, args ...inte
 		return
 	}
 
+	fmt.Printf("PUBLISH(%s,%s)", bc.key, bcMessageJSON)
 	_, err = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
 	if err != nil {
+		fmt.Printf("PUBLISH(%s,%s):%s", bc.key, bcMessageJSON, err)
 		return
 	}
 }
