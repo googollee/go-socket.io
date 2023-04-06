@@ -7,6 +7,7 @@ type EachFunc func(Conn)
 
 // Broadcast is the adaptor to handle broadcasts & rooms for socket.io server API
 type Broadcast interface {
+	GetName() string
 	Join(room string, connection Conn)            // Join causes the connection to join a room
 	Leave(room string, connection Conn)           // Leave causes the connection to leave a room
 	LeaveAll(connection Conn)                     // LeaveAll causes given connection to leave all rooms
@@ -32,6 +33,10 @@ func newBroadcast() *broadcast {
 	return &broadcast{
 		rooms: make(map[string]map[string]Conn),
 	}
+}
+
+func (bc *broadcast) GetName() string {
+	return "local"
 }
 
 // Join joins the given connection to the broadcast room

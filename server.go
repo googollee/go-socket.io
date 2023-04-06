@@ -112,6 +112,14 @@ func (s *Server) Serve() error {
 	}
 }
 
+func (s *Server) GetBroadcast(namespace string) Broadcast {
+	nspHandler := s.getNamespace(namespace)
+	if nspHandler != nil {
+		return nspHandler.broadcast
+	}
+	return nil
+}
+
 // JoinRoom joins given connection to the room.
 func (s *Server) JoinRoom(namespace string, room string, connection Conn) bool {
 	nspHandler := s.getNamespace(namespace)

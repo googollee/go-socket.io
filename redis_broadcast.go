@@ -157,6 +157,10 @@ func (bc *redisBroadcast) AllRooms() []string {
 	return rooms
 }
 
+func (bc *redisBroadcast) GetName() string {
+	return "redis"
+}
+
 // Join joins the given connection to the redisBroadcast room.
 func (bc *redisBroadcast) Join(room string, connection Conn) {
 	bc.lock.Lock()
