@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/googollee/go-socket.io/engineio/frame"
+	"github.com/googollee/go-socket.io/logger"
 )
 
 // FrameWriter is the writer which supports framing.
@@ -35,7 +36,10 @@ func (e *Encoder) NextWriter(ft frame.Type, pt Type) (io.WriteCloser, error) {
 	}
 
 	if _, err := w.Write(b[:]); err != nil {
-		w.Close()
+		if closeErr := w.Close(); closeErr != nil {
+			logger.Error("close writer after write:", closeErr)
+		}
+
 		return nil, err
 	}
 

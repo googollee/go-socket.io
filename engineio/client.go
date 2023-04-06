@@ -1,7 +1,6 @@
 package engineio
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -13,13 +12,8 @@ import (
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/session"
 	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/logger"
 )
-
-// Pauser is connection which can be paused and resumes.
-type Pauser interface {
-	Pause()
-	Resume()
-}
 
 // Opener is client connection which need receive open message first.
 type Opener interface {
@@ -72,14 +66,19 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 			}
 
 		case packet.CLOSE:
-			c.Close()
+			if err = c.Close(); err != nil {
+				logger.Error("close client with packet close:", err)
+			}
+
 			return 0, nil, io.EOF
 
 		case packet.MESSAGE:
 			return session.FrameType(ft), r, nil
 		}
 
-		r.Close()
+		if err = r.Close(); err != nil {
+			logger.Error("close reader:", err)
+		}
 	}
 }
 
@@ -104,7 +103,11 @@ func (c *client) RemoteHeader() http.Header {
 }
 
 func (c *client) serve() {
-	defer c.conn.Close()
+	defer func() {
+		if closeErr := c.conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+	}()
 
 	for {
 		select {
@@ -115,15 +118,19 @@ func (c *client) serve() {
 
 		w, err := c.conn.NextWriter(frame.String, packet.PING)
 		if err != nil {
+			logger.Error("get next writer with string frame and packet ping:", err)
+
 			return
 		}
 
-		if err := w.Close(); err != nil {
+		if err = w.Close(); err != nil {
+			logger.Error("close writer:", err)
+
 			return
 		}
 
 		if err = c.conn.SetWriteDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout)); err != nil {
-			fmt.Printf("set writer's deadline error,msg:%s\n", err.Error())
+			logger.Error("set writer deadline:", err)
 		}
 	}
 }

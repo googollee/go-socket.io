@@ -35,7 +35,7 @@ func TestPayloadFeedIn(t *testing.T) {
 			}
 			r := bytes.NewReader(test.data)
 			err := p.FeedIn(r, test.supportBinary)
-			must.Nil(err)
+			must.NoError(err)
 		}
 	}()
 
@@ -47,12 +47,12 @@ func TestPayloadFeedIn(t *testing.T) {
 		require.NoError(t, err)
 
 		ft, pt, r, err := p.NextReader()
-		must.Nil(err)
+		must.NoError(err)
 		should.Equal(test.packets[0].ft, ft)
 		should.Equal(test.packets[0].pt, pt)
 
 		b, err := ioutil.ReadAll(r)
-		must.Nil(err)
+		must.NoError(err)
 
 		must.Nil(r.Close())
 
@@ -96,7 +96,7 @@ func TestPayloadFlushOutText(t *testing.T) {
 			}
 			buf := bytes.NewBuffer(nil)
 			err := p.FlushOut(buf)
-			must.Nil(err)
+			must.NoError(err)
 			should.Equal(test.data, buf.Bytes())
 		}
 	}()
@@ -112,10 +112,10 @@ func TestPayloadFlushOutText(t *testing.T) {
 		require.NoError(t, err)
 
 		w, err := p.NextWriter(test.packets[0].ft, test.packets[0].pt)
-		must.Nil(err)
+		must.NoError(err)
 
 		_, err = w.Write(test.packets[0].data)
-		must.Nil(err)
+		must.NoError(err)
 		must.Nil(w.Close())
 	}
 
@@ -156,7 +156,7 @@ func TestPayloadFlushOutBinary(t *testing.T) {
 
 			buf := bytes.NewBuffer(nil)
 			err := p.FlushOut(buf)
-			must.Nil(err)
+			must.NoError(err)
 			should.Equal(test.data, buf.Bytes())
 		}
 	}()
@@ -173,13 +173,13 @@ func TestPayloadFlushOutBinary(t *testing.T) {
 		must.NoError(err)
 
 		w, err := p.NextWriter(test.packets[0].ft, test.packets[0].pt)
-		must.Nil(err)
+		must.NoError(err)
 
 		_, err = w.Write(test.packets[0].data)
-		must.Nil(err)
+		must.NoError(err)
 
 		err = w.Close()
-		must.Nil(err)
+		must.NoError(err)
 	}
 
 	err := p.SetWriteDeadline(time.Now().Add(time.Second / 10))
@@ -193,6 +193,7 @@ func TestPayloadFlushOutBinary(t *testing.T) {
 
 func TestPayloadWaitNextClose(t *testing.T) {
 	should := assert.New(t)
+	must := require.New(t)
 
 	p := New(true)
 
@@ -202,8 +203,6 @@ func TestPayloadWaitNextClose(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		should := assert.New(t)
-
 		_, _, _, err := p.NextReader()
 		should.Equal(io.EOF, err)
 	}()
@@ -211,8 +210,6 @@ func TestPayloadWaitNextClose(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-
-		should := assert.New(t)
 
 		_, err := p.NextWriter(frame.Binary, packet.OPEN)
 		should.Equal(io.EOF, err)
@@ -222,7 +219,7 @@ func TestPayloadWaitNextClose(t *testing.T) {
 	time.Sleep(time.Second / 10)
 
 	err := p.Close()
-	should.Nil(err)
+	must.NoError(err)
 
 	wg.Wait()
 
@@ -241,6 +238,7 @@ func TestPayloadWaitNextClose(t *testing.T) {
 
 func TestPayloadWaitInOutClose(t *testing.T) {
 	should := assert.New(t)
+	must := require.New(t)
 
 	p := New(true)
 
@@ -250,8 +248,6 @@ func TestPayloadWaitInOutClose(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		should := assert.New(t)
-
 		err := p.FeedIn(bytes.NewReader([]byte("1:0")), false)
 		should.Equal(io.EOF, err)
 	}()
@@ -260,7 +256,6 @@ func TestPayloadWaitInOutClose(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		should := assert.New(t)
 		err := p.FlushOut(ioutil.Discard)
 		should.Equal(io.EOF, err)
 	}()
@@ -268,7 +263,7 @@ func TestPayloadWaitInOutClose(t *testing.T) {
 	// let next run
 	time.Sleep(time.Second / 10)
 
-	should.Nil(p.Close())
+	must.NoError(p.Close())
 
 	wg.Wait()
 
@@ -287,12 +282,13 @@ func TestPayloadWaitInOutClose(t *testing.T) {
 
 func TestPayloadPauseClose(t *testing.T) {
 	should := assert.New(t)
+	must := require.New(t)
 
 	p := New(true)
 	p.Pause()
 
 	err := p.Close()
-	should.Nil(err)
+	must.NoError(err)
 
 	_, _, _, err = p.NextReader()
 	should.Equal(io.EOF, err)
@@ -369,6 +365,7 @@ func TestPayloadNextPause(t *testing.T) {
 
 func TestPayloadInOutPause(t *testing.T) {
 	should := assert.New(t)
+	must := require.New(t)
 
 	p := New(true)
 
@@ -378,36 +375,32 @@ func TestPayloadInOutPause(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		must := require.New(t)
 		err := p.FeedIn(bytes.NewReader([]byte("1:0")), false)
-		must.Nil(err)
+		must.NoError(err)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
-		should := assert.New(t)
-		must := require.New(t)
-
 		b := bytes.NewBuffer(nil)
 		err := p.FlushOut(b)
-		must.Nil(err)
+		must.NoError(err)
+
 		should.Equal([]byte{0x0, 0x1, 0xff, '6'}, b.Bytes())
 	}()
 
 	go func() {
-		must := require.New(t)
-
 		time.Sleep(time.Second / 10 * 3)
 
 		_, _, r, err := p.NextReader()
-		defer r.Close()
-
-		must.Nil(err)
+		defer func() {
+			must.NoError(r.Close())
+		}()
+		must.NoError(err)
 
 		_, err = io.Copy(ioutil.Discard, r)
-		must.Nil(err)
+		must.NoError(err)
 	}()
 
 	//wait other run
@@ -437,7 +430,8 @@ func TestPayloadInOutPause(t *testing.T) {
 
 	b := bytes.NewBuffer(nil)
 	err = p.FlushOut(b)
-	should.Nil(err)
+	must.NoError(err)
+
 	should.Equal([]byte{0x0, 0x1, 0xff, '6'}, b.Bytes())
 }
 
@@ -454,7 +448,7 @@ func TestPayloadNextClosePause(t *testing.T) {
 
 		must := require.New(t)
 		err := p.FeedIn(bytes.NewReader([]byte("1:0")), false)
-		must.Nil(err)
+		must.NoError(err)
 	}()
 
 	wg.Add(1)
@@ -465,7 +459,7 @@ func TestPayloadNextClosePause(t *testing.T) {
 		must := require.New(t)
 
 		_, _, r, err := p.NextReader()
-		must.Nil(err)
+		must.NoError(err)
 
 		time.Sleep(time.Second / 2)
 
@@ -483,7 +477,7 @@ func TestPayloadNextClosePause(t *testing.T) {
 
 		must := require.New(t)
 		err := p.FlushOut(ioutil.Discard)
-		must.Nil(err)
+		must.NoError(err)
 	}()
 
 	wg.Add(1)
@@ -494,12 +488,12 @@ func TestPayloadNextClosePause(t *testing.T) {
 		must := require.New(t)
 
 		w, err := p.NextWriter(frame.Binary, packet.OPEN)
-		must.Nil(err)
+		must.NoError(err)
 
 		time.Sleep(time.Second / 2)
 
 		err = w.Close()
-		must.Nil(err)
+		must.NoError(err)
 
 		_, err = p.NextWriter(frame.Binary, packet.OPEN)
 		op, ok := err.(Error)

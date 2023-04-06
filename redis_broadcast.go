@@ -84,6 +84,9 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 	if len(opts.Password) > 0 {
 		redisOpts = append(redisOpts, redis.DialPassword(opts.Password))
 	}
+	if opts.DB > 0 {
+		redisOpts = append(redisOpts, redis.DialDatabase(opts.DB))
+	}
 
 	pub, err := redis.Dial(opts.Network, addr, redisOpts...)
 	if err != nil {

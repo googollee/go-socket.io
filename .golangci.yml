@@ -1,3 +1,4 @@
+# More info on config here: https://github.com/golangci/golangci-lint#config-file
 run:
   timeout: 3m
   deadline: 5m
@@ -6,3 +7,9 @@ output:
   format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
+
+issues:
+  exclude-use-default: false
+  exclude:
+    # support go 1.13 with deprecated APIs
+    - SA1019

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	"github.com/googollee/go-socket.io/engineio/payload"
 	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/utils"
+	"github.com/googollee/go-socket.io/logger"
 )
 
 type clientConn struct {
@@ -35,19 +35,23 @@ func (c *clientConn) Open() (transport.ConnParameters, error) {
 	}
 
 	if pt != packet.OPEN {
-		r.Close()
+		if err = r.Close(); err != nil {
+			logger.Error("close transport reader:", err)
+		}
+
 		return transport.ConnParameters{}, errors.New("invalid open")
 	}
 
 	conn, err := transport.ReadConnParameters(r)
 	if err != nil {
-		r.Close()
+		if closeErr := r.Close(); closeErr != nil {
+			logger.Error("close transport reader:", err)
+		}
+
 		return transport.ConnParameters{}, err
 	}
 
-	err = r.Close()
-
-	if err != nil {
+	if err = r.Close(); err != nil {
 		return transport.ConnParameters{}, err
 	}
 
@@ -111,9 +115,13 @@ func (c *clientConn) servePost() {
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			if err = c.Payload.Store("post", err); err != nil {
-				log.Println("store post error", err)
+				logger.Error("store post:", err)
 			}
-			c.Close()
+
+			if err = c.Close(); err != nil {
+				logger.Error("close client connect:", err)
+			}
+
 			return
 		}
 
@@ -122,9 +130,13 @@ func (c *clientConn) servePost() {
 		if resp.StatusCode != http.StatusOK {
 			err = c.Payload.Store("post", fmt.Errorf("invalid response: %s(%d)", resp.Status, resp.StatusCode))
 			if err != nil {
-				log.Println("store post error", err)
+				logger.Error("store post:", err)
 			}
-			c.Close()
+
+			if err = c.Close(); err != nil {
+				logger.Error("close client connect:", err)
+			}
+
 			return
 		}
 
@@ -146,10 +158,13 @@ func (c *clientConn) getOpen() {
 	resp, err := c.httpClient.Do(&req)
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			log.Println("store get error", err)
+			logger.Error("store get:", err)
 		}
 
-		c.Close()
+		if err = c.Close(); err != nil {
+			logger.Error("close client connect:", err)
+		}
+
 		return
 	}
 
@@ -166,15 +181,18 @@ func (c *clientConn) getOpen() {
 		mime := resp.Header.Get("Content-Type")
 		isSupportBinary, err = mimeIsSupportBinary(mime)
 		if err != nil {
-			log.Println("check mime support binary", err)
+			logger.Error("check mime support binary:", err)
 		}
 	}
 
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			log.Println("store get error", err)
+			logger.Error("store get:", err)
 		}
-		c.Close()
+
+		if err = c.Close(); err != nil {
+			logger.Error("close client connect:", err)
+		}
 
 		return
 	}
@@ -182,6 +200,8 @@ func (c *clientConn) getOpen() {
 	c.remoteHeader.Store(resp.Header)
 
 	if err = c.Payload.FeedIn(resp.Body, isSupportBinary); err != nil {
+		logger.Error("payload feedin:", err)
+
 		return
 	}
 }
@@ -201,9 +221,12 @@ func (c *clientConn) serveGet() {
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			if err = c.Payload.Store("get", err); err != nil {
-				log.Println("store get error", err)
+				logger.Error("store get:", err)
 			}
-			c.Close()
+
+			if err = c.Close(); err != nil {
+				logger.Error("close client connect:", err)
+			}
 
 			return
 		}
@@ -217,7 +240,7 @@ func (c *clientConn) serveGet() {
 			mime := resp.Header.Get("Content-Type")
 			isSupportBinary, err = mimeIsSupportBinary(mime)
 			if err != nil {
-				log.Println("check mime support binary", err)
+				logger.Error("check mime support binary:", err)
 			}
 		}
 
@@ -225,10 +248,12 @@ func (c *clientConn) serveGet() {
 			discardBody(resp.Body)
 
 			if err = c.Payload.Store("get", err); err != nil {
-				log.Println("store get error", err)
+				logger.Error("store get error:", err)
 			}
 
-			c.Close()
+			if err = c.Close(); err != nil {
+				logger.Error("close client connect:", err)
+			}
 
 			return
 		}
@@ -246,7 +271,10 @@ func (c *clientConn) serveGet() {
 func discardBody(body io.ReadCloser) {
 	_, err := io.Copy(ioutil.Discard, body)
 	if err != nil {
-		log.Println("copy from body resp to discard", err)
+		logger.Error("copy from body resp to discard:", err)
 	}
-	body.Close()
+
+	if err = body.Close(); err != nil {
+		logger.Error("body close:", err)
+	}
 }

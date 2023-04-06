@@ -1,11 +1,13 @@
 package socketio
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/googollee/go-socket.io/engineio"
+	"github.com/googollee/go-socket.io/logger"
 	"github.com/googollee/go-socket.io/parser"
 )
 
@@ -33,6 +35,9 @@ func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
 	if len(opts.Password) > 0 {
 		redisOpts = append(redisOpts, redis.DialPassword(opts.Password))
 	}
+	if opts.DB > 0 {
+		redisOpts = append(redisOpts, redis.DialDatabase(opts.DB))
+	}
 
 	conn, err := redis.Dial(opts.Network, opts.getAddr(), redisOpts...)
 	if err != nil {
@@ -41,8 +46,7 @@ func (s *Server) Adapter(opts *RedisAdapterOptions) (bool, error) {
 
 	s.redisAdapter = opts
 
-	conn.Close()
-	return true, nil
+	return true, conn.Close()
 }
 
 // Close closes server.
@@ -228,8 +232,11 @@ func (s *Server) serveConn(conn engineio.Conn) {
 
 func (s *Server) serveError(c *conn) {
 	defer func() {
-		c.Close()
-		s.engine.Remove(c.ID())
+		if err := c.Close(); err != nil {
+			logger.Error("close connect:", err)
+		}
+
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	for {
@@ -237,8 +244,8 @@ func (s *Server) serveError(c *conn) {
 		case <-c.quitChan:
 			return
 		case err := <-c.errorChan:
-			errMsg, ok := err.(errorMessage)
-			if !ok {
+			var errMsg *errorMessage
+			if !errors.As(err, &errMsg) {
 				continue
 			}
 
@@ -257,8 +264,11 @@ func (s *Server) serveError(c *conn) {
 
 func (s *Server) serveWrite(c *conn) {
 	defer func() {
-		c.Close()
-		s.engine.Remove(c.ID())
+		if err := c.Close(); err != nil {
+			logger.Error("close connect:", err)
+		}
+
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	for {
@@ -275,8 +285,11 @@ func (s *Server) serveWrite(c *conn) {
 
 func (s *Server) serveRead(c *conn) {
 	defer func() {
-		c.Close()
-		s.engine.Remove(c.ID())
+		if err := c.Close(); err != nil {
+			logger.Error("close connect:", err)
+		}
+
+		s.engine.Remove(c.Conn.ID())
 	}()
 
 	var event string
@@ -307,6 +320,8 @@ func (s *Server) serveRead(c *conn) {
 		}
 
 		if err != nil {
+			logger.Error("serve read:", err)
+
 			return
 		}
 	}

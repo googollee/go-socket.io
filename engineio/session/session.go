@@ -14,6 +14,7 @@ import (
 	"github.com/googollee/go-socket.io/engineio/packet"
 	"github.com/googollee/go-socket.io/engineio/payload"
 	"github.com/googollee/go-socket.io/engineio/transport"
+	"github.com/googollee/go-socket.io/logger"
 )
 
 // Pauser is connection which can be paused and resumes.
@@ -42,7 +43,10 @@ func New(conn transport.Conn, sid, transport string, params transport.ConnParame
 	}
 
 	if err := ses.setDeadline(); err != nil {
-		ses.Close()
+		if closeErr := ses.Close(); closeErr != nil {
+			logger.Error("session close:", closeErr)
+		}
+
 		return nil, err
 	}
 
@@ -82,7 +86,10 @@ func (s *Session) NextReader() (FrameType, io.ReadCloser, error) {
 	for {
 		ft, pt, r, err := s.nextReader()
 		if err != nil {
-			s.Close()
+			if closeErr := s.Close(); closeErr != nil {
+				logger.Error("close session after next reader:", closeErr)
+			}
+
 			return 0, nil, err
 		}
 
@@ -96,24 +103,46 @@ func (s *Session) NextReader() (FrameType, io.ReadCloser, error) {
 				}
 				// echo
 				_, err = io.Copy(w, r)
-				w.Close() // unlocks the wrapped connection's FrameWriter
-				r.Close() // unlocks the wrapped connection's FrameReader
+				// unlocks the wrapped connection's FrameWriter
+				if closeErr := w.Close(); closeErr != nil {
+					logger.Error("close writer after write pong packet:", closeErr)
+				}
+
+				// unlocks the wrapped connection's FrameReader
+				if closeErr := r.Close(); closeErr != nil {
+					logger.Error("close reader:", closeErr)
+				}
+
 				return err
 			}()
+
 			if err != nil {
-				s.Close()
+				if closeErr := s.Close(); closeErr != nil {
+					logger.Error("close session:", closeErr)
+				}
+
 				return 0, nil, err
 			}
 			// Read another frame.
 			if err := s.setDeadline(); err != nil {
-				s.Close()
+				if closeErr := s.Close(); closeErr != nil {
+					logger.Error("close session after set deadline:", closeErr)
+				}
+
 				return 0, nil, err
 			}
 			return TEXT, ioutil.NopCloser(strings.NewReader("2[\"ping\"]")), nil
 
 		case packet.CLOSE:
-			r.Close() // unlocks the wrapped connection's FrameReader
-			s.Close()
+			// unlocks the wrapped connection's FrameReader
+			if err = r.Close(); err != nil {
+				logger.Error("close reader on packet close:", err)
+			}
+
+			if err = s.Close(); err != nil {
+				logger.Error("close session on packet close:", err)
+			}
+
 			return 0, nil, io.EOF
 
 		case packet.MESSAGE:
@@ -123,7 +152,9 @@ func (s *Session) NextReader() (FrameType, io.ReadCloser, error) {
 
 		default:
 			// Unknown packet type. Close reader and try again.
-			r.Close()
+			if err = r.Close(); err != nil {
+				logger.Error("close reader on unknown packet:", err)
+			}
 		}
 	}
 }
@@ -170,18 +201,30 @@ func (s *Session) Upgrade(transport string, conn transport.Conn) {
 func (s *Session) InitSession() error {
 	w, err := s.nextWriter(frame.String, packet.OPEN)
 	if err != nil {
-		s.Close()
+		if closeErr := s.Close(); closeErr != nil {
+			logger.Error("close session with string frame and packet open:", closeErr)
+		}
+
 		return err
 	}
 
 	if _, err := s.params.WriteTo(w); err != nil {
-		w.Close()
-		s.Close()
+		if closeErr := w.Close(); closeErr != nil {
+			logger.Error("close writer:", closeErr)
+		}
+
+		if closeErr := s.Close(); closeErr != nil {
+			logger.Error("close session:", closeErr)
+		}
+
 		return err
 	}
 
 	if err := w.Close(); err != nil {
-		s.Close()
+		if closeErr := s.Close(); closeErr != nil {
+			logger.Error("close session:", closeErr)
+		}
+
 		return err
 	}
 
@@ -252,18 +295,35 @@ func (s *Session) upgrading(t string, conn transport.Conn) {
 	// Read a ping from the client.
 	err := conn.SetReadDeadline(time.Now().Add(s.params.PingTimeout))
 	if err != nil {
-		conn.Close()
+		logger.Error("set read deadline:", err)
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect after set read deadline:", closeErr)
+		}
+
 		return
 	}
 
 	ft, pt, r, err := conn.NextReader()
 	if err != nil {
-		conn.Close()
+		logger.Error("get next reader:", err)
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect after get next reader:", closeErr)
+		}
+
 		return
 	}
+
 	if pt != packet.PING {
-		r.Close()
-		conn.Close()
+		if err := r.Close(); err != nil {
+			logger.Error("close reade:", err)
+		}
+
+		if err := conn.Close(); err != nil {
+			logger.Error("close connect:", err)
+		}
+
 		return
 	}
 	// Wait to close the reader until after data is read and echoed in the reply.
@@ -271,31 +331,74 @@ func (s *Session) upgrading(t string, conn transport.Conn) {
 	// Sent a pong in reply.
 	err = conn.SetWriteDeadline(time.Now().Add(s.params.PingTimeout))
 	if err != nil {
-		r.Close()
-		conn.Close()
+		logger.Error("set write deadline:", err)
+
+		if closeErr := r.Close(); closeErr != nil {
+			logger.Error("close reader:", closeErr)
+		}
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
 
 	w, err := conn.NextWriter(ft, packet.PONG)
 	if err != nil {
-		r.Close()
-		conn.Close()
+		logger.Error("get next writer with pong packet:", err)
+
+		if closeErr := r.Close(); closeErr != nil {
+			logger.Error("close reader:", closeErr)
+		}
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
+
 	// echo
 	if _, err = io.Copy(w, r); err != nil {
-		w.Close()
-		r.Close()
-		conn.Close()
+		logger.Error("copy from reader to writer:", err)
+
+		if closeErr := w.Close(); closeErr != nil {
+			logger.Error("close writer:", closeErr)
+		}
+
+		if closeErr := r.Close(); closeErr != nil {
+			logger.Error("close reader:", closeErr)
+		}
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
+
 	if err = r.Close(); err != nil {
-		w.Close()
-		conn.Close()
+		logger.Error("close reader:", err)
+
+		if closeErr := w.Close(); closeErr != nil {
+			logger.Error("close writer:", closeErr)
+		}
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
+
 	if err = w.Close(); err != nil {
-		conn.Close()
+		logger.Error("close writer:", err)
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
 
@@ -307,7 +410,10 @@ func (s *Session) upgrading(t string, conn transport.Conn) {
 	p, ok := old.(Pauser)
 	if !ok {
 		// old transport doesn't support upgrading
-		conn.Close()
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect after get pauser:", closeErr)
+		}
+
 		return
 	}
 
@@ -323,18 +429,34 @@ func (s *Session) upgrading(t string, conn transport.Conn) {
 	// Check for upgrade packet from the client.
 	_, pt, r, err = conn.NextReader()
 	if err != nil {
-		conn.Close()
+		logger.Error("get next reader:", err)
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
 
 	if pt != packet.UPGRADE {
-		r.Close()
-		conn.Close()
+		if closeErr := r.Close(); closeErr != nil {
+			logger.Error("close reader:", closeErr)
+		}
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
 
 	if err = r.Close(); err != nil {
-		conn.Close()
+		logger.Error("close reader:", err)
+
+		if closeErr := conn.Close(); closeErr != nil {
+			logger.Error("close connect:", closeErr)
+		}
+
 		return
 	}
 
@@ -346,5 +468,7 @@ func (s *Session) upgrading(t string, conn transport.Conn) {
 
 	p = nil
 
-	old.Close()
+	if closeErr := old.Close(); closeErr != nil {
+		logger.Error("close old connection:", closeErr)
+	}
 }

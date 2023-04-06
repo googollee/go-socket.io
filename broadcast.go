@@ -131,12 +131,12 @@ func (bc *broadcast) Len(room string) int {
 // no connection is given, in case of a connection is given, it gives
 // list of all the rooms the connection is joined to
 func (bc *broadcast) Rooms(connection Conn) []string {
-	bc.lock.RLock()
-	defer bc.lock.RUnlock()
-
 	if connection == nil {
 		return bc.AllRooms()
 	}
+
+	bc.lock.RLock()
+	defer bc.lock.RUnlock()
 
 	return bc.getRoomsByConn(connection)
 }

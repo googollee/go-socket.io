@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
@@ -28,6 +29,8 @@ var tests = []struct {
 
 func TestPollingBinary(t *testing.T) {
 	should := assert.New(t)
+	must := require.New(t)
+
 	var scValue atomic.Value
 
 	pollingTransport := Default
@@ -61,7 +64,9 @@ func TestPollingBinary(t *testing.T) {
 	should.Nil(err)
 
 	cc.(*clientConn).Resume()
-	defer cc.Close()
+	defer func() {
+		must.NoError(cc.Close())
+	}()
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -90,7 +95,9 @@ func TestPollingBinary(t *testing.T) {
 	}()
 
 	sc := <-conn
-	defer sc.Close()
+	defer func() {
+		must.NoError(sc.Close())
+	}()
 
 	for _, test := range tests {
 		w, err := sc.NextWriter(test.ft, test.pt)
@@ -122,6 +129,8 @@ func TestPollingBinary(t *testing.T) {
 
 func TestPollingString(t *testing.T) {
 	should := assert.New(t)
+	must := require.New(t)
+
 	var scValue atomic.Value
 
 	pollingTransport := Default
@@ -155,10 +164,14 @@ func TestPollingString(t *testing.T) {
 	should.Nil(err)
 
 	cc.(*clientConn).Resume()
-	defer cc.Close()
+	defer func() {
+		must.NoError(cc.Close())
+	}()
 
 	sc := <-conn
-	defer sc.Close()
+	defer func() {
+		must.NoError(sc.Close())
+	}()
 
 	should.Equal(sc.LocalAddr(), cc.RemoteAddr())
 	should.Equal("tcp", sc.LocalAddr().Network())
