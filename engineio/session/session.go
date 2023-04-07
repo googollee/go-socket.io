@@ -2,9 +2,11 @@ package session
 
 import (
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -129,6 +131,7 @@ func (s *Session) NextReader() (FrameType, io.ReadCloser, error) {
 
 				return 0, nil, err
 			}
+			return TEXT, ioutil.NopCloser(strings.NewReader("2[\"ping\"]")), nil
 
 		case packet.CLOSE:
 			// unlocks the wrapped connection's FrameReader
