@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"strings"
 	"sync"
 
@@ -13,8 +14,8 @@ import (
 // redisBroadcast gives Join, Leave & BroadcastTO server API support to socket.io along with room management
 // map of rooms where each room contains a map of connection id to connections in that room
 type redisBroadcast struct {
-	pub *redis.PubSubConn
-	sub *redis.PubSubConn
+	sub  *redis.PubSubConn
+	pool *redis.Pool
 
 	nsp        string
 	uid        string
@@ -88,18 +89,12 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 		redisOpts = append(redisOpts, redis.DialDatabase(opts.DB))
 	}
 
-	pub, err := redis.Dial(opts.Network, addr, redisOpts...)
-	if err != nil {
-		return nil, err
-	}
-
 	sub, err := redis.Dial(opts.Network, addr, redisOpts...)
 	if err != nil {
 		return nil, err
 	}
 
 	subConn := &redis.PubSubConn{Conn: sub}
-	pubConn := &redis.PubSubConn{Conn: pub}
 
 	if err = subConn.PSubscribe(fmt.Sprintf("%s#%s#*", opts.Prefix, nsp)); err != nil {
 		return nil, err
@@ -110,12 +105,23 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 		rooms:      make(map[string]map[string]Conn),
 		requests:   make(map[string]interface{}),
 		sub:        subConn,
-		pub:        pubConn,
 		key:        fmt.Sprintf("%s#%s#%s", opts.Prefix, nsp, uid),
 		reqChannel: fmt.Sprintf("%s-request#%s", opts.Prefix, nsp),
 		resChannel: fmt.Sprintf("%s-response#%s", opts.Prefix, nsp),
 		nsp:        nsp,
 		uid:        uid,
+	}
+
+	rbc.pool = &redis.Pool{
+		MaxIdle:   10, /*最大的空闲连接数*/
+		MaxActive: 30, /*最大的激活连接数*/
+		Dial: func() (redis.Conn, error) {
+			c, err := redis.Dial(opts.Network, addr, redisOpts...)
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		},
 	}
 
 	if err = subConn.Subscribe(rbc.reqChannel, rbc.resChannel); err != nil {
@@ -125,6 +131,16 @@ func newRedisBroadcast(nsp string, opts *RedisAdapterOptions) (*redisBroadcast, 
 	go rbc.dispatch()
 
 	return rbc, nil
+}
+func (bc *redisBroadcast) publishToRedis(channel string, content []byte) error {
+	c := bc.pool.Get()
+	defer c.Close()
+
+	_, err := c.Do("PUBLISH", channel, content)
+	if err != nil {
+		logrus.Errorf("publish to redis err:%v", err)
+	}
+	return err
 }
 
 // AllRooms gives list of all rooms available for redisBroadcast.
@@ -141,7 +157,7 @@ func (bc *redisBroadcast) AllRooms() []string {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	_, err := bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	err := bc.publishToRedis(bc.reqChannel, reqJSON)
 	if err != nil {
 		return []string{} // if error occurred,return empty
 	}
@@ -276,7 +292,7 @@ func (bc *redisBroadcast) Len(room string) int {
 	req.done = make(chan bool, 1)
 
 	bc.requests[req.RequestID] = &req
-	_, err = bc.pub.Conn.Do("PUBLISH", bc.reqChannel, reqJSON)
+	err = bc.publishToRedis(bc.reqChannel, reqJSON)
 	if err != nil {
 		return -1
 	}
@@ -343,7 +359,9 @@ func (bc *redisBroadcast) onMessage(channel string, msg []byte) error {
 
 // Get the number of subscribers of a channel.
 func (bc *redisBroadcast) getNumSub(channel string) (int, error) {
-	rs, err := bc.pub.Conn.Do("PUBSUB", "NUMSUB", channel)
+	c := bc.pool.Get()
+	defer c.Close()
+	rs, err := c.Do("PUBSUB", "NUMSUB", channel)
 	if err != nil {
 		return 0, err
 	}
@@ -397,7 +415,7 @@ func (bc *redisBroadcast) publish(channel string, msg interface{}) {
 		return
 	}
 
-	_, err = bc.pub.Conn.Do("PUBLISH", channel, resJSON)
+	err = bc.publishToRedis(channel, resJSON)
 	if err != nil {
 		return
 	}
@@ -499,10 +517,8 @@ func (bc *redisBroadcast) publishMessage(room string, event string, args ...inte
 		return
 	}
 
-	fmt.Printf("PUBLISH(%s,%s)", bc.key, bcMessageJSON)
-	_, err = bc.pub.Conn.Do("PUBLISH", bc.key, bcMessageJSON)
+	err = bc.publishToRedis(bc.key, bcMessageJSON)
 	if err != nil {
-		fmt.Printf("PUBLISH(%s,%s):%s", bc.key, bcMessageJSON, err)
 		return
 	}
 }
