@@ -203,6 +203,11 @@ func (s *Server) Count() int {
 	return s.engine.Count()
 }
 
+// Remove session from sessions pool. Fixed the sessions map leak(connections, mem).
+func (s *Server) Remove(sid string) {
+	s.engine.Remove(sid)
+}
+
 // ForEach sends data by DataFunc, if room does not exit sends anything.
 func (s *Server) ForEach(namespace string, room string, f EachFunc) bool {
 	nspHandler := s.getNamespace(namespace)

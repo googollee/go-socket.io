@@ -38,10 +38,13 @@ func main() {
 	})
 
 	server.OnError("/", func(s socketio.Conn, e error) {
+		// server.Remove(s.ID())
 		fmt.Println("meet error:", e)
 	})
 
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		// Add the Remove session id. Fixed the connection & mem leak
+		server.Remove(s.ID())
 		fmt.Println("closed", reason)
 	})
 
