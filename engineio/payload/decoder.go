@@ -37,10 +37,13 @@ func (d *decoder) NextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 		if err != nil {
 			return 0, 0, nil, err
 		}
+
 		br, ok := r.(byteReader)
+
 		if !ok {
 			br = bufio.NewReader(r)
 		}
+
 		if err := d.setNextReader(br, supportBinary); err != nil {
 			return 0, 0, nil, d.sendError(err)
 		}
@@ -53,7 +56,24 @@ func (d *decoder) Read(p []byte) (int, error) {
 	if d.b64Reader != nil {
 		return d.b64Reader.Read(p)
 	}
-	return d.limitReader.Read(p)
+	dd, err := d.limitReader.Read(p)
+	unicodeCount := 0
+	for i := range p[:dd] {
+		b := p[i]
+		if b>>3 == 30 {
+			// starts with 11110 4 byte unicode char, probably 2 length in JS
+			unicodeCount = unicodeCount + 2
+		} else if b>>4 == 14 {
+			// starts with 1110 3 byte unicode char, probably 2 length in JS
+			unicodeCount = unicodeCount + 2
+		} else if b>>5 == 6 {
+			// starts with 110 2 byte unicode char, , probably 1 length in JS
+			unicodeCount = unicodeCount + 1
+		}
+	}
+
+	d.limitReader.N = d.limitReader.N + int64(unicodeCount)
+	return dd, err
 }
 
 func (d *decoder) Close() error {
@@ -109,6 +129,7 @@ func (d *decoder) sendError(err error) error {
 }
 
 func (d *decoder) textRead(r byteReader) (frame.Type, packet.Type, int64, error) {
+
 	l, err := readTextLen(r)
 	if err != nil {
 		return 0, 0, 0, err
@@ -136,6 +157,7 @@ func (d *decoder) textRead(r byteReader) (frame.Type, packet.Type, int64, error)
 
 func (d *decoder) binaryRead(r byteReader) (frame.Type, packet.Type, int64, error) {
 	b, err := r.ReadByte()
+
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -145,6 +167,7 @@ func (d *decoder) binaryRead(r byteReader) (frame.Type, packet.Type, int64, erro
 	ft := frame.ByteToFrameType(b)
 
 	l, err := readBinaryLen(r)
+
 	if err != nil {
 		return 0, 0, 0, err
 	}
