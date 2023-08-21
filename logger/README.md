@@ -8,7 +8,6 @@ import (
     "github.com/googollee/go-socket.io/logger"
 )
 
-
 func main() {
     json_logger := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
         Level: slog.LevelInfo, // Set Level for each handler
