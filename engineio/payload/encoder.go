@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"io"
+	"unicode/utf8"
 
 	"github.com/googollee/go-socket.io/engineio/frame"
 	"github.com/googollee/go-socket.io/engineio/packet"
@@ -56,6 +57,7 @@ func (e *encoder) Write(p []byte) (int, error) {
 	if e.b64Writer != nil {
 		return e.b64Writer.Write(p)
 	}
+	// Need to scan here and add unicode chars to the list
 	return e.frameCache.Write(p)
 }
 
@@ -92,8 +94,8 @@ func (e *encoder) Close() error {
 }
 
 func (e *encoder) writeTextHeader() error {
-	l := int64(e.frameCache.Len() + 1) // length for packet type
-	err := writeTextLen(l, &e.header)
+
+	err := writeTextLen(e.calcCodeUnitLength(), &e.header)
 	if err == nil {
 		err = e.header.WriteByte(e.pt.StringByte())
 	}
@@ -101,7 +103,7 @@ func (e *encoder) writeTextHeader() error {
 }
 
 func (e *encoder) writeB64Header() error {
-	l := int64(e.frameCache.Len() + 2) // length for 'b' and packet type
+	l := int64(utf8.RuneCount(e.frameCache.Bytes()) + 2) // length for 'b' and packet type
 	err := writeTextLen(l, &e.header)
 	if err == nil {
 		err = e.header.WriteByte('b')
@@ -112,8 +114,34 @@ func (e *encoder) writeB64Header() error {
 	return err
 }
 
+func (e *encoder) calcCodeUnitLength() int64 {
+	var l int64 = 1
+	var codeUnitSize int64
+	bytes := e.frameCache.Bytes()
+	for i := range bytes {
+		b := bytes[i]
+		if b>>3 == 30 {
+			// starts with 11110 4 byte unicode char, probably 2 length in JS
+			codeUnitSize = 2
+		} else if b>>4 == 14 {
+			// starts with 1110 3 byte unicode char, probably 1 length in JS
+			codeUnitSize = 1
+		} else if b>>5 == 6 {
+			// starts with 110 2 byte unicode char, , probably 1 length in JS
+			codeUnitSize = 1
+		} else if b>>6 == 2 {
+			// starts with 10 just unicode byte
+			codeUnitSize = 0
+		} else {
+			codeUnitSize = 1
+		}
+		l = l + codeUnitSize
+	}
+
+	return int64(l)
+}
 func (e *encoder) writeBinaryHeader() error {
-	l := int64(e.frameCache.Len() + 1) // length for packet type
+	l := int64(e.calcCodeUnitLength()) // length for packet type
 	b := e.pt.StringByte()
 	if e.ft == frame.Binary {
 		b = e.pt.BinaryByte()

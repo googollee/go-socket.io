@@ -96,7 +96,7 @@ func TestDecoderNextReaderError(t *testing.T) {
 
 func BenchmarkStringDecoder(b *testing.B) {
 	feeder := fakeReaderFeeder{
-		data:          []byte("8:4你好\n6:2probe"),
+		data:          []byte("4:4你好\n6:2probe"),
 		supportBinary: false,
 	}
 	d := decoder{
@@ -148,7 +148,7 @@ func BenchmarkBinaryDecoder(b *testing.B) {
 	feeder := fakeReaderFeeder{
 		data: []byte{
 			0x01, 0x07, 0xff, 0x04, 'h', 'e', 'l', 'l', 'o', '\n',
-			0x00, 0x08, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
+			0x00, 0x04, 0xff, '4', 0xe4, 0xbd, 0xa0, 0xe5, 0xa5, 0xbd, '\n',
 			0x00, 0x06, 0xff, '2', 'p', 'r', 'o', 'b', 'e',
 		},
 		supportBinary: true,

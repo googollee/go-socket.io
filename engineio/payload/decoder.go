@@ -53,7 +53,24 @@ func (d *decoder) Read(p []byte) (int, error) {
 	if d.b64Reader != nil {
 		return d.b64Reader.Read(p)
 	}
-	return d.limitReader.Read(p)
+	dd, err := d.limitReader.Read(p)
+	unicodeCount := 0
+	for i := range p[:dd] {
+		b := p[i]
+		if b>>3 == 30 {
+			// starts with 11110 4 byte unicode char, probably 2 length in JS
+			unicodeCount = unicodeCount + 2
+		} else if b>>4 == 14 {
+			// starts with 1110 3 byte unicode char, probably 2 length in JS
+			unicodeCount = unicodeCount + 2
+		} else if b>>5 == 6 {
+			// starts with 110 2 byte unicode char, , probably 1 length in JS
+			unicodeCount = unicodeCount + 1
+		}
+	}
+
+	d.limitReader.N = d.limitReader.N + int64(unicodeCount)
+	return dd, err
 }
 
 func (d *decoder) Close() error {
