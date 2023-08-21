@@ -7,20 +7,45 @@ import (
 	"github.com/googollee/go-socket.io/parser"
 )
 
-var readHandlerMapping = map[parser.Type]readHandler{
-	parser.Ack:        ackPacketHandler,
-	parser.Connect:    connectPacketHandler,
-	parser.Disconnect: disconnectPacketHandler,
-}
+var emtpyFH = newAckFunc(func() {})
 
 func ackPacketHandler(c *conn, header parser.Header) error {
-	conn, ok := c.namespaces.Get(header.Namespace)
+	nc, ok := c.namespaces.Get(header.Namespace)
 	if !ok {
 		_ = c.decoder.DiscardLast()
 		return nil
 	}
 
-	conn.dispatch(header)
+	defer nc.ack.Delete(header.ID)
+
+	rawFunc, ok := nc.ack.Load(header.ID)
+	if !ok {
+		// No function for this ack, but still need to read body
+		rawFunc = emtpyFH
+	}
+
+	handler, ok := rawFunc.(*funcHandler)
+	if !ok {
+		// This should never get here and would be solved with generic sync.Map
+		logger.Info("Incorrect Ack functinxo type")
+		handler = emtpyFH // keep going
+	}
+
+	// Read the body because Ack can have body as well
+	args, err := c.decoder.DecodeArgs(handler.argTypes)
+	if err != nil {
+		logger.Info("Error decoding the ACK message type", "namespace", header.Namespace, "eventType", handler.argTypes, "err", err.Error())
+		c.onError(header.Namespace, err)
+		return errDecodeArgs
+	}
+
+	// Return value is ignored
+	_, err = handler.Call(args)
+	if err != nil {
+		logger.Info("Error for event type", "namespace", header.Namespace)
+		c.onError(header.Namespace, err)
+		return errHandleDispatch
+	}
 
 	return nil
 }
@@ -53,7 +78,7 @@ func eventPacketHandler(c *conn, event string, header parser.Header) error {
 		return errHandleDispatch
 	}
 
-	if len(ret) > 0 {
+	if len(ret) > 0 || header.NeedAck {
 		header.Type = parser.Ack
 		c.write(header, ret...)
 	}

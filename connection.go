@@ -144,7 +144,3 @@ func (c *conn) namespace(nsp string) *namespaceHandler {
 	handler, _ := c.handlers.Get(nsp)
 	return handler
 }
-
-func (c *conn) parseArgs(types []reflect.Type) ([]reflect.Value, error) {
-	return c.decoder.DecodeArgs(types)
-}

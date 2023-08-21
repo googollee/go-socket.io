@@ -314,13 +314,12 @@ func (s *Server) serveRead(c *conn) {
 
 		var err error
 		switch header.Type {
-		case parser.Ack, parser.Connect, parser.Disconnect:
-			handler, ok := readHandlerMapping[header.Type]
-			if !ok {
-				return
-			}
-
-			err = handler(c, header)
+		case parser.Ack:
+			err = ackPacketHandler(c, header)
+		case parser.Connect:
+			err = connectPacketHandler(c, header)
+		case parser.Disconnect:
+			err = disconnectPacketHandler(c, header)
 		case parser.Event:
 			err = eventPacketHandler(c, event, header)
 		}
