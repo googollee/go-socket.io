@@ -116,7 +116,7 @@ func (e *encoder) writeB64Header() error {
 
 func (e *encoder) calcCodeUnitLength() int64 {
 	var l int64 = 1
-	var codeUnitSize int64 = 0
+	var codeUnitSize int64
 	bytes := e.frameCache.Bytes()
 	for i := range bytes {
 		b := bytes[i]
