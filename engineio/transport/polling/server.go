@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/googollee/go-socket.io/engineio/payload"
+	"github.com/googollee/go-socket.io/logger"
 )
 
 type serverConn struct {
@@ -127,17 +128,20 @@ func (c *serverConn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		mime := r.Header.Get("Content-Type")
 		isSupportBinary, err := mimeIsSupportBinary(mime)
 		if err != nil {
+			logger.Error("Polling Transport MethodPost mimeIsSupportBinary", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if err := c.Payload.FeedIn(r.Body, isSupportBinary); err != nil {
+			logger.Error("Polling Transport MethodPost FeedIn", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		_, err = w.Write([]byte("ok"))
 		if err != nil {
+			logger.Error("Polling Transport MethodPost Write", err)
 			fmt.Printf("ack post err=%s\n", err.Error())
 		}
 

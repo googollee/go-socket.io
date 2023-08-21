@@ -158,7 +158,7 @@ func (c *clientConn) getOpen() {
 	resp, err := c.httpClient.Do(&req)
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			logger.Error("store get:", err)
+			logger.Error("getOpen store 1:", err)
 		}
 
 		if err = c.Close(); err != nil {
@@ -187,7 +187,7 @@ func (c *clientConn) getOpen() {
 
 	if err != nil {
 		if err = c.Payload.Store("get", err); err != nil {
-			logger.Error("store get:", err)
+			logger.Error("getOpen store 2:", err)
 		}
 
 		if err = c.Close(); err != nil {
@@ -221,7 +221,7 @@ func (c *clientConn) serveGet() {
 		resp, err := c.httpClient.Do(&req)
 		if err != nil {
 			if err = c.Payload.Store("get", err); err != nil {
-				logger.Error("store get:", err)
+				logger.Error("serveGet store 1:", err)
 			}
 
 			if err = c.Close(); err != nil {
@@ -248,7 +248,7 @@ func (c *clientConn) serveGet() {
 			discardBody(resp.Body)
 
 			if err = c.Payload.Store("get", err); err != nil {
-				logger.Error("store get error:", err)
+				logger.Error("serveGet store 2:", err)
 			}
 
 			if err = c.Close(); err != nil {
