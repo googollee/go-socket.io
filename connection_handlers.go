@@ -28,7 +28,7 @@ func ackPacketHandler(c *conn, header parser.Header) error {
 	if !ok {
 		// This should never get here and would be solved with generic sync.Map
 		logger.Info("Incorrect Ack functinxo type")
-		rawFunc = emtpyFH // keep going
+		handler = emtpyFH // keep going
 	}
 
 	// Read the body because Ack can have body as well
