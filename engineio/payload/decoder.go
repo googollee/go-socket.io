@@ -37,13 +37,10 @@ func (d *decoder) NextReader() (frame.Type, packet.Type, io.ReadCloser, error) {
 		if err != nil {
 			return 0, 0, nil, err
 		}
-
 		br, ok := r.(byteReader)
-
 		if !ok {
 			br = bufio.NewReader(r)
 		}
-
 		if err := d.setNextReader(br, supportBinary); err != nil {
 			return 0, 0, nil, d.sendError(err)
 		}
@@ -129,7 +126,6 @@ func (d *decoder) sendError(err error) error {
 }
 
 func (d *decoder) textRead(r byteReader) (frame.Type, packet.Type, int64, error) {
-
 	l, err := readTextLen(r)
 	if err != nil {
 		return 0, 0, 0, err
@@ -157,7 +153,6 @@ func (d *decoder) textRead(r byteReader) (frame.Type, packet.Type, int64, error)
 
 func (d *decoder) binaryRead(r byteReader) (frame.Type, packet.Type, int64, error) {
 	b, err := r.ReadByte()
-
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -167,7 +162,6 @@ func (d *decoder) binaryRead(r byteReader) (frame.Type, packet.Type, int64, erro
 	ft := frame.ByteToFrameType(b)
 
 	l, err := readBinaryLen(r)
-
 	if err != nil {
 		return 0, 0, 0, err
 	}
