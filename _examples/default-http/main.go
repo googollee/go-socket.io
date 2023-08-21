@@ -40,6 +40,7 @@ func main() {
 	})
 
 	server.OnEvent("/chat", "msg", func(s socketio.Conn, msg string) string {
+		log.Println("chat:", msg)
 		s.SetContext(msg)
 		return "recv " + msg
 	})
