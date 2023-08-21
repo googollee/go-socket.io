@@ -298,6 +298,7 @@ func (s *Server) serveRead(c *conn) {
 		var header parser.Header
 
 		if err := c.decoder.DecodeHeader(&header, &event); err != nil {
+			logger.Error("DecodeHeader Error in serveRead", err)
 			c.onError(rootNamespace, err)
 			return
 		}
