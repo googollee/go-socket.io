@@ -124,7 +124,7 @@ func (e *encoder) calcCodeUnitLength() int64 {
 			// starts with 11110 4 byte unicode char, probably 2 length in JS
 			codeUnitSize = 2
 		} else if b>>4 == 14 {
-			// starts with 1110 3 byte unicode char, probably 2 length in JS
+			// starts with 1110 3 byte unicode char, probably 1 length in JS
 			codeUnitSize = 1
 		} else if b>>5 == 6 {
 			// starts with 110 2 byte unicode char, , probably 1 length in JS
