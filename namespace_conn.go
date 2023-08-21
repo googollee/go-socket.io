@@ -1,7 +1,6 @@
 package socketio
 
 import (
-	"fmt"
 	"reflect"
 	"sync"
 
@@ -105,31 +104,4 @@ func (nc *namespaceConn) LeaveAll() {
 
 func (nc *namespaceConn) Rooms() []string {
 	return nc.broadcast.Rooms(nc)
-}
-
-func (nc *namespaceConn) dispatch(header parser.Header) {
-	if header.Type != parser.Ack {
-		return
-	}
-
-	rawFunc, ok := nc.ack.Load(header.ID)
-	if ok {
-		f, ok := rawFunc.(*funcHandler)
-		if !ok {
-			nc.conn.onError(nc.namespace, fmt.Errorf("incorrect data stored for header %d", header.ID))
-			return
-		}
-
-		nc.ack.Delete(header.ID)
-
-		args, err := nc.conn.parseArgs(f.argTypes)
-		if err != nil {
-			nc.conn.onError(nc.namespace, err)
-			return
-		}
-		if _, err := f.Call(args); err != nil {
-			nc.conn.onError(nc.namespace, err)
-			return
-		}
-	}
 }
