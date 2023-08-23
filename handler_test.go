@@ -104,7 +104,7 @@ func TestHandlerCall(t *testing.T) {
 				args[i] = reflect.ValueOf(test.args[i])
 			}
 
-			retV, err := h.Call(args)
+			retV, err := h.CallEvent(nil, "asd", args)
 			must.Equal(test.ok, err == nil)
 
 			if len(retV) == len(test.rets) && len(test.rets) == 0 {

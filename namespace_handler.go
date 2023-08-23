@@ -3,16 +3,19 @@ package socketio
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
 
+	"github.com/armon/go-radix"
 	"github.com/googollee/go-socket.io/parser"
 )
 
 type namespaceHandler struct {
 	broadcast Broadcast
 
-	events     map[string]*funcHandler
-	eventsLock sync.RWMutex
+	events         map[string]*funcHandler
+	wildcardEvents *radix.Tree
+	eventsLock     sync.RWMutex
 
 	onConnect    func(conn Conn) error
 	onDisconnect func(conn Conn, msg string)
@@ -28,8 +31,9 @@ func newNamespaceHandler(nsp string, adapterOpts *RedisAdapterOptions) *namespac
 	}
 
 	return &namespaceHandler{
-		broadcast: broadcast,
-		events:    make(map[string]*funcHandler),
+		broadcast:      broadcast,
+		events:         make(map[string]*funcHandler),
+		wildcardEvents: radix.New(),
 	}
 }
 
@@ -48,20 +52,28 @@ func (nh *namespaceHandler) OnError(f func(Conn, error)) {
 func (nh *namespaceHandler) OnEvent(event string, f interface{}) {
 	nh.eventsLock.Lock()
 	defer nh.eventsLock.Unlock()
+	ef := newEventFunc(f)
+	nh.events[event] = ef
 
-	nh.events[event] = newEventFunc(f)
+	if strings.HasSuffix(event, "*") {
+		nh.wildcardEvents.Insert(strings.TrimSuffix(event, "*"), ef)
+	}
 }
 
-func (nh *namespaceHandler) getEventTypes(event string) []reflect.Type {
-	nh.eventsLock.RLock()
-	namespaceHandler := nh.events[event]
-	nh.eventsLock.RUnlock()
+func (nh *namespaceHandler) GetEventHandler(event string) *funcHandler {
+	nh.eventsLock.Lock()
+	defer nh.eventsLock.Unlock()
+	eventHandler, ok := nh.events[event]
 
-	if namespaceHandler != nil {
-		return namespaceHandler.argTypes
+	if !ok {
+		// If not found one directly check for longest wildcard match
+		_, wcEH, ok := nh.wildcardEvents.LongestPrefix(event)
+		if !ok {
+			return nil
+		}
+		eventHandler = wcEH.(*funcHandler)
 	}
-
-	return nil
+	return eventHandler
 }
 
 func (nh *namespaceHandler) dispatch(conn Conn, header parser.Header, args ...reflect.Value) ([]reflect.Value, error) {
@@ -89,18 +101,6 @@ func (nh *namespaceHandler) dispatch(conn Conn, header parser.Header, args ...re
 	}
 
 	return nil, parser.ErrInvalidPacketType
-}
-
-func (nh *namespaceHandler) dispatchEvent(conn Conn, event string, args ...reflect.Value) ([]reflect.Value, error) {
-	nh.eventsLock.RLock()
-	namespaceHandler := nh.events[event]
-	nh.eventsLock.RUnlock()
-
-	if namespaceHandler == nil {
-		return nil, nil
-	}
-
-	return namespaceHandler.Call(append([]reflect.Value{reflect.ValueOf(conn)}, args...))
 }
 
 func getDispatchMessage(args ...reflect.Value) string {
