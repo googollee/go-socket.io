@@ -16,19 +16,32 @@ func TestNewEventFunc(t *testing.T) {
 		argTypes []interface{}
 	}{
 		{1, false, []interface{}{}},
-		{func() {}, false, []interface{}{}},
-		{func(int) {}, false, []interface{}{}},
-		{func() error { return nil }, false, []interface{}{}},
 
-		{func(Conn) {}, true, []interface{}{}},
+		// wrong order
+		{func(int, EventRequest) error { return nil }, false, []interface{}{}},
+		{func(int, Conn) error { return nil }, false, []interface{}{}},
+		{func(EventRequest, Conn) error { return nil }, false, []interface{}{}},
+
+		// with return
+		{func() error { return nil }, true, []interface{}{}},
+		{func(Conn) error { return nil }, true, []interface{}{}},
+		{func(Conn, EventRequest) error { return nil }, true, []interface{}{}},
+
+		// with args
+		{func(int) {}, true, []interface{}{1}},
 		{func(Conn, int) {}, true, []interface{}{1}},
-		{func(Conn, int) error { return nil }, true, []interface{}{1}},
+		{func(Conn, EventRequest, int) {}, true, []interface{}{1}},
+
+		//without args
+		{func() {}, true, []interface{}{}},
+		{func(Conn) {}, true, []interface{}{}},
+		{func(Conn, EventRequest) {}, true, []interface{}{}},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("%#v", test.argTypes), func(t *testing.T) {
-			should := assert.New(t)
-			must := require.New(t)
+		t.Run(fmt.Sprintf("%#v", test.argTypes), func(t1 *testing.T) {
+			should := assert.New(t1)
+			must := require.New(t1)
 
 			defer func() {
 				r := recover()

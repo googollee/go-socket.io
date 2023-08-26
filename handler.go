@@ -64,18 +64,20 @@ func (h *funcHandler) CallEvent(c Conn, event string, args []reflect.Value) (ret
 	return
 }
 
+const FN_TYPE_ERROR string = "\nHandler Function must be in form, func(...), func(socketio.Conn, ...) or func(socketio.Conn, EventRequest ...)"
+
 func newEventFunc(f interface{}) *funcHandler {
 	fv := reflect.ValueOf(f)
-
-	if fv.Kind() != reflect.Func {
-		panic("event handler must be a func.")
-	}
-	ft := fv.Type()
 
 	// Function type can be
 	// func(...)
 	// func(socketio.Conn, ...)
 	// func(socketio.Conn, EventRequest ...)
+
+	if fv.Kind() != reflect.Func {
+		panic("event handler must be a func." + FN_TYPE_ERROR)
+	}
+	ft := fv.Type()
 
 	hasConn := false
 	hasEventRequest := false
@@ -85,11 +87,26 @@ func newEventFunc(f interface{}) *funcHandler {
 		hasConn = false
 		hasEventRequest = false
 	case 1:
+		if implementsEventRequest(ft.In(0)) {
+			panic("Cannot have EventRequest as first argument" + FN_TYPE_ERROR)
+		}
+
 		hasConn = implementsConn(ft.In(0))
 		hasEventRequest = false
 	default:
+		if implementsEventRequest(ft.In(0)) {
+			panic("Cannot have EventRequest as first argument" + FN_TYPE_ERROR)
+		}
+		if implementsConn(ft.In(1)) {
+			panic("Cannot have Conn as second argument" + FN_TYPE_ERROR)
+		}
+
 		hasConn = implementsConn(ft.In(0))
 		hasEventRequest = implementsEventRequest(ft.In(1))
+	}
+
+	if hasEventRequest && !hasConn {
+		panic("Must have Conn if has EventRequest" + FN_TYPE_ERROR)
 	}
 
 	// Finding the number of remaining arguments

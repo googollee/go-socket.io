@@ -55,15 +55,9 @@ func TestNamespaceHandler(t *testing.T) {
 
 	should.Equal(onError.Error(), "failed")
 
-	header.Type = parser.Event
-	args := h.getEventTypes("not_exist")
+	eh := h.GetEventHandler("not_exist")
 
-	should.Nil(args)
-
-	ret, err := h.dispatchEvent(&namespaceConn{}, "not_exist")
-	must.NoError(err)
-
-	should.Nil(ret)
+	should.Nil(eh)
 }
 
 func TestNamespaceHandlerEvent(t *testing.T) {
@@ -116,10 +110,12 @@ func TestNamespaceHandlerEvent(t *testing.T) {
 				args[i] = reflect.ValueOf(test.args[i])
 			}
 
-			types := h.getEventTypes(test.event)
+			eh := h.GetEventHandler(test.event)
+
+			types := eh.argTypes
 			should.Equal(target, types)
 
-			ret, err := h.dispatchEvent(&namespaceConn{}, test.event, args...)
+			ret, err := eh.CallEvent(&namespaceConn{}, test.event, args)
 			must.NoError(err)
 
 			res := make([]interface{}, len(ret))
