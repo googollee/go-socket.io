@@ -49,7 +49,7 @@ func (nh *namespaceHandler) OnError(f func(Conn, error)) {
 	nh.onError = f
 }
 
-func (nh *namespaceHandler) OnEvent(event string, f interface{}) {
+func (nh *namespaceHandler) OnEvent(event string, f interface{}) *funcHandler {
 	nh.eventsLock.Lock()
 	defer nh.eventsLock.Unlock()
 	ef := newEventFunc(f)
@@ -58,6 +58,8 @@ func (nh *namespaceHandler) OnEvent(event string, f interface{}) {
 	if strings.HasSuffix(event, "*") {
 		nh.wildcardEvents.Insert(strings.TrimSuffix(event, "*"), ef)
 	}
+
+	return ef
 }
 
 func (nh *namespaceHandler) GetEventHandler(event string) *funcHandler {

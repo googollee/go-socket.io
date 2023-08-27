@@ -60,6 +60,21 @@ func TestNamespaceHandler(t *testing.T) {
 	should.Nil(eh)
 }
 
+func TestGetEventHandler(t *testing.T) {
+	should := assert.New(t)
+
+	h := newNamespaceHandler("ns_name", nil)
+	eventHandler := h.OnEvent("name", func() {})
+	wildCardEventHandler := h.OnEvent("name*", func() {})
+
+	should.Nil(h.GetEventHandler("n"))
+	should.Nil(h.GetEventHandler("nam"))
+
+	should.Equal(eventHandler, h.GetEventHandler("name"))
+	should.Equal(wildCardEventHandler, h.GetEventHandler("name*"))
+	should.Equal(wildCardEventHandler, h.GetEventHandler("namestar"))
+}
+
 func TestNamespaceHandlerEvent(t *testing.T) {
 	tests := []struct {
 		name string
