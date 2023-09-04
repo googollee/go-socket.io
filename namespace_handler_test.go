@@ -55,15 +55,24 @@ func TestNamespaceHandler(t *testing.T) {
 
 	should.Equal(onError.Error(), "failed")
 
-	header.Type = parser.Event
-	args := h.getEventTypes("not_exist")
+	eh := h.GetEventHandler("not_exist")
 
-	should.Nil(args)
+	should.Nil(eh)
+}
 
-	ret, err := h.dispatchEvent(&namespaceConn{}, "not_exist")
-	must.NoError(err)
+func TestGetEventHandler(t *testing.T) {
+	should := assert.New(t)
 
-	should.Nil(ret)
+	h := newNamespaceHandler("ns_name", nil)
+	eventHandler := h.OnEvent("name", func() {})
+	wildCardEventHandler := h.OnEvent("name*", func() {})
+
+	should.Nil(h.GetEventHandler("n"))
+	should.Nil(h.GetEventHandler("nam"))
+
+	should.Equal(eventHandler, h.GetEventHandler("name"))
+	should.Equal(wildCardEventHandler, h.GetEventHandler("name*"))
+	should.Equal(wildCardEventHandler, h.GetEventHandler("namestar"))
 }
 
 func TestNamespaceHandlerEvent(t *testing.T) {
@@ -116,10 +125,12 @@ func TestNamespaceHandlerEvent(t *testing.T) {
 				args[i] = reflect.ValueOf(test.args[i])
 			}
 
-			types := h.getEventTypes(test.event)
+			eh := h.GetEventHandler(test.event)
+
+			types := eh.argTypes
 			should.Equal(target, types)
 
-			ret, err := h.dispatchEvent(&namespaceConn{}, test.event, args...)
+			ret, err := eh.CallEvent(&namespaceConn{}, test.event, args)
 			must.NoError(err)
 
 			res := make([]interface{}, len(ret))
