@@ -1,9 +1,0 @@
-language: go
-go:
-  - master
-  - tip
-env:
-  - GO111MODULE=on
-script:
-  - make test
-  - ./gosweep.sh

@@ -3,15 +3,15 @@ package parser
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"io"
 	"reflect"
 
-	engineio "github.com/googollee/go-engine.io"
+	"github.com/googollee/go-socket.io/engineio/session"
+	"github.com/googollee/go-socket.io/logger"
 )
 
 type FrameWriter interface {
-	NextWriter(ft engineio.FrameType) (io.WriteCloser, error)
+	NextWriter(ft session.FrameType) (io.WriteCloser, error)
 }
 
 type Encoder struct {
@@ -24,30 +24,39 @@ func NewEncoder(w FrameWriter) *Encoder {
 	}
 }
 
-func (e *Encoder) Encode(h Header, args []interface{}) (err error) {
+func (e *Encoder) Encode(h Header, args ...interface{}) (err error) {
 	var w io.WriteCloser
-	w, err = e.w.NextWriter(engineio.TEXT)
+	w, err = e.w.NextWriter(session.TEXT)
 	if err != nil {
+		logger.Error("next writer session text:", err)
+
 		return
 	}
 
 	var buffers [][]byte
 	buffers, err = e.writePacket(w, h, args)
-
 	if err != nil {
+		logger.Error("write packet header with args:", err)
+
 		return
 	}
 
 	for _, b := range buffers {
-		w, err = e.w.NextWriter(engineio.BINARY)
+		w, err = e.w.NextWriter(session.BINARY)
 		if err != nil {
+			logger.Error("next writer session binary:", err)
+
 			return
 		}
+
 		err = e.writeBuffer(w, b)
 		if err != nil {
+			logger.Error("write packet buffer:", err)
+
 			return
 		}
 	}
+
 	return
 }
 
@@ -61,7 +70,12 @@ type flusher interface {
 }
 
 func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([][]byte, error) {
-	defer w.Close()
+	defer func() {
+		if err := w.Close(); err != nil {
+			logger.Error("close writer:", err)
+		}
+	}()
+
 	bw, ok := w.(byteWriter)
 	if !ok {
 		bw = bufio.NewWriter(w)
@@ -72,6 +86,7 @@ func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([
 	if err != nil {
 		return nil, err
 	}
+
 	if len(buffers) > 0 && (h.Type == Event || h.Type == Ack) {
 		h.Type += 3
 	}
@@ -106,16 +121,18 @@ func (e *Encoder) writePacket(w io.WriteCloser, h Header, args []interface{}) ([
 		}
 	}
 
-	if args != nil {
-		if err := json.NewEncoder(bw).Encode(args); err != nil {
+	if len(args) > 0 {
+		if err := json.NewEncoder(bw).Encode(args[0]); err != nil {
 			return nil, err
 		}
 	}
+
 	if f, ok := bw.(flusher); ok {
 		if err := f.Flush(); err != nil {
 			return nil, err
 		}
 	}
+
 	return buffers, nil
 }
 
@@ -139,12 +156,13 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
 		v = v.Elem()
 	}
+
 	var ret [][]byte
 	switch v.Kind() {
 	case reflect.Struct:
-		if v.Type().Name() == "Buffer" {
+		if v.Type().Name() == bufferTypeName {
 			if !v.CanAddr() {
-				return nil, errors.New("can't get Buffer address")
+				return nil, errFailedBufferAddress
 			}
 			buffer := v.Addr().Interface().(*Buffer)
 			buffer.num = *index
@@ -160,30 +178,38 @@ func (e *Encoder) attachBuffer(v reflect.Value, index *uint64) ([][]byte, error)
 				ret = append(ret, b...)
 			}
 		}
-	case reflect.Array:
-		fallthrough
-	case reflect.Slice:
+
+	case reflect.Array, reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
 			b, err := e.attachBuffer(v.Index(i), index)
 			if err != nil {
 				return nil, err
 			}
+
 			ret = append(ret, b...)
 		}
+
 	case reflect.Map:
 		for _, key := range v.MapKeys() {
 			b, err := e.attachBuffer(v.MapIndex(key), index)
 			if err != nil {
 				return nil, err
 			}
+
 			ret = append(ret, b...)
 		}
 	}
+
 	return ret, nil
 }
 
 func (e *Encoder) writeBuffer(w io.WriteCloser, buffer []byte) error {
-	defer w.Close()
+	defer func() {
+		if closeErr := w.Close(); closeErr != nil {
+			logger.Error("close writer:", closeErr)
+		}
+	}()
+
 	_, err := w.Write(buffer)
 	return err
 }

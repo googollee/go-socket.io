@@ -1,2 +1,12 @@
+/bin
+/vendor
+/vendor.pb
+.DS_STORE
+/.idea
+/.vscode
+*.o
+*.out
 profile.cov
-.idea/
+*.prof
+*.svg
+*/node_modules

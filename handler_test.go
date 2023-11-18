@@ -29,6 +29,7 @@ func TestNewEventFunc(t *testing.T) {
 		t.Run(fmt.Sprintf("%#v", test.argTypes), func(t *testing.T) {
 			should := assert.New(t)
 			must := require.New(t)
+
 			defer func() {
 				r := recover()
 				must.Equal(test.ok, r == nil)
@@ -60,6 +61,7 @@ func TestNewAckFunc(t *testing.T) {
 		t.Run(fmt.Sprintf("%#v", test.argTypes), func(t *testing.T) {
 			should := assert.New(t)
 			must := require.New(t)
+
 			defer func() {
 				r := recover()
 				must.Equal(test.ok, r == nil)
@@ -67,6 +69,7 @@ func TestNewAckFunc(t *testing.T) {
 
 			h := newAckFunc(test.f)
 			must.Equal(len(test.argTypes), len(h.argTypes))
+
 			for i := range h.argTypes {
 				should.Equal(reflect.TypeOf(test.argTypes[i]), h.argTypes[i])
 			}
@@ -95,19 +98,24 @@ func TestHandlerCall(t *testing.T) {
 			must := require.New(t)
 
 			h := newAckFunc(test.f)
+
 			args := make([]reflect.Value, len(test.args))
 			for i := range args {
 				args[i] = reflect.ValueOf(test.args[i])
 			}
+
 			retV, err := h.Call(args)
 			must.Equal(test.ok, err == nil)
+
 			if len(retV) == len(test.rets) && len(test.rets) == 0 {
 				return
 			}
+
 			rets := make([]interface{}, len(retV))
 			for i := range rets {
 				rets[i] = retV[i].Interface()
 			}
+
 			should.Equal(test.rets, rets)
 		})
 	}
