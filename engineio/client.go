@@ -60,6 +60,22 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 		}
 
 		switch pt {
+		case packet.PING:
+			logger.Info("Fired when a ping packet is received from the server.")
+			w, err := c.conn.NextWriter(frame.String, packet.PONG)
+			if err != nil {
+				logger.Error("get next writer with string frame and packet pong:", err)
+				return 0, nil, err
+			}
+
+			if err = w.Close(); err != nil {
+				logger.Error("close writer:", err)
+				return 0, nil, err
+			}
+
+			if err = c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout)); err != nil {
+				return 0, nil, err
+			}
 		case packet.PONG:
 			if err = c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout)); err != nil {
 				return 0, nil, err
@@ -102,6 +118,7 @@ func (c *client) RemoteHeader() http.Header {
 	return c.conn.RemoteHeader()
 }
 
+// Deprecated: Client doesn't ACK a ping packet to the server.
 func (c *client) serve() {
 	defer func() {
 		if closeErr := c.conn.Close(); closeErr != nil {
