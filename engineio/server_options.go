@@ -1,9 +1,10 @@
 package engineio
 
 import (
-	"github.com/googollee/go-socket.io/engineio/session"
 	"net/http"
 	"time"
+
+	"github.com/googollee/go-socket.io/engineio/session"
 
 	"github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/polling"
@@ -14,6 +15,7 @@ import (
 type Options struct {
 	PingTimeout  time.Duration
 	PingInterval time.Duration
+	AllowEIO3    bool
 
 	Transports         []transport.Transport
 	SessionIDGenerator session.IDGenerator

@@ -77,6 +77,7 @@ func (c *client) NextReader() (session.FrameType, io.ReadCloser, error) {
 				return 0, nil, err
 			}
 		case packet.PONG:
+			logger.Info("Fired when a pong packet is received from the server.")
 			if err = c.conn.SetReadDeadline(time.Now().Add(c.params.PingInterval + c.params.PingTimeout)); err != nil {
 				return 0, nil, err
 			}
@@ -133,6 +134,7 @@ func (c *client) serve() {
 		case <-time.After(c.params.PingInterval):
 		}
 
+		logger.Info("write a pong packet to the server.")
 		w, err := c.conn.NextWriter(frame.String, packet.PING)
 		if err != nil {
 			logger.Error("get next writer with string frame and packet ping:", err)

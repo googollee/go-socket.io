@@ -69,11 +69,11 @@ func (c *Client) Connect() error {
 		Transports: []transport.Transport{polling.Default, websocket.Default},
 	}
 	// Use opts Transports when NewClient
-	if len(c.opts.Transports) > 0 {
+	if c.opts != nil && len(c.opts.Transports) > 0 {
 		dialer.Transports = c.opts.Transports
 	}
 
-	enginioCon, err := dialer.Dial(c.url, nil)
+	enginioCon, err := dialer.Dial(c.url, nil, c.opts.AllowEIO3)
 	if err != nil {
 		return err
 	}
