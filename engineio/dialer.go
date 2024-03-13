@@ -17,7 +17,7 @@ type Dialer struct {
 }
 
 // Dial returns a connection which dials to url with requestHeader.
-func (d *Dialer) Dial(urlStr string, requestHeader http.Header, allowEIO3 bool) (Conn, error) {
+func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		logger.Error("parse url str:", err)
@@ -27,9 +27,6 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header, allowEIO3 bool) 
 
 	query := u.Query()
 	query.Set("EIO", "4")
-	if allowEIO3 {
-		query.Set("EIO", "3")
-	}
 	u.RawQuery = query.Encode()
 
 	var conn transport.Conn
@@ -99,7 +96,8 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header, allowEIO3 bool) 
 			close:     make(chan struct{}),
 		}
 
-		// Deprecated: Client doesn't ACK a ping packet to the server.
+		// Deprecated: v3, v4 Client doesn't ACK a ping packet to the server. server will auto ping to client.
+		// When a ping packet is received from the server, we should fire the ping packet.
 		//go ret.serve()
 
 		return ret, nil

@@ -15,7 +15,6 @@ import (
 type Options struct {
 	PingTimeout  time.Duration
 	PingInterval time.Duration
-	AllowEIO3    bool
 
 	Transports         []transport.Transport
 	SessionIDGenerator session.IDGenerator

@@ -73,7 +73,7 @@ func (c *Client) Connect() error {
 		dialer.Transports = c.opts.Transports
 	}
 
-	enginioCon, err := dialer.Dial(c.url, nil, c.opts.AllowEIO3)
+	enginioCon, err := dialer.Dial(c.url, nil)
 	if err != nil {
 		return err
 	}

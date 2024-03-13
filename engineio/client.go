@@ -134,7 +134,7 @@ func (c *client) serve() {
 		case <-time.After(c.params.PingInterval):
 		}
 
-		logger.Info("write a pong packet to the server.")
+		logger.Info("write a ping packet to the server.")
 		w, err := c.conn.NextWriter(frame.String, packet.PING)
 		if err != nil {
 			logger.Error("get next writer with string frame and packet ping:", err)
