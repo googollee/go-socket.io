@@ -96,7 +96,8 @@ func (d *Dialer) Dial(urlStr string, requestHeader http.Header) (Conn, error) {
 			close:     make(chan struct{}),
 		}
 
-		go ret.serve()
+		// Deprecated: Client doesn't ACK a ping packet to the server.
+		//go ret.serve()
 
 		return ret, nil
 	}
