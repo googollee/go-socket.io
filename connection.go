@@ -61,11 +61,10 @@ func (c *conn) Close() error {
 	c.closeOnce.Do(func() {
 		// for each namespace, leave all rooms, and call the disconnect handler.
 		c.namespaces.Range(func(ns string, nc *namespaceConn) {
-			nc.LeaveAll()
-
 			if nh, _ := c.handlers.Get(ns); nh != nil && nh.onDisconnect != nil {
 				nh.onDisconnect(nc, clientDisconnectMsg)
 			}
+			nc.LeaveAll()
 		})
 		err = c.Conn.Close()
 
