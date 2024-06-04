@@ -40,7 +40,7 @@ func ackPacketHandler(c *conn, header parser.Header) error {
 	}
 
 	// Return value is ignored
-	_, err = handler.Call(args)
+	_, err = handler.CallAck(args)
 	if err != nil {
 		logger.Info("Error for event type", "namespace", header.Namespace)
 		c.onError(header.Namespace, err)
@@ -64,14 +64,21 @@ func eventPacketHandler(c *conn, event string, header parser.Header) error {
 		return nil
 	}
 
-	args, err := c.decoder.DecodeArgs(handler.getEventTypes(event))
+	eventHandler := handler.GetEventHandler(event)
+	if eventHandler == nil {
+		logger.Info("missing handler for namespace/event", "namespace", header.Namespace, "event", event)
+		_ = c.decoder.DiscardLast()
+		return nil
+	}
+
+	args, err := c.decoder.DecodeArgs(eventHandler.argTypes)
 	if err != nil {
 		c.onError(header.Namespace, err)
-		logger.Info("Error decoding the message type", "namespace", header.Namespace, "event", event, "eventType", handler.getEventTypes(event), "err", err.Error())
+		logger.Info("Error decoding the message type", "namespace", header.Namespace, "event", event, "argTypes", eventHandler.argTypes, "err", err.Error())
 		return errDecodeArgs
 	}
 
-	ret, err := handler.dispatchEvent(conn, event, args...)
+	ret, err := eventHandler.CallEvent(conn, event, args)
 	if err != nil {
 		c.onError(header.Namespace, err)
 		logger.Info("Error for event type", "namespace", header.Namespace, "event", event)
